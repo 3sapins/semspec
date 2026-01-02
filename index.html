@@ -1,0 +1,2127 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ateliers - Semaine Spéciale Trois-Sapins 2026</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            padding: 40px 20px;
+            background: white;
+            border-radius: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        h1 {
+            font-size: 2.5em;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            color: #666;
+            font-weight: 300;
+        }
+
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+            padding: 12px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.2);
+        }
+
+        .filter-btn {
+            padding: 12px 25px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .filter-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .category-section {
+            margin-bottom: 40px;
+        }
+
+        .category-title {
+            font-size: 1.8em;
+            color: white;
+            margin-bottom: 20px;
+            padding: 15px 25px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            display: inline-block;
+        }
+
+        .ateliers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .atelier-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .atelier-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+
+        .atelier-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .atelier-header {
+            margin-bottom: 15px;
+        }
+
+        .atelier-title {
+            font-size: 1.3em;
+            color: #333;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .atelier-description {
+            color: #666;
+            margin: 15px 0;
+            line-height: 1.6;
+            font-size: 0.95em;
+        }
+
+        .atelier-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .info-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 12px;
+            background: #f8f9fa;
+            border-radius: 20px;
+            font-size: 0.85em;
+            color: #555;
+        }
+
+        .info-badge strong {
+            color: #667eea;
+        }
+
+        .atelier-horaires {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+
+        .atelier-infos-eleves {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            padding: 10px 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            background: white;
+            border-radius: 15px;
+            color: #999;
+            font-size: 1.2em;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .ateliers-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filters {
+                flex-direction: column;
+            }
+
+            .search-box {
+                min-width: 100%;
+            }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .emoji {
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎨 Semaine Spéciale Trois-Sapins 2026</h1>
+            <p class="subtitle">Découvrez tous les ateliers proposés</p>
+        </header>
+
+        <div class="stats" id="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="total-ateliers">0</div>
+                <div class="stat-label">Ateliers disponibles</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="visible-ateliers">0</div>
+                <div class="stat-label">Ateliers affichés</div>
+            </div>
+        </div>
+
+        <div class="filters">
+            <input type="text" class="search-box" id="search" placeholder="🔍 Rechercher un atelier...">
+            <button class="filter-btn active" data-category="tous">Tous</button>
+            <button class="filter-btn" data-category="Sport et activités physiques">⚽ Sport</button>
+            <button class="filter-btn" data-category="Sciences et technologies">🔬 Sciences</button>
+            <button class="filter-btn" data-category="Jeux et divertissements">🎮 Jeux</button>
+            <button class="filter-btn" data-category="Cuisine et gastronomie">🍳 Cuisine</button>
+            <button class="filter-btn" data-category="Artisanat et création">🎨 Artisanat</button>
+            <button class="filter-btn" data-category="Arts et culture">🎭 Arts</button>
+            <button class="filter-btn" data-category="Découvertes et visites">🗺️ Visites</button>
+            <button class="filter-btn" data-category="Langues et cultures du monde">🌍 Langues</button>
+            <button class="filter-btn" data-category="Bien-être et santé">🧘 Bien-être</button>
+            <button class="filter-btn" data-category="Musique et danse">🎵 Musique</button>
+            <button class="filter-btn" data-category="Théâtre, littérature et cinéma">📚 Théâtre</button>
+            <button class="filter-btn" data-category="Informatique et technologies">💻 Informatique</button>
+            <button class="filter-btn" data-category="Histoire et géographie">🏛️ Histoire</button>
+            <button class="filter-btn" data-category="Vie pratique et orientation">🎯 Orientation</button>
+        </div>
+
+        <div id="ateliers-container"></div>
+        <div id="no-results" class="no-results hidden">
+            Aucun atelier ne correspond à votre recherche.
+        </div>
+    </div>
+
+    <script>
+        // Fonction de catégorisation
+        function categorizeAtelier(atelier) {
+            const nom = atelier.nom.toLowerCase();
+            const desc = atelier.description ? atelier.description.toLowerCase() : '';
+            
+            // Cuisine et gastronomie
+            if (/cuisine|menu|muffin|dessert|crêpe|culinaire|gastronomie|cookies|portugais|italie|benin|préparation/.test(nom) || /cuisine|menu|muffin|dessert|crêpe|culinaire|gastronomie|cookies|portugais|italie|benin|préparation/.test(desc)) {
+                return 'Cuisine et gastronomie';
+            }
+            
+            // Sport et activités physiques
+            if (/sport|basket|unihockey|escalade|natation|piscine|waterpolo|futsalle|yoga|pilates|fitness|circuit|training|aqua|athlétisme|football|skateboard|parkour|kin-ball|kin ball|nage|bain|eau froide/.test(nom) || /sport|basket|unihockey|escalade|natation|piscine|waterpolo|futsalle|yoga|pilates|fitness|circuit|training|aqua|athlétisme|football|skateboard|parkour|kin-ball|kin ball|nage|bain|eau froide/.test(desc)) {
+                return 'Sport et activités physiques';
+            }
+            
+            // Sciences et technologies
+            if (/science|microscope|terrarium|expérience|bioindication|rivière|abeilles|roches|géolog|fourmi|naturaliste|observation/.test(nom) || /science|microscope|terrarium|expérience|bioindication|rivière|abeilles|roches|géolog|fourmi|naturaliste|observation/.test(desc)) {
+                return 'Sciences et technologies';
+            }
+            
+            // Artisanat et création
+            if (/crochet|badge|origami|bijoux|boîtes japonaises|tissu|carton|fabrication|flocage|t-shirt|silhouette cameo|sticker|mandala|bullet journal/.test(nom) || /crochet|badge|origami|bijoux|boîtes japonaises|tissu|carton|fabrication|flocage|t-shirt|silhouette cameo|sticker|mandala|bullet journal/.test(desc)) {
+                return 'Artisanat et création';
+            }
+            
+            // Arts et culture
+            if (/pop art|peinture|vibeat|dessin|bd|photo|musée|mcba|plateforme 10|jaspage|livre|suminagashi/.test(nom) || /pop art|peinture|vibeat|dessin|bd|photo|musée|mcba|plateforme 10|jaspage|livre|suminagashi/.test(desc)) {
+                return 'Arts et culture';
+            }
+            
+            // Bien-être et santé
+            if (/hypnose|sommeil|rêve|yoga|pilates|bien-être|relaxation|santé|premiers secours|médecin|chamanisme/.test(nom) || /hypnose|sommeil|rêve|yoga|pilates|bien-être|relaxation|santé|premiers secours|médecin|chamanisme/.test(desc)) {
+                return 'Bien-être et santé';
+            }
+            
+            // Théâtre, littérature et cinéma
+            if (/théâtre|improvisation|doublage|film|cinéma|écriture|chanson|visite de la vieille dame|livre dont vous êtes/.test(nom) || /théâtre|improvisation|doublage|film|cinéma|écriture|chanson|visite de la vieille dame|livre dont vous êtes/.test(desc)) {
+                return 'Théâtre, littérature et cinéma';
+            }
+            
+            // Jeux et divertissements
+            if (/escape game|échecs|scrabble|jeux|énigmes|unlock|quiz|jeux de société|rubik|cryptographie|team building/.test(nom) || /escape game|échecs|scrabble|jeux|énigmes|unlock|quiz|jeux de société|rubik|cryptographie|team building/.test(desc)) {
+                return 'Jeux et divertissements';
+            }
+            
+            // Musique et danse
+            if (/musique|mao|ordinateur|sound design|studio|enregistrement|danse|contemporaine|metal|concert/.test(nom) || /musique|mao|ordinateur|sound design|studio|enregistrement|danse|contemporaine|metal|concert/.test(desc)) {
+                return 'Musique et danse';
+            }
+            
+            // Langues et cultures du monde
+            if (/japonais|ghibli|japon|coréen|hangul|k-pop|k-culture|arabe|bulgare|diola|casamance|benin|egoun|wax|papous|indonésie|toraja|italien/.test(nom) || /japonais|ghibli|japon|coréen|hangul|k-pop|k-culture|arabe|bulgare|diola|casamance|benin|egoun|wax|papous|indonésie|toraja|italien/.test(desc)) {
+                return 'Langues et cultures du monde';
+            }
+            
+            // Découvertes et visites
+            if (/visite|découverte|musée|eca|parlement|politique|fromagerie|landi|ferme|olympique|tuillière|lausanne|berne|world city trail|geocaching|talent|brigand|jorat|pompéi/.test(nom) || /visite|découverte|musée|eca|parlement|politique|fromagerie|landi|ferme|olympique|tuillière|lausanne|berne|world city trail|geocaching|talent|brigand|jorat|pompéi/.test(desc)) {
+                return 'Découvertes et visites';
+            }
+            
+            // Informatique et technologies
+            if (/site internet|html|tiktok|réalité virtuelle|jeu vidéo|stop motion|ordinateur/.test(nom) || /site internet|html|tiktok|réalité virtuelle|jeu vidéo|stop motion|ordinateur/.test(desc)) {
+                return 'Informatique et technologies';
+            }
+            
+            // Histoire et géographie
+            if (/histoire|pompéi|hiéroglyphes|égyptien|nombres|kepler/.test(nom) || /histoire|pompéi|hiéroglyphes|égyptien|nombres|kepler/.test(desc)) {
+                return 'Histoire et géographie';
+            }
+            
+            // Vie pratique et orientation
+            if (/prendre des notes|éducateur|métier|école professionnelle|orientation|paillettes dans ta vie/.test(nom) || /prendre des notes|éducateur|métier|école professionnelle|orientation|paillettes dans ta vie/.test(desc)) {
+                return 'Vie pratique et orientation';
+            }
+            
+            return 'Découvertes et visites';
+        }
+
+        // Fonction pour formater la durée
+        function formatDuree(duree) {
+            if (!duree) return 'Non spécifié';
+            return duree === 2 ? '2 périodes (1 demi-journée)' : 
+                   duree === 4 ? '4 périodes (1 journée)' : 
+                   duree === 6 ? '6 périodes (1.5 journée)' :
+                   `${duree} périodes`;
+        }
+
+        // Fonction pour créer une carte d'atelier
+        function createAtelierCard(atelier) {
+            const card = document.createElement('div');
+            card.className = 'atelier-card';
+            card.dataset.category = categorizeAtelier(atelier);
+            card.dataset.name = atelier.nom.toLowerCase();
+            
+            let html = `
+                <div class="atelier-header">
+                    <h3 class="atelier-title">${atelier.nom}</h3>
+                </div>
+            `;
+
+            if (atelier.description && atelier.description !== 'None') {
+                html += `<div class="atelier-description">${atelier.description}</div>`;
+            }
+
+            html += `
+                <div class="atelier-info">
+                    <span class="info-badge"><strong>⏱️ Durée:</strong> ${formatDuree(atelier.duree)}</span>
+                    <span class="info-badge"><strong>👥 Max:</strong> ${atelier.effectif_max || 'Non spécifié'} participants</span>
+                </div>
+            `;
+
+            if (atelier.horaires && atelier.horaires.trim()) {
+                html += `
+                    <div class="atelier-horaires">
+                        <strong>📅 Horaires:</strong><br>
+                        ${atelier.horaires.trim()}
+                    </div>
+                `;
+            }
+
+            if (atelier.infos && atelier.infos !== 0 && atelier.infos !== '0') {
+                html += `
+                    <div class="atelier-infos-eleves">
+                        <strong>ℹ️ Informations aux élèves:</strong><br>
+                        ${atelier.infos}
+                    </div>
+                `;
+            }
+
+            card.innerHTML = html;
+            return card;
+        }
+
+        // Données des ateliers (sera injecté par Python)
+        const ateliersData = [
+  {
+    "code": "BER1",
+    "nom": "Menu à travers le monde",
+    "description": "Nous allons parcourir le monde à travers des saveurs internationales en 3 préparations pour constituer un menu riche en découvertes gustatives.",
+    "duree": 4,
+    "effectif_max": 14,
+    "infos": "Un tablier Des Tupperware Pas de short ni de chaussures ouvertes",
+    "horaires": "  ",
+    "theme": null,
+    "nom_prof": "BERSIER",
+    "prenom_prof": "Sabrina"
+  },
+  {
+    "code": "BER2",
+    "nom": "Menu à l’envers",
+    "description": "Pourquoi ne pas bouleverser nos habitudes culinaires et déguster un repas en sens contraire … Élaboration d un menu en 3 plats en passant du sucé au salé.",
+    "duree": 4,
+    "effectif_max": 14,
+    "infos": "tablier Tupperware Pas de shorts ni de chaussures ouvertes",
+    "horaires": "Mardi P1-P4   ",
+    "theme": null,
+    "nom_prof": "BERSIER",
+    "prenom_prof": "Sabrina"
+  },
+  {
+    "code": "BER3",
+    "nom": "Muffins party",
+    "description": "Redécouvrez le monde du muffin … élaboration sucrée et salée, venez oser les variantes d une même recette",
+    "duree": 2,
+    "effectif_max": 14,
+    "infos": "Un tablier Tupperware Pas de shorts ni de chaussures ouvertes",
+    "horaires": "Lundi P6-P7 Mardi P6-P7   ",
+    "theme": null,
+    "nom_prof": "BERSIER",
+    "prenom_prof": "Sabrina"
+  },
+  {
+    "code": "BRU1",
+    "nom": "Sommeil et hypnose",
+    "description": "L'hypnose est un état naturel de conscience modifiée que nous connaissons tous (être dans la lune, par exemple). Je te propose de te permettre de pratiquer l'hypnose et d'apprendre l'auto-hypnose pour profiter de cet état qui permet de réduire le stress ou la douleur, ou qui permet d'être plus efficace. (Attention, je ne fais pas de spectacle mais t'apprends à utiliser un outil !) Mais comment l’hypnose fonctionne-t-elle ? Et quel est le lien entre sommeil et hypnose ? Je te propose de venir le découvrir dans mon atelier. Il y aura tout d'abord une présentation théorique sur ce qu'est le sommeil, ce qu'est l'hypnose, quel est leur lien et à quoi ils servent. Cette période sera suivie d'une période de pratique de l'hypnose. Attention ! la 2e période de Rêve et Hypnose, et Sommeil et hypnose, sont identiques",
+    "duree": 2,
+    "effectif_max": 30,
+    "infos": 0,
+    "horaires": "Lundi P6-P7 Mardi P3-P4   ",
+    "theme": null,
+    "nom_prof": "BRUNET",
+    "prenom_prof": "Anne-Claude"
+  },
+  {
+    "code": "BRU2",
+    "nom": "Rêve et hypnose",
+    "description": "Nous rêvons toutes les nuits, même si nous ne nous souvenons pas toujours de nos rêves. A quoi servent-ils ? Et quel lien ont-ils avec l'hypnose ? Je te propose de venir le découvrir dans mon atelier. Il y aura tout d'abord une présentation théorique sur ce qu'est le rêve, ce qu'est l'hypnose, quel est leur lien et à quoi ils servent. Cette période sera suivie d'une période de pratique de l'hypnose. L'hypnose est un état naturel de conscience modifiée que nous connaissons tous (être dans la lune, par exemple). Je te propose de te permettre de pratiquer l'hypnose et d'apprendre l'auto-hypnose pour profiter de cet état qui permet de réduire le stress ou la douleur, ou qui permet d'être plus efficace. (Attention, je ne fais pas de spectacle mais t'apprends à utiliser un outil!) Attention ! la 2e période de Rêve et Hypnose, et Sommeil et hypnose, sont identiques.",
+    "duree": 2,
+    "effectif_max": 30,
+    "infos": 0,
+    "horaires": "Mardi P1-P2 Mardi P6-P7   ",
+    "theme": null,
+    "nom_prof": "BRUNET",
+    "prenom_prof": "Anne-Claude"
+  },
+  {
+    "code": "ZBER1",
+    "nom": "Préparation pour le stand du Benin",
+    "description": "Diverses préparations requises pour animer le stand culinaire du bénin lors du samedi des 50ans du collège",
+    "duree": 6,
+    "effectif_max": 14,
+    "infos": "Un tablier Pas de shorts ni de chaussures ouvertes Vendredi matin et après-midi",
+    "horaires": "  Vendredi P1-P7 ",
+    "theme": null,
+    "nom_prof": "BERSIER",
+    "prenom_prof": "Sabrina"
+  },
+  {
+    "code": "BRU3",
+    "nom": "Pratique du chamanisme celtique",
+    "description": "Le chamanisme celtique est une pratique en lien avec la nature. Cela se fait au son du tambour qui permet d'entrer dans un état de conscience modifié (un peu comme la méditation, l'hypnose ou la rêverie). On est normalement assis par terre, en tailleur, parfois debout, et parfois couché. Je te propose un atelier pratique du chamanisme celtique (donc européen). Tu y apprendras ce qu'est le chamanisme celtique bien sûr, et à t'enraciner, à faire des voyages chamaniques. Et qui sait, peut- être découvriras-tu quel est ton animal totem !",
+    "duree": 2,
+    "effectif_max": 20,
+    "infos": "- Habits confortables - cahier et de quoi écrire pour rendre compte de ce que tu as vécu dans tes voyages - pull (il fait parfois frais dans l'aula).",
+    "horaires": "Lundi P3-P4   ",
+    "theme": null,
+    "nom_prof": "BRUNET",
+    "prenom_prof": "Anne-Claude"
+  },
+  {
+    "code": "SCI1",
+    "nom": "Escalade de blocs",
+    "description": "Viens découvrir l’escalade de blocs dans la salle du Cube au Mont-sur-Lausanne.",
+    "duree": 4,
+    "effectif_max": 18,
+    "infos": 0,
+    "horaires": " Jeudi P1-P4  ",
+    "theme": null,
+    "nom_prof": "SCHLOSSER",
+    "prenom_prof": "Isaline"
+  },
+  {
+    "code": "SCI2",
+    "nom": "Visite de l’ECA",
+    "description": "Découvre, lors de la visite de l’ECA à Lausanne, la centrale d’urgences des pompiers, des ambulances et de la police ainsi que la prévention et la lutte contre les incendies. Tu y verras des démonstrations, des mises en situation et pourras effectuer des expérimentations.",
+    "duree": 4,
+    "effectif_max": 20,
+    "infos": 0,
+    "horaires": "Mardi P1-P4   ",
+    "theme": null,
+    "nom_prof": "SCHLOSSER",
+    "prenom_prof": "Isaline"
+  },
+  {
+    "code": "SCI3",
+    "nom": "Unihockey",
+    "description": "Entraînement et jeu avec phases donné par un joueur du LUC Floorball M21B, anciennement à Floorball Fribourg, suivant la filière sport-études au gymnase.",
+    "duree": 2,
+    "effectif_max": 16,
+    "infos": "Tenue de sport, chaussures pour salle de gym.",
+    "horaires": "Lundi P7-P8   ",
+    "theme": null,
+    "nom_prof": "SCHLOSSER",
+    "prenom_prof": "Isaline"
+  },
+  {
+    "code": "POT1",
+    "nom": "de l'observation au dessin scientifique",
+    "description": "Observation au microscope d’organismes et de structures animales ou végétales, suivie de la réalisation d’un dessin scientifique à la gouache, au pinceau. Cette activité permet d’allier approche scientifique et pratique artistique, en développant à la fois l’observation minutieuse et la représentation fidèle du vivant.",
+    "duree": 4,
+    "effectif_max": 14,
+    "infos": 0,
+    "horaires": " Jeudi P1-P4  Vendredi P1-P4 ",
+    "theme": null,
+    "nom_prof": "POTOLICCHIO",
+    "prenom_prof": "Ilaria"
+  },
+  {
+    "code": "POT2",
+    "nom": "réalisation d'un terrarium fermé",
+    "description": "Les élèves réaliseront un terrarium fermé abritant différentes plantes. Chaque terrarium restera à l’école, exposé dans la salle de classe des élèves, où ils pourront observer son évolution au fil du temps.",
+    "duree": 4,
+    "effectif_max": 16,
+    "infos": "Nous travaillerons avec de la terre : il est donc conseillé de prévoir des habits adaptés qui ne craignent pas les taches !",
+    "horaires": "Lundi P1-P4 Mardi P1-P4   ",
+    "theme": null,
+    "nom_prof": "POTOLICCHIO",
+    "prenom_prof": "Ilaria"
+  },
+  {
+    "code": "MOM1",
+    "nom": "Flocage des t-shirts pour le staff des 50 ans",
+    "description": "Durant cet atelier tu vas participer au flocage des t-shirts qui seront distribués au staff de la fête des 50 ans: il s'agira de découper les logos et écritures à la Caméo, puis de les \"nettoyer\" (écheniller) et les floquer sur les t-shirts à l'aide d'une presse chaude.",
+    "duree": 2,
+    "effectif_max": 22,
+    "infos": 0,
+    "horaires": " Jeudi P1-P2 Jeudi P3-P4 jeudi P6-P7 Vendredi P1-P2 Vendredi P3-P4 Vendredi P6-P7 ",
+    "theme": null,
+    "nom_prof": "MOTTAZ",
+    "prenom_prof": "Marie-Paule"
+  },
+  {
+    "code": "MOM2",
+    "nom": "Initiation au crochet",
+    "description": "Viens fabriquer un petit porte-clés en crochet pour apprendre ou exercer les points simples.",
+    "duree": 4,
+    "effectif_max": 10,
+    "infos": 0,
+    "horaires": "Lundi P1-P4   ",
+    "theme": null,
+    "nom_prof": "MOTTAZ",
+    "prenom_prof": "Marie-Paule"
+  },
+  {
+    "code": "MOM3",
+    "nom": "Fabrication de petites boîtes japonaises en tissu et carton",
+    "description": "Viens fabriquer des petites boîtes en tissu et carton. Cela te permettra d'exercer tes compétences en découpage, collage et un petit peu de couture à la machine et à la main.Il faut aimer fabriquer des petits objets assez minutieux ;)",
+    "duree": 4,
+    "effectif_max": 10,
+    "infos": 0,
+    "horaires": "Mardi P1-P4   ",
+    "theme": null,
+    "nom_prof": "MOTTAZ",
+    "prenom_prof": "Marie-Paule"
+  },
+  {
+    "code": "NYF1",
+    "nom": "Jaspage, peinture sur tranche de livre",
+    "description": "Viens avec plusieurs de tes livres pour décorer leurs tranches à l'aide de peinture, stylos, pochoirs pour les rendre uniques.",
+    "duree": 4,
+    "effectif_max": 15,
+    "infos": "A prendre: plusieurs livres personnels, si possible, des grands formats",
+    "horaires": "Mardi P1-P4   ",
+    "theme": null,
+    "nom_prof": "NYFFELER",
+    "prenom_prof": "Valérie"
+  },
+  {
+    "code": "RIN1",
+    "nom": "Découverte du japonais et des studios Ghibli",
+    "description": "Petite introduction à la langue japonaise, suivie d'une découverte des studios Ghibli, à travers 2 films de Hayao Myasaki, \"le voyage de Chihiro\" et \"Princesse Mononoké\".",
+    "duree": 6,
+    "effectif_max": 12,
+    "infos": "L'activité aura lieu de la P1 à la P7 mardi 12 mai 2026. Prendre un pique-nique et une boisson.",
+    "horaires": "Lundi P1-P7 Mardi P1-P7   ",
+    "theme": null,
+    "nom_prof": "RINSOZ",
+    "prenom_prof": "Sandrine"
+  },
+  {
+    "code": "BOV1",
+    "nom": "Découverte de la vie politique vaudoise",
+    "description": "Tu partiras à la découverte de la vie politique cantonale vaudoise. Nous nous rendrons au Parlement vaudois pour assister à une partie des débats lors d'une séance du Grand Conseil. Ensuite, nous rencontrerons deux députés, de deux partis politiques différents, qui nous expliquerons en quoi consiste leur travail de milice.",
+    "duree": 6,
+    "effectif_max": 20,
+    "infos": "RDV à 8.15 à la gare. Prendre un pic-pic. Retour aux alentours de 15.00. Avoir une CARTE IDENTITE valable",
+    "horaires": "Mardi P1-P7   ",
+    "theme": null,
+    "nom_prof": "BOVAY",
+    "prenom_prof": "Aude"
+  },
+  {
+    "code": "ROD1",
+    "nom": "Exploration naturaliste : les secrets de la forêt",
+    "description": "Envie de jouer les explorateurs ? Partez en équipe pour une chasse photo pas comme les autres ! Munis d’un parapluie à insectes (oui, ça existe !), d’un aspirateur à bestioles et de vos super jumelles, partez traquer les secrets de la forêt. Le but ? Repérer un maximum de situations naturelles et capturer (en photo et en réalité!) des micro-animaux incroyables. Chaque cliché et chaque découverte rapportent des points… jusqu’à la victoire finale !",
+    "duree": 2,
+    "effectif_max": 16,
+    "infos": "Équipement pour marcher en forêt selon la météo du jour.",
+    "horaires": "Lundi P1-P2 Lundi P6-P7 Mardi P1-P2 Mardi P6-P7  Jeudi P1-P2 jeudi P6-P7 ",
+    "theme": null,
+    "nom_prof": "RODAK",
+    "prenom_prof": "Jérôme"
+  },
+  {
+    "code": "EME1",
+    "nom": "Escape Game 10H-11H",
+    "description": "Le célèbre mathématicien allemand Johannes Kepler est devenu fou et vous a enfermé dans son bureau. Problème : il est un peu parano et a installé une sécurité. Il a peur que quelqu’un vole ses travaux. Un minuteur s’est déclenché et dans 60 minutes tout va exploser. Trouvez le code pour ouvrir la porte avant que la bombe n’explose! Dépêchez-vous!",
+    "duree": 2,
+    "effectif_max": 12,
+    "infos": 0,
+    "horaires": "Lundi P1-P2 Lundi P3-P4 Mardi P6-P7  Jeudi P3-P4  Vendredi P6-P7 ",
+    "theme": null,
+    "nom_prof": "EMERY",
+    "prenom_prof": "Marco"
+  },
+  {
+    "code": "EME2",
+    "nom": "L'histoire des nombres",
+    "description": "S'il t'es arrivé une fois de te questionner sur l'origine des nombres que tu utilises lors de tes leçons de mathématiques aux Trois-Sapins, alors ce cours est fait pour toi ! Nous retracerons l'histoire à la recherche des différents systèmes de numération utilisés par les grandes civilisations et qui ont marqué leurs époques. Penses-tu qu'une future évolution de nos chiffres est encore possible ?",
+    "duree": 2,
+    "effectif_max": 20,
+    "infos": 0,
+    "horaires": "Lundi P6-P7 Mardi P1-P2 Mardi P3-P4  jeudi P6-P7 ",
+    "theme": null,
+    "nom_prof": "EMERY",
+    "prenom_prof": "Marco"
+  },
+  {
+    "code": "ZBER2",
+    "nom": "Sortie avec le groupe du Benin",
+    "description": "Découverte des produits du Benin",
+    "duree": 6,
+    "effectif_max": 10,
+    "infos": "Rdv aux Trois Sapins Sortie à Lausanne",
+    "horaires": " Jeudi P1-P7 ",
+    "theme": null,
+    "nom_prof": "BERSIER",
+    "prenom_prof": "Sabrina"
+  },
+  {
+    "code": "TUL1",
+    "nom": "Sound design & jeu vidéo : créer les sons d’un jeu vidéo",
+    "description": "Vous êtes sensibles aux sons dans les jeux vidéo ? Vous adorez le son produit par les pièces dans Super Mario ? Vous frémissez lorsque vous entendez le son produit par le sabre laser dans Star Wars ? Alors cet atelier de jeu vidéo & création sonore est fait pour vous ! • Choisissez un extrait vidéo d’un jeu vidéo • Cherchez les sons en lien avec les actions du jeu (saut, bruit de pas, impact, etc.) • Enregistrez les sons recherchés à l’aide d’un micro-enregistreur • Modifiez les paramètres des sons enregistrés grâce à des logiciels • Synchronisez les sons avec l’extrait vidéo",
+    "duree": 6,
+    "effectif_max": 16,
+    "infos": 0,
+    "horaires": "Lundi P1-P7   ",
+    "theme": null,
+    "nom_prof": "TULOUP",
+    "prenom_prof": "Antoine"
+  },
+  {
+    "code": "TUL2",
+    "nom": "Doublage vocal : réinterpréter les dialogues d’un film",
+    "description": "Vous rêvez de (re)jouer les dialogues d’un film ou d’un dessin animé ? Vous connaissez par cœur la parodie de Yu-Gi-Ho par le Joueur du Grenier ? « La Classe Américaine – Le Grand Détournement » n’a plus aucun secret pour vous ? Alors cet atelier de doublage vocal est fait pour vous ! • Choisissez en groupe un extrait vidéo (film, dessin animé, film d’animation) • Mettez-vous dans la peau du personnage et interprétez ou créez de nouveaux dialogues • Jouez et enregistrez en direct vos dialogues créés sur la vidéo",
+    "duree": 4,
+    "effectif_max": 16,
+    "infos": 0,
+    "horaires": "  Vendredi P1-P4 ",
+    "theme": null,
+    "nom_prof": "TULOUP",
+    "prenom_prof": "Antoine"
+  },
+  {
+    "code": "GIL1",
+    "nom": "visite d'un studio d'enregistrement professionnel",
+    "description": "Si tu es musicien/nne, si tu es intéressé/e par le métier d'ingénieur du son, tu peux t'inscrire ici. Nous irons à la rencontre de Marc Champod qui dirige Alzac Studio à Montreux. Il nous présentera la partie \"régie\" de son studio, et nous aurons l'occasion d'enregistrer des choses en direct pour que tu puisses voir comment tout cela fonctionne. Si tu joues d'un instrument et qu'il est \"transportable\", tu peux le prendre avec toi, si tu le souhaites, et nous pourrons faire un enregistrement ensemble ce jour-là.",
+    "duree": 6,
+    "effectif_max": 10,
+    "infos": "prendre pique-nique et, si souhaité, son instrument de musique",
+    "horaires": "Mardi P1-P7   ",
+    "theme": null,
+    "nom_prof": "GILLER",
+    "prenom_prof": "Jérôme"
+  },
+  {
+    "code": "GIL2",
+    "nom": "lire et analyser ensemble La Visite de la vieille dame (pièce de théâtre)",
+    "description": "Nous allons lire ensemble une pièce de théâtre d'un auteur suisse allemand : Friedrich Dürrenmatt. Il s'agit d'une pièce plutôt drôle, cynique, mais également tragique, qui raconte la vengeance terrible d'une vieille dame sur une petite ville suisse. Nous nous arrêterons régulièrement dans notre lecture pour discuter du contenu et tâcher de voir ce que l'on peut en dire.",
+    "duree": 4,
+    "effectif_max": 15,
+    "infos": 0,
+    "horaires": " Jeudi P1-P4  ",
+    "theme": null,
+    "nom_prof": "GILLER",
+    "prenom_prof": "Jérôme"
+  },
+  {
+    "code": "GIL3",
+    "nom": "écrire une chanson, comment s'y prendre?",
+    "description": "Si tu es musicien, que tu as quelques bases de solfège et que tu souhaites écrire des chansons, pourquoi ne pas venir en parler dans cet atelier? Nous décortiquerons ensemble quelques astuces pour écrire les paroles et les musiques de chansons. Si tu joues d'un instrument et qu'il est facilement \"transportable\", tu peux l'amener avec toi, nous aurons sans doute l'occasion de l'utiliser lors de nos discussions.",
+    "duree": 2,
+    "effectif_max": 15,
+    "infos": "si souhaité et si possible, prendre son instrument avec soi",
+    "horaires": "Lundi P6-P7  jeudi P6-P7 ",
+    "theme": null,
+    "nom_prof": "GILLER",
+    "prenom_prof": "Jérôme"
+  },
+  {
+    "code": "BEJ1",
+    "nom": "Basket 3x3",
+    "description": "Viens découvrir le basket 3x3 (3 contre 3) qui a été une discipline olympique aux JO2020. Ce sport se joue à trois contre trois et se pratique sur du demi-terrain. Tu n'as pas besoin de connaître ce sport, nous te ferons découvrir les règles, les différences avec le basket que tu as appris à l'école (5-5), nous t'apprendrons les bases et nous finirons par quelques petits matchs. Motivé ? Inscris-toi et viens partager un moment convivial à la découverte d'un nouveau sport.",
+    "duree": 2,
+    "effectif_max": 18,
+    "infos": "Affaires de sport",
+    "horaires": " Jeudi P3-P4 jeudi P6-P7 ",
+    "theme": null,
+    "nom_prof": "BEAUFILS",
+    "prenom_prof": "Jérôme"
+  },
+  {
+    "code": "KOL1",
+    "nom": "Le Japon et sa culture",
+    "description": "Savez-vous qu'au Japon on ne se serre pas la main, on ne se fait pas la bise ? Savez-vous pourquoi au Japon, il n'est pas rare qu'on ne trouve aucune chaise dans la maison ? Savez-vous quelle question tous les japonais vous poseront après avoir été présentés ? Pour sortir des clichés samourai / ninja / sushi, et découvrir pourquoi ce pays si lointain est aussi familier qu'exotique, 90 minutes de voyage, photos, anecdotes, culture, histoire et plus encore (25 ans d'expérience du pays).",
+    "duree": 2,
+    "effectif_max": 25,
+    "infos": 0,
+    "horaires": "Lundi P6-P7 Mardi P1-P2 Mardi P3-P4   ",
+    "theme": null,
+    "nom_prof": "KOLB",
+    "prenom_prof": "Vincent"
+  },
+  {
+    "code": "KOL2",
+    "nom": "Suminagashi",
+    "description": "Le suminagashi est l'artisanat ancestral des papiers marbrés japonais. L'encre de Chine flotte, le papier récolte les dessins formés par les mouvements de l'eau. Le secret, révélé selon la légende par une divinité de Nara à Hiroba Jizemon, vous sera dévoilé pendant cet atelier, où le calme et la patience sont récompensés.",
+    "duree": 2,
+    "effectif_max": 12,
+    "infos": 0,
+    "horaires": "Lundi P1-P2 Lundi P3-P4 Mardi P6-P7   ",
+    "theme": null,
+    "nom_prof": "KOLB",
+    "prenom_prof": "Vincent"
+  },
+  {
+    "code": "MOM4",
+    "nom": "Fabrication de badges",
+    "description": "Viens fabriquer des badges, tu pourras laisser libre cours à ton imagination en dessinant les motifs de ton choix puis nous transformeront tes dessins en badges.",
+    "duree": 2,
+    "effectif_max": 12,
+    "infos": "Tu peux prendre avec toi des modèles de dessins si tu le souhaites.",
+    "horaires": "Lundi P6-P7 Mardi P6-P7   ",
+    "theme": null,
+    "nom_prof": "MOTTAZ",
+    "prenom_prof": "Marie-Paule"
+  },
+  {
+    "code": "OBI1",
+    "nom": "Prendre des notes",
+    "description": "Savoir prendre des notes nécessite de l'entrainement, mais surtout de bonnes techniques. Nous verrons quelques méthodes à utiliser pour prendre des notes de manière efficace.",
+    "duree": 2,
+    "effectif_max": 22,
+    "infos": "Matériel : stylo",
+    "horaires": "Mardi P3-P4  Jeudi P1-P2  ",
+    "theme": null,
+    "nom_prof": "OBIDIAGHA",
+    "prenom_prof": "Géraldine"
+  },
+  {
+    "code": "OBI2",
+    "nom": "Résoudre un Rubik's Cube",
+    "description": "Tu as toujours rêvé d'y arriver, mais ce cube te semble insolvable ! Il existe des techniques pour mémoriser les mouvements qui permettent de résoudre les cubes magiques. Apprenons-les ensemble et entrainons-nous !",
+    "duree": 2,
+    "effectif_max": 15,
+    "infos": "Prends ton Rubik’s cube si tu en as un.",
+    "horaires": "Lundi P3-P4  jeudi P6-P7 Vendredi P6-P7 ",
+    "theme": null,
+    "nom_prof": "OBIDIAGHA",
+    "prenom_prof": "Géraldine"
+  },
+  {
+    "code": "OBI3",
+    "nom": "Cryptographie",
+    "description": "Les humains ont trouvé des techniques pour communiquer de manière cachée depuis des siècles. Venez apprendre à créer et décoder des messages secrets.",
+    "duree": 2,
+    "effectif_max": 22,
+    "infos": "Matériel : stylo",
+    "horaires": "Mardi P6-P7  Jeudi P3-P4  ",
+    "theme": null,
+    "nom_prof": "OBIDIAGHA",
+    "prenom_prof": "Géraldine"
+  },
+  {
+    "code": "OBI4",
+    "nom": "Mandala géométrique",
+    "description": "A l'aide du matériel géométrique, principalement du compas, nous créons des dessins circulaires. Tu auras besoin de ton compas, ta règle, un crayon gris et un stylo noir.",
+    "duree": 2,
+    "effectif_max": 20,
+    "infos": "Matériel : un compas, une règle, un crayon gris et un stylo noir.",
+    "horaires": "Lundi P6-P7   Vendredi P3-P4 ",
+    "theme": null,
+    "nom_prof": "OBIDIAGHA",
+    "prenom_prof": "Géraldine"
+  },
+  {
+    "code": "OBI5",
+    "nom": "Origami : l'art du pliage japonais",
+    "description": "Créons des origamis de divers niveaux de difficulté avec des papier imprimés.",
+    "duree": 2,
+    "effectif_max": 20,
+    "infos": 0,
+    "horaires": "Mardi P1-P2   Vendredi P1-P2 ",
+    "theme": null,
+    "nom_prof": "OBIDIAGHA",
+    "prenom_prof": "Géraldine"
+  },
+  {
+    "code": "GUR1",
+    "nom": "Pompéi : enquêtes à résoudre",
+    "description": "En 79 après J-C, suite à l'éruption du Vésuve, la ville de Pompéi est ensevelie sous la cendre. Aujourd'hui les archéologues découvrent encore de nouvelles pistes. Durant 2 périodes, plonges-toi dans les dossiers, examine les preuves et indices, pour essayer de résoudre ces mystères.",
+    "duree": 2,
+    "effectif_max": 18,
+    "infos": "Prendre un crayon et une gomme. Etre intéressé par le sujet ( Antiquité romaine).",
+    "horaires": "Lundi P1-P2 Lundi P3-P4  jeudi P6-P7 ",
+    "theme": null,
+    "nom_prof": "GÜRR",
+    "prenom_prof": "Silvie"
+  },
+  {
+    "code": "GUR2",
+    "nom": "Initiation aux hiéroglyphes égyptiens",
+    "description": "Après une courte introduction théorique, plonge dans l'univers de cette ancienne écriture et deviens l'espace de deux périodes un apprenti scribe.",
+    "duree": 2,
+    "effectif_max": 20,
+    "infos": "Crayon gris, gomme, et stylos de couleur.",
+    "horaires": "Lundi P6-P7 Mardi P6-P7   ",
+    "theme": null,
+    "nom_prof": "GÜRR",
+    "prenom_prof": "Silvie"
+  },
+  {
+    "code": "CHE1",
+    "nom": "Découverte de la Ferme des Tilleuls",
+    "description": "Intéressé.e par l'architecture ? Envie de découvrir des maisons rocambolesques, incroyables ? Alors viens à La Ferme des Tilleuls ! Ce haut-lieu culturel à Renens te fera voir des demeures extraordinaires, sorties tout droit de l'imaginaire d'artistes originaux.",
+    "duree": 6,
+    "effectif_max": 23,
+    "infos": "Rendez-vous à 8h10 devant le bâtiment 2",
+    "horaires": "Mardi P1-P7   ",
+    "theme": null,
+    "nom_prof": "CHERUBINI",
+    "prenom_prof": "Roxane"
+  },
+  {
+    "code": "BRAN1",
+    "nom": "Décore ta biblio",
+    "description": "À l’occasion des 50 ans du collège, la bibliothèque se transforme en un univers de Science-fiction ! Tu as envie de laisser ton empreinte et de participer à cette métamorphose ? Rejoins-nous pour l’atelier « Décore ta biblio » : viens créer et réaliser des éléments du décor qui feront voyager les visiteurs dans des mondes futuristes, interstellaires ou robotiques.",
+    "duree": 2,
+    "effectif_max": 10,
+    "infos": "Vêtements confortables et qui ne craignent pas la peinture ou la colle (on va bricoler, ça peut tacher !)",
+    "horaires": " Jeudi P1-P2 Jeudi P3-P4 jeudi P6-P7 ",
+    "theme": null,
+    "nom_prof": "BRANDT-DIT-GRIEURIN",
+    "prenom_prof": "Nadia"
+  },
+  {
+    "code": "MOU1",
+    "nom": "Quand la BD commença à valoir des millions: le POP ART",
+    "description": "Découvrir le parcours d'une série d'artistes contemporains ultra-célèbres aujourd'hui et réaliser des oeuvres à leur exemple.",
+    "duree": 2,
+    "effectif_max": 16,
+    "infos": "Prendre de quoi colorier si possible (feutres, stabylos, crayons...)",
+    "horaires": "Mardi P1-P2 Mardi P3-P4  Jeudi P1-P2 Jeudi P3-P4  ",
+    "theme": null,
+    "nom_prof": "MOUQUIN",
+    "prenom_prof": "Marc"
+  },
+  {
+    "code": "HOS1",
+    "nom": "VibeArt - Peins avec tes mains",
+    "description": "Éveille l’artiste en toi ! Voyage créatif à travers la peinture à l’huile Que tu sois déjà un artiste en herbe ou non, tu as un potentiel créatif à découvrir. Rejoins-nous dans notre atelier de peinture à l’huile et donne vie à ta première toile - une peinture personnelle, à ton image et peinte complètement à la main. Tu découvriras les bases de la peinture, de la disposition des couleurs sur la palette jusqu’à l’art du mélange et de sa composition. Ta toile révélera des nuances inattendues et te surprendra avec les résultats que tu seras capable de créer, pour le plus grand plaisir des yeux. Remarques : la peinture à l’huile est étalée avec tes mains - très facile à nettoyer à la fin, les résidus ne restent pas.",
+    "duree": 2,
+    "effectif_max": 24,
+    "infos": "A prendre avec soi : ta volonté créative et de découverte, une vieille chemise pour protéger tes habits. la peinture à l’huile est étalée avec tes mains - très facile à nettoyer à la fin, les résidus ne restent pas.",
+    "horaires": "Mardi P1-P2 Mardi P3-P4   ",
+    "theme": null,
+    "nom_prof": "HOSSEINIAN",
+    "prenom_prof": "Sayeh"
+  },
+  {
+    "code": "BRN1",
+    "nom": "Jeux de Team Building",
+    "description": "Viens développer ton esprit d’équipe, ta communication et ta créativité à travers des défis ludiques et stimulants. Tu devras collaborer, écouter les idées des autres et trouver ensemble des solutions originales. Tu développeras ainsi ta créativité et ton sens critique, tu amélioreras tes compétences en communication et en gestion des désaccords, tu renforceras la cohésion de groupe et l'entraide et tout ça, en t'amusant !",
+    "duree": 2,
+    "effectif_max": 18,
+    "infos": "Prendre son plumier",
+    "horaires": "Lundi P1-P2   ",
+    "theme": null,
+    "nom_prof": "BRON CHAPPUIS",
+    "prenom_prof": "Nicole"
+  },
+  {
+    "code": "LOR1",
+    "nom": "Le métier d'éducateur/éducatrice de l'enfance",
+    "description": "Tu aimerais travailler plus tard avec de jeunes enfants (0-12 ans)? Tu souhaites les accompagner, les encadrer et les éduquer dans un milieu extra-familial (crèche, garderie, etc.)? Inscris-toi à cet atelier qui te permettra d'avoir toutes les informations nécessaires sur la formation et les différents aspects liés à cette profession enrichissante et valorisante.",
+    "duree": 2,
+    "effectif_max": 24,
+    "infos": 0,
+    "horaires": " Jeudi P1-P2 Jeudi P3-P4  ",
+    "theme": null,
+    "nom_prof": "LO RUSSO",
+    "prenom_prof": "Rosanna"
+  },
+  {
+    "code": "LOR2",
+    "nom": "Attrape tes BASKETs !",
+    "description": "Oui, attrape tes baskets et viens découvrir un sport qui va te passionner! Au programme: dribbles, tirs et jeu !",
+    "duree": 2,
+    "effectif_max": 24,
+    "infos": "Tenue de sport.",
+    "horaires": "Mardi P6-P7   ",
+    "theme": null,
+    "nom_prof": "LO RUSSO",
+    "prenom_prof": "Rosanna"
+  },
+  {
+    "code": "PEE1",
+    "nom": "Découverte du yoga",
+    "description": "Si tu souhaites découvrir les bases du yoga et de l'acroyoga, cet atelier est fait pour toi. Tu apprendras à respirer en mouvement, t'étirer, travailler ta force en individuel et en groupe.",
+    "duree": 2,
+    "effectif_max": 15,
+    "infos": "Habits de sport et gourde.",
+    "horaires": "Mardi P1-P2 Mardi P3-P4   ",
+    "theme": null,
+    "nom_prof": "PERREN",
+    "prenom_prof": "Estelle"
+  },
+  {
+    "code": "AUB1",
+    "nom": "Expérience en sciences",
+    "description": "Dans cet atleier, tu découvriras la science sous une autre perspective ! Au programme de ces 2 périodes : des expériences ludiques et variées qui te permettront d'en apprendre plus sur cette discipline",
+    "duree": 4,
+    "effectif_max": 24,
+    "infos": "Rendez-vous devant la salle de sciences 122",
+    "horaires": "Mardi P1-P4   ",
+    "theme": null,
+    "nom_prof": "AUBERT",
+    "prenom_prof": "Axel"
+  },
+  {
+    "code": "AUB2",
+    "nom": "Bioindication en rivière",
+    "description": "Viens découvrir les dessous des rivières ! Collecte et identification d'insectes, pieds dans l'eau ! N'oublie pas tes bottes si tu ne veux pas avoir les pieds mouillés.",
+    "duree": 2,
+    "effectif_max": 16,
+    "infos": "Matériel : Bottes Rendez-vous devant le bâtiment 3",
+    "horaires": "Mardi P6-P7   ",
+    "theme": null,
+    "nom_prof": "AUBERT",
+    "prenom_prof": "Axel"
+  },
+  {
+    "code": "TRU1",
+    "nom": "Découvrir Lausanne autrement avec World City Trail",
+    "description": "Grâce à l’application World City Trail, vous partez en équipes à travers Lausanne pour résoudre des énigmes, relever des petits défis et dénicher des indices cachés dans les rues et sur les monuments. Chaque étape vous mène à un nouveau lieu emblématique de la ville : une statue, une place, un bâtiment… À vous d’observer, de réfléchir et de coopérer pour avancer dans l’aventure. L’application vous guide tout au long du parcours, mais c’est votre esprit d’équipe qui fera la différence ! Une activité fun, dynamique et parfaite pour découvrir Lausanne autrement, en s’amusant. Préparez-vous à bouger, explorer et relever le défi au travers de cette chasse au trésor.",
+    "duree": 6,
+    "effectif_max": 20,
+    "infos": "Tenue adaptée : chaussures confortables et vêtements adaptés à la marche en ville. Pique-nique : chacun apporte son repas de midi. S'il fait beau, nous irons pique-niquer au bord du lac, à Ouchy. Pour le temps de midi : vous pouvez prendre de petits jeux (cartes, balle, etc.). Dans chaque groupe (environ 4 élèves par groupe), au moins 1 élève a des données pour pouvoir télécharger et utiliser l'application en ligne. RDV au LEB Echallens à 8:15 Retour au LEB Echallens à 15:22. Possibilité de sortir avant l'arrêt LEB Echallens si mot signé des parents (coupon réponse à la circulaire)",
+    "horaires": "Lundi P1-P7   ",
+    "theme": null,
+    "nom_prof": "TRUJANOVIC",
+    "prenom_prof": "Teodora"
+  },
+  {
+    "code": "PAG1",
+    "nom": "Dolce Italia- Atelier cuisine & Italien",
+    "description": "Dans cet atelier, les participant·e·s prépareront une version revisitée d’un dessert italien traditionnel, adaptée à tous (sans œufs et avec café décaféiné). L’activité offre une première immersion dans la langue italienne grâce à l’art culinaire : • découverte du lexique des ingrédients, • vocabulaire des ustensiles, • verbes utilisés dans les recettes, • expressions simples liées à la cuisine. Un atelier qui combine plaisir du goût et apprentissage italien.",
+    "duree": 4,
+    "effectif_max": 14,
+    "infos": "Rendez-vous en salle de cuisine à l’heure indiquée sur l’horaire personnel. Matériel : tablier conseillé. Toutes les autres fournitures sont incluses.",
+    "horaires": "Mardi P1-P4   ",
+    "theme": null,
+    "nom_prof": "PAGLIARA CARRASCO",
+    "prenom_prof": "Ysatis"
+  },
+  {
+    "code": "IVC1",
+    "nom": "Découverte des métiers de la santé et initiation aux premiers secours",
+    "description": "Lors de cet atelier, un médecin viendra présenter différents métiers du domaine médical, comme infirmier·ère, médecin, ambulancier·ère, assistant·e en médecine, physiothérapeute et bien d’autres. Tu pourras découvrir ce que ces métiers font au quotidien, quelles sont leurs responsabilités et quelles études sont nécessaires pour y accéder. Dans la deuxième partie de l’atelier, tu participeras à une initiation aux premiers secours. Tu apprendras comment réagir dans une situation d’urgence, comment évaluer un danger, appeler les secours et effectuer certains gestes simples mais essentiels pour aider une personne en difficulté. Cet atelier te permettra de mieux comprendre les métiers de la santé et d’acquérir des gestes utiles pour la vie de tous les jours.",
+    "duree": 4,
+    "effectif_max": 14,
+    "infos": 0,
+    "horaires": "Lundi P1-P4   ",
+    "theme": null,
+    "nom_prof": "IVANOVIC",
+    "prenom_prof": "Suzana"
+  },
+  {
+    "code": "SOL1",
+    "nom": "Hangul : l’alphabet le plus logique du monde",
+    "description": "Découverte de l’alphabet coréen, apprendre à écrire son prénom en Hangul et à lire des mots. Accessible à tous, aucun prérequis.",
+    "duree": 2,
+    "effectif_max": 20,
+    "infos": 0,
+    "horaires": "Mardi P1-P2   ",
+    "theme": null,
+    "nom_prof": "SOLA",
+    "prenom_prof": "Emmanuelle"
+  },
+  {
+    "code": "SOL2",
+    "nom": "Coréen : premiers pas à l’oral",
+    "description": "Premiers pas à l’oral : se présenter en coréen, dire ce que l’on aime, chanter une ligne de Kpop. Ateliers accessibles à tous, aucun prérequis.",
+    "duree": 2,
+    "effectif_max": 20,
+    "infos": 0,
+    "horaires": "Mardi P3-P4   ",
+    "theme": null,
+    "nom_prof": "SOLA",
+    "prenom_prof": "Emmanuelle"
+  },
+  {
+    "code": "SOL3",
+    "nom": "K-culture : la culture coréenne à travers des jeux",
+    "description": "Tu es fan de K-pop, tu regardes des K-dramas, ou tu es juste curieux ? Viens découvrir la culture coréenne avec des jeux et des quizz. Accessible à tous, aucun prérequis.",
+    "duree": 2,
+    "effectif_max": 20,
+    "infos": 0,
+    "horaires": "Mardi P6-P7   ",
+    "theme": null,
+    "nom_prof": "SOLA",
+    "prenom_prof": "Emmanuelle"
+  },
+  {
+    "code": "BEJ2",
+    "nom": "Visite du musée Suisse du Jeu",
+    "description": "Et si nous transformions une sortie scolaire en une véritable aventure ludique ? Venez nous rejoindre au Musée Suisse du Jeu, pour découvrir un monde étonnant où chaque plateau, chaque pion, chaque carte raconte une histoire ! Au programme : explorer des centaines de jeux d’hier et d’aujourd’hui, des classiques aux créations modernes, comprendre comment le jeu traverse les cultures, stimule le cerveau, crée des moments de partage, expérimenter, jouer, s’amuser — et apprendre sous une forme différente, interactive et vivante. À bientôt au Musée du Jeu !",
+    "duree": 6,
+    "effectif_max": 15,
+    "infos": "Pic-nic pour midi",
+    "horaires": "  Vendredi P1-P7 ",
+    "theme": null,
+    "nom_prof": "BEAUFILS",
+    "prenom_prof": "Jérôme"
+  },
+  {
+    "code": "HEN1",
+    "nom": "Tournoi d'échecs",
+    "description": "Viens participer à un tournoi d'échecs !",
+    "duree": 2,
+    "effectif_max": 16,
+    "infos": 0,
+    "horaires": "Lundi P6-P7 Mardi P6-P7   ",
+    "theme": null,
+    "nom_prof": "HENRY",
+    "prenom_prof": "Clémentine"
+  },
+  {
+    "code": "HEN2",
+    "nom": "Initiation aux échecs",
+    "description": "Tu n'as jamais joué aux échecs et tu souhaites découvrir ce jeu ? Tu es au bon endroit ! Viens participer à une initiation !",
+    "duree": 2,
+    "effectif_max": 16,
+    "infos": 0,
+    "horaires": "Lundi P3-P4 Mardi P1-P2   ",
+    "theme": null,
+    "nom_prof": "HENRY",
+    "prenom_prof": "Clémentine"
+  },
+  {
+    "code": "HEN3",
+    "nom": "Initiation au Scrabble",
+    "description": "Tu n'as jamais joué au Scrabble et tu souhaites découvrir ce jeu ? Tu es au bon endroit ! Viens participer à une initiation !",
+    "duree": 2,
+    "effectif_max": 16,
+    "infos": 0,
+    "horaires": "Lundi P1-P2 Mardi P3-P4   ",
+    "theme": null,
+    "nom_prof": "HENRY",
+    "prenom_prof": "Clémentine"
+  },
+  {
+    "code": "ZTUL1",
+    "nom": "Concert scolaire 8H",
+    "description": "Le concert scolaire pour les 8H regroupent tous les élèves des cours fac de musique (Choeur, Rock Band, Music Band) dont la présence est requise.",
+    "duree": 4,
+    "effectif_max": 30,
+    "infos": "Les informations pour ce concert seront données aux élèves durant les cours fac.",
+    "horaires": " Jeudi P1-P4  ",
+    "theme": null,
+    "nom_prof": "TULOUP",
+    "prenom_prof": "Antoine"
+  },
+  {
+    "code": "AUB3",
+    "nom": "Aqua challenge",
+    "description": "Bienvenue à l'Aqua Challenge ! Préparez-vous pour une matinée où tout va s’enchaîner : défis, vitesse, stratégie et esprit d’équipe ! Vous allez plonger dans une série d’épreuves aquatiques où chaque relais, chaque glisse et chaque splash peut faire la différence. Au programme : courses endiablées, défis techniques, épreuves de précision et même un peu de chaos contrôlé… Votre objectif ? Donner le meilleur de vous-mêmes, travailler ensemble et accumuler un maximum de points pour guider votre équipe vers la victoire finale ! Pas besoin d’être un champion : ici, c’est l’énergie, la collaboration et l’envie de jouer qui font la différence. Alors respirez, plongez… et que les meilleurs nageurs, stratèges et éclabousseurs remportent l'Aqua Challenge !",
+    "duree": 4,
+    "effectif_max": 20,
+    "infos": "Chaque élève inscrit doit avoir le test CSA. Affaires de piscine. RDV devant la piscine 8h15 pour le 1er groupe, 10h10 pour le 2ème groupe.",
+    "horaires": "  Vendredi P1-P4 ",
+    "theme": null,
+    "nom_prof": "AUBERT",
+    "prenom_prof": "Axel"
+  },
+  {
+    "code": "AUB4",
+    "nom": "Défis en forêt",
+    "description": "Une aventure nature entre défis, découverte et écologie Plonge au cœur de la forêt et deviens un véritable explorateur ! En équipe, tu devras relever une série de missions : chercher des objets naturels tombés au sol, repérer des traces d’animaux, identifier des plantes, résoudre des mini-énigmes ou encore participer à une collecte écologique. Chaque défi te fera utiliser tes sens, ton sens de l’observation et ton esprit d’équipe. Au fil du parcours, tu découvriras la biodiversité qui t’entoure, apprendras à respecter l’environnement et comprendras que la forêt est un écosystème vivant… et passionnant. Ton objectif ? Observer, comprendre, protéger… et surtout t’amuser en devenant, le temps d’une matinée, un véritable gardien de la nature.",
+    "duree": 2,
+    "effectif_max": 16,
+    "infos": "Vêtements adaptées à la forêt et au temps",
+    "horaires": "Lundi P6-P7   ",
+    "theme": null,
+    "nom_prof": "AUBERT",
+    "prenom_prof": "Axel"
+  },
+  {
+    "code": "IVC2",
+    "nom": "Découverte du Stop Motion",
+    "description": "Dans cet atelier, tu vas apprendre à créer un film en Stop Motion avec une tablette. Le Stop Motion est une technique qui consiste à prendre de nombreuses photos, puis à les assembler pour donner l’illusion qu’un objet, un dessin ou un personnage bouge tout seul. Tu pourras tester différentes idées, inventer une petite histoire, organiser les décors et réaliser ton propre mini-film. Cet atelier te permettra de découvrir une nouvelle façon de créer, d’expérimenter et de raconter en images.",
+    "duree": 2,
+    "effectif_max": 14,
+    "infos": 0,
+    "horaires": "Lundi P6-P7  jeudi P6-P7 ",
+    "theme": null,
+    "nom_prof": "IVANOVIC",
+    "prenom_prof": "Suzana"
+  },
+  {
+    "code": "NOT1",
+    "nom": "Les secrets des billets de banques",
+    "description": "On les utilise tous les jours dans notre quotidien, mais comment sont fabriqués nos billets de banque ? Savais-tu qu’ils contiennent plus de 15 différents éléments de sécurité qui les rends infalsifiables ? Et d’ailleurs, que se passe-t-il d’étonnant si on essaie d’en photocopier un ? Savais-tu que les billets du monde entier sont produits avec des machines… suisses ? Dans cet atelier, nous résoudrons ensemble une énigme liée aux encres, nous observerons sous le microscope tous les secrets des billets de banque et nous apprendrons de nombreuses choses sur eux que peu de gens savent… Attention, après ça tu ne verras plus jamais un billet de la même manière !",
+    "duree": 2,
+    "effectif_max": 14,
+    "infos": 0,
+    "horaires": "Lundi P6-P7  Jeudi P1-P2 Jeudi P3-P4  Vendredi P3-P4 Vendredi P6-P7 ",
+    "theme": null,
+    "nom_prof": "NOTH",
+    "prenom_prof": "André"
+  },
+  {
+    "code": "NOT2",
+    "nom": "Initiation au Geocaching",
+    "description": "Le geocaching est une chasse au trésor sur la planète entière : des gens appelés géocacheurs dispersent partout des petites boîtes, de la taille d’un dé à coudre jusqu’à celle d’une boîte à chaussures. D’autre géocacheurs peuvent se mettre à leur recherche, mais attention à ne pas se faire voir par les Moldus ! Dans les boîtes, rien de très précieux à gagner, juste le plaisir de trouver et de découvrir des endroits spéciaux. Dans cet atelier, nous initierons au géocaching et partirons à la recherche de 2 des 8 caches d’Echallens, tout près du Collège. Nous verrons aussi comment fonctionne la technologie qui a permis le Geoaching et beaucoup d’autres choses dans notre quotidien : le positionnement GPS.",
+    "duree": 2,
+    "effectif_max": 14,
+    "infos": "RDV devant la piscine",
+    "horaires": "Lundi P1-P2 Lundi P3-P4   Vendredi P1-P2 ",
+    "theme": null,
+    "nom_prof": "NOTH",
+    "prenom_prof": "André"
+  },
+  {
+    "code": "BEM1",
+    "nom": "Voyage au pays des esprits",
+    "description": "Culture et découvertes Voyage au pays des esprits Description : Ce cours s'adresse à tous ceux qui aiment voyager en terres inconnues (Amazonie, Indonésie, Papouasie, Australie, Sibérie, ...) à la recherche de nos origines et de nos croyances religieuses animistes. Dans la première partie de ce cours, nous verrons par l'image comment l'art de nos ancêtres a rendu visible l'invisible et comment la peur des esprits a fait naître des coutumes et des rites hallucinants. Dans la seconde partie, nous découvrirons par l'image les mystères du chamanisme, qui cultive l'art du dialogue avec les puissances surnaturelles, puis les grands rites d'initiation (devenir un homme, passer de vie à trépas) et les manifestations les plus déjantées de l'animisme. Dépaysement garanti ! Durée : 4 périodes Nombre de places : 30 au maximum",
+    "duree": 4,
+    "effectif_max": 30,
+    "infos": 0,
+    "horaires": " Jeudi P1-P4  ",
+    "theme": null,
+    "nom_prof": "BESSON",
+    "prenom_prof": "Marc"
+  },
+  {
+    "code": "BEM2",
+    "nom": "Tana Toraja, la terre des morts-vivants",
+    "description": "Cultures mystérieuses d’Indonésie : Tana Toraja, la terre des morts-vivants Description : Sur l'île indonésienne de Sulawesi, les Torajas ont donné naissance à une culture extraordinaire : leurs maisons traditionnelles sont les plus spectaculaires d'Indonésie, leurs cimetières se nichent dans les parois rocheuses des falaises et... leurs morts sortent de leur tombeau pour se joindre aux vivants ! Une invitation à réfléchir à nos rapports à la mort et à l'au-delà. Durée : 2 périodes Nombre de places : 30 au maximum",
+    "duree": 2,
+    "effectif_max": 30,
+    "infos": 0,
+    "horaires": " jeudi P6-P7 ",
+    "theme": null,
+    "nom_prof": "BESSON",
+    "prenom_prof": "Marc"
+  },
+  {
+    "code": "BEM3",
+    "nom": "Voyage au pays des Papous",
+    "description": "Voyage au pays des Papous Description : Je vous invite à la découverte par l'image des tribus de Papouasie, qui sortent à peine de l'âge de la préhistoire. Nous ferons la connaissance en particulier des Danis, des hommes des montagnes, qui vivent encore tout nus, portent un étui pénien et dorment à côté de la momie de leur ancêtre... Dépaysement garanti ! Durée : 2 périodes Nombre de places : 30 au maximum",
+    "duree": 2,
+    "effectif_max": 30,
+    "infos": 0,
+    "horaires": "Mardi P6-P7   ",
+    "theme": null,
+    "nom_prof": "BESSON",
+    "prenom_prof": "Marc"
+  },
+  {
+    "code": "ROL1",
+    "nom": "Sortie le long du Talent",
+    "description": "Une journée sportive pour découvrir notre région !",
+    "duree": 6,
+    "effectif_max": 20,
+    "infos": "RDV devant la piscine à 8h30 Avec de bonnes chaussures fermées ainsi qu'un pic-nic (avec suffisamment d'eau !) Retour à la gare d'Echallens aux alentours de 15h",
+    "horaires": "Mardi P1-P7   ",
+    "theme": null,
+    "nom_prof": "ROMANENS",
+    "prenom_prof": "Laeticia"
+  },
+  {
+    "code": "PER1",
+    "nom": "Waterpolo",
+    "description": "Viens découvrir ce sport aquatique, qui allie natation et jeu de balle !",
+    "duree": 2,
+    "effectif_max": 15,
+    "infos": "RDV devant la piscine. prendre un maillot de bain et affaires de douche",
+    "horaires": " Jeudi P1-P2  ",
+    "theme": null,
+    "nom_prof": "PEREZ",
+    "prenom_prof": "Kilian"
+  },
+  {
+    "code": "PER2",
+    "nom": "Jeux aquatiques",
+    "description": "Viens découvrir des jeux aquatiques divers et variés",
+    "duree": 2,
+    "effectif_max": 15,
+    "infos": "RDV devant la piscine. prendre un maillot de bain et affaires de douche",
+    "horaires": " Jeudi P3-P4  ",
+    "theme": null,
+    "nom_prof": "PEREZ",
+    "prenom_prof": "Kilian"
+  },
+  {
+    "code": "PER3",
+    "nom": "Natation sportive",
+    "description": "Viens découvrir ce sport qui allie effort d'endurance, de force ainsi que de technique.",
+    "duree": 2,
+    "effectif_max": 15,
+    "infos": "RDV devant la piscine. prendre un maillot de bain et affaires de douche",
+    "horaires": " jeudi P6-P7 ",
+    "theme": null,
+    "nom_prof": "PEREZ",
+    "prenom_prof": "Kilian"
+  },
+  {
+    "code": "PER4",
+    "nom": "jeux traditionnels en piscine",
+    "description": "Viens découvrir des formes revisitées de jeux traditionnels, tels que la balle brulée ou la balle à 2 camps, et adaptés au milieu aquatique.",
+    "duree": 2,
+    "effectif_max": 15,
+    "infos": "RDV devant la piscine. prendre un maillot de bain et affaires de douche",
+    "horaires": "  Vendredi P6-P7 ",
+    "theme": null,
+    "nom_prof": "PEREZ",
+    "prenom_prof": "Kilian"
+  },
+  {
+    "code": "CAS1",
+    "nom": "Circuit training",
+    "description": "Envie de bouger, de te défouler et de repousser tes limites? Viens participer à un atelier sportif dynamique d’1h30 ! Au programme : du cardio, du renforcement musculaire et un circuit training pour bouger à ton rythme. Tu pourras travailler avec ton propre poids du corps, des élastiques et quelques petits poids, toujours en fonction de tes capacités. Pas besoin d’être un(e) pro du sport : l’important, c’est ta motivation et l’envie de t’amuser tout en te dépensant. Alors prépare ta tenue de sport et rejoins-nous pour une séance pleine d’énergie !",
+    "duree": 2,
+    "effectif_max": 20,
+    "infos": "Rdv devant la salle de gym 1-2. Matériel: affaires de gym et de douche",
+    "horaires": "Lundi P1-P2 Lundi P3-P4   ",
+    "theme": null,
+    "nom_prof": "CASTELLA",
+    "prenom_prof": "Lauriane"
+  },
+  {
+    "code": "CAS2",
+    "nom": "Brigand du Jorat",
+    "description": "Plonge dans l’histoire mystérieuse d’Échallens et pars sur les traces des célèbres brigands du Jorat ! Entre exploration, énigmes et légendes, viens vivre une aventure passionnante au cœur de la ville.",
+    "duree": 4,
+    "effectif_max": 20,
+    "infos": "Rendez-vous à 8h30 à la gare d'Echallens. Matériel: bonnes chaussures de marche, téléphone chargé, un stylo ou crayon.",
+    "horaires": " Jeudi P1-P4  ",
+    "theme": null,
+    "nom_prof": "CASTELLA",
+    "prenom_prof": "Lauriane"
+  },
+  {
+    "code": "CLG1",
+    "nom": "Silhouette Cameo",
+    "description": "Crée ton sticker, grave ton propre verre et tu peux même te personnaliser un T-Shirt. Pendant toute une journée, tu pourras expérimenter différentes techniques en vectorisant tes propres dessins!",
+    "duree": 6,
+    "effectif_max": 14,
+    "infos": 0,
+    "horaires": "Lundi P1-P7   ",
+    "theme": null,
+    "nom_prof": "CLEMENT",
+    "prenom_prof": "Gaëlle"
+  },
+  {
+    "code": "DEX1",
+    "nom": "Parcour de condition physique",
+    "description": "Parcour de condition physique sur la piste Vita d'Echallens (en extérieur!).",
+    "duree": 2,
+    "effectif_max": 24,
+    "infos": "Matériel: Vêtements et chaussures de sport adaptés à la météo.",
+    "horaires": " jeudi P6-P7 ",
+    "theme": null,
+    "nom_prof": "DESCHENAUX",
+    "prenom_prof": "Aurélien"
+  },
+  {
+    "code": "CLG2",
+    "nom": "La silhouette Cameo.",
+    "description": "Crée ton sticker, grave ton propre verre et tu peux même te personnaliser un T-Shirt. Pendant toute une journée, tu pourras expérimenter différentes techniques en vectorisant tes propres dessins!",
+    "duree": 6,
+    "effectif_max": 8,
+    "infos": 0,
+    "horaires": "Mardi P1-P7   ",
+    "theme": null,
+    "nom_prof": "CLÉMENT",
+    "prenom_prof": "Gaëlle"
+  },
+  {
+    "code": "DAM1",
+    "nom": "Bijoux en perles de rocailles",
+    "description": "Rejoins-nous pour fabriquer tes propres bijoux en perles de rocaille ! Bracelets, colliers, en forme de petites fleurs colorées ou même de mini-abeilles : tu peux tout imaginer et repartir avec une création unique.",
+    "duree": 2,
+    "effectif_max": 20,
+    "infos": "Si tu as déjà des perles à la maison et que tu veux les utiliser pour compléter tes créations, n’hésite pas à les apporter ! Cela te permettra de personnaliser encore plus ton bijou et d’explorer d’autres couleurs ou formes.",
+    "horaires": " Jeudi P3-P4 jeudi P6-P7 ",
+    "theme": null,
+    "nom_prof": "DAMONE",
+    "prenom_prof": "Jeanne"
+  },
+  {
+    "code": "DAM2",
+    "nom": "Mille et une fourmis",
+    "description": "Plonge dans le monde fascinant des fourmis ! À l’UNIL, tu observeras de vraies colonies de laboratoire, leurs stratégies pour trouver un chemin, se nourrir et protéger leur nid, et tu découvriras enfin le secret des « fourmis volantes ». Après un pique-nique au bord du lac, l’après-midi sera consacrée à un atelier nature : exploration d’un cours d’eau à la recherche de macro-invertébrés ou découverte des sols de Dorigny pour comprendre pourquoi ils sont essentiels aux écosystèmes. Un atelier idéal si tu aimes la nature, l’observation et comprendre comment le vivant s’organise.",
+    "duree": 6,
+    "effectif_max": 12,
+    "infos": "Prenez un pique-nique pour le midi.",
+    "horaires": "  Vendredi P1-P7 ",
+    "theme": null,
+    "nom_prof": "DAMONE",
+    "prenom_prof": "Jeanne"
+  },
+  {
+    "code": "TRA1",
+    "nom": "Théâtre et improvisation",
+    "description": "Est-ce que tu souhaites t'essayer au théâtre ? Alors viens à cet atelier ! Tu pourras jouer des personnages, imiter des voix, créer des sketchs et découvrir plein d'autres jeux en lien avec le monde de la scène. Prends des habits et des chaussures confortables.",
+    "duree": 2,
+    "effectif_max": 16,
+    "infos": 0,
+    "horaires": "Lundi P6-P7   ",
+    "theme": null,
+    "nom_prof": "TRAMAUX",
+    "prenom_prof": "Aina"
+  },
+  {
+    "code": "TRA2",
+    "nom": "Musique assistée par ordinateur",
+    "description": "Sais-tu comment la musique est produite et mixée par ordinateur ? Viens découvrir les techniques de composition sur logiciel. Tu apprendras à utiliser des instruments virtuels, enregistrer des sons et créer ta propre composition.",
+    "duree": 2,
+    "effectif_max": 8,
+    "infos": 0,
+    "horaires": "Lundi P3-P4  jeudi P6-P7 ",
+    "theme": null,
+    "nom_prof": "TRAMAUX",
+    "prenom_prof": "Aina"
+  },
+  {
+    "code": "MOT1",
+    "nom": "Bain en eau froide",
+    "description": "Viens te challenger et profiter des bienfaits de la baignade en eau \"froide\" dans le Talent. Un petit thé chaud sera de la partie pour t'accompagner!",
+    "duree": 2,
+    "effectif_max": 36,
+    "infos": "Possibilité de se changer dans les vestiaires de la piscine. Prendre un maillot de bain; 2 linges; un bonnet; des habits chauds pour la sortie de l'eau. Prendre également son courage et sa bonne humeur.",
+    "horaires": " Jeudi P1-P2 Jeudi P3-P4  ",
+    "theme": null,
+    "nom_prof": "MOTTAZ",
+    "prenom_prof": "Valentin"
+  },
+  {
+    "code": "DEN1",
+    "nom": "Tournoi de Futsalle - Garçons",
+    "description": "Viens affronter les autres garçons du collège lors du tournoi de Futsalle! Ici, pas de grosses têtes, on veut passer un moment convivial et fair-play!",
+    "duree": 4,
+    "effectif_max": 48,
+    "infos": "Rdv devant la salle de gym 1/2 à 8h15 Il faut prendre tes affaires de sport d'intérieur et de quoi te doucher!",
+    "horaires": " Jeudi P1-P4  ",
+    "theme": null,
+    "nom_prof": "DESPONT",
+    "prenom_prof": "Anthony"
+  },
+  {
+    "code": "DEN2",
+    "nom": "Tournoi de Futsalle - Filles",
+    "description": "Viens affronter les autres filles du collège lors du tournoi de Futsalle! Ici, pas de grosses têtes, on veut passer un moment convivial et fair-play!",
+    "duree": 2,
+    "effectif_max": 36,
+    "infos": "Rdv devant la salle de gym 1/2 à 8h15 Prend tes affaires de sport d'intérieur et de quoi te doucher!",
+    "horaires": " jeudi P6-P7 ",
+    "theme": null,
+    "nom_prof": "DESPONT",
+    "prenom_prof": "Anthony"
+  },
+  {
+    "code": "TIC1",
+    "nom": "Initiation au skateboard",
+    "description": "Viens découvrir l'univers de cette discipline dans la cour des Trois-Sapins. Que tu découvres le skateboard pour la première fois ou que tu sois déjà à l'aise, tu pourras tester différents ateliers pour apprendre à rouler, tourner, freiner et essayer des figures en toute sécurité.",
+    "duree": 6,
+    "effectif_max": 15,
+    "infos": "Rendez-vous : - Devant le bâtiment 3. Matériel : - Les élèves qui ont du matériel de skateboard (skate, protections : casques, coudières, genouillères et protèges poignets) peuvent venir avec. Pour ceux qui n'ont pas de matériel, j'amènerai le tout.",
+    "horaires": "Mardi P1-P7   ",
+    "theme": null,
+    "nom_prof": "TICON",
+    "prenom_prof": "Axel"
+  },
+  {
+    "code": "MOR1",
+    "nom": "Cuisine - Spécialités portugaises",
+    "description": "Au menu de cet atelier, du sucré et du salé, nous apprendrons à faire les fameux pasteis de nata et les accras de morue (bolinhos de bacalhau).",
+    "duree": 4,
+    "effectif_max": 14,
+    "infos": 0,
+    "horaires": "Lundi P1-P4   ",
+    "theme": null,
+    "nom_prof": "MOREIRA",
+    "prenom_prof": "Laura"
+  },
+  {
+    "code": "PEE2",
+    "nom": "Visite de la fromagerie du Gros-de-Vaud",
+    "description": "Tu veux combiner sport et découvertes ? On se retrouve pour une sortie à vélo jusqu'à la fromagerie de Vuarrens ! Au programme : un trajet à travers la campagne à vélo, avant de découvrir comment le fromage de la région est fabriqué. Tu pourras même déguster les produits frais et apprendre tous les secrets du métier de fromager.",
+    "duree": 4,
+    "effectif_max": 15,
+    "infos": "Rendez-vous devant la salle de gym 3 à 8h30 avec ton vélo. Casque obligatoire. Gourde et habits de sport. Si tu n'as pas de vélo, merci de l'annoncer à Mme Perren une semaine avant la sortie. Location de vélo : 10.- à amener le jour même.",
+    "horaires": "Lundi P1-P4   ",
+    "theme": null,
+    "nom_prof": "PERREN",
+    "prenom_prof": "Estelle"
+  },
+  {
+    "code": "MOR2",
+    "nom": "ESCAPE GAME EN CLASSE",
+    "description": "2 thèmes à choix : Qui a tué Madame Duroy ? Une maison isolée, une famille sans histoire et un meurtre à élucider · Transformez la salle de classe en cluedo géant, cherchez les indices pour trouver le coupable. Mission manga : L’ultime bataille Plongez au cœur des univers cultes de Dragon Ball Z, Naruto, One Piece et My Hero Academia, menacés par un terrible danger ! Partez à l’aventure pour sauver vos héros préférés. Affrontez un vilain redoutable et son armée en quête des portails mystérieux qu’il a ouverts, et prouvez que vous êtes le véritable héros des mangas.",
+    "duree": 2,
+    "effectif_max": 20,
+    "infos": 0,
+    "horaires": "Lundi P1-P2 Lundi P3-P4 Lundi P6-P7 Mardi P6-P7  jeudi P6-P7 Vendredi P6-P7 ",
+    "theme": null,
+    "nom_prof": "MOREIRA",
+    "prenom_prof": "Laura"
+  },
+  {
+    "code": "GOS1",
+    "nom": "Visite de Plateforme 10 vendredi",
+    "description": "VENDREDI 8.05 Visites guidées des exposition en cours à Plateforme 10 à Lausanne. RDV devant la piscine à 9h05, retour au collège à 14h30 Prendre un pique nique. Si les élèves veulent être libéré-es avant le retour prévu au collège ielles doivent avoir un mot signé des parents.",
+    "duree": 6,
+    "effectif_max": 20,
+    "infos": "- Prendre un pique nique. - Si les élèves veulent être libéré-es avant le retour prévu au collège ielles doivent avoir un mot signé des parents.",
+    "horaires": "  Vendredi P1-P7 ",
+    "theme": null,
+    "nom_prof": "GOTTRAUX",
+    "prenom_prof": "Sidonie"
+  },
+  {
+    "code": "GOS2",
+    "nom": "Visite Plateforme 10 mardi",
+    "description": "MARDI 12.05 Visites guidées des exposition en cours à Plateforme 10 à Lausanne. RDV devant la piscine à 9h05, retour au collège à 13h40 Prendre un pique nique. Si les élèves veulent être libéré-es avant le retour prévu au collège ielles doivent avoir un mot signé des parents.",
+    "duree": 6,
+    "effectif_max": 20,
+    "infos": "- Prendre un pique nique. - Si les élèves veulent être libéré-es avant le retour prévu au collège ielles doivent avoir un mot signé des parents.",
+    "horaires": "Mardi P1-P7   ",
+    "theme": null,
+    "nom_prof": "GOTTRAUX",
+    "prenom_prof": "Sidonie"
+  },
+  {
+    "code": "GOS3",
+    "nom": "Visite de Plateforme 10 lundi",
+    "description": "LUNDI 11.05 Visites guidées des exposition en cours à Plateforme 10 à Lausanne. RDV devant la piscine à 9h05, retour au collège à 13h40 Prendre un pique nique. Si les élèves veulent être libéré-es avant le retour prévu au collège ielles doivent avoir un mot signé des parents.",
+    "duree": 6,
+    "effectif_max": 20,
+    "infos": "- Prendre un pique nique. - Si les élèves veulent être libéré-es avant le retour prévu au collège ielles doivent avoir un mot signé des parents.",
+    "horaires": "Lundi P1-P7   ",
+    "theme": null,
+    "nom_prof": "GOTTRAUX",
+    "prenom_prof": "Sidonie"
+  },
+  {
+    "code": "SAS1",
+    "nom": "initiation à la langue arabe",
+    "description": "un atelier accessible pour découvrir les bases de la langue arabe: alphabet, prononciation, premiers mots et principe de l'écriture. A travers des activités simples et interactives, les participants explorent la langue et sa culture sans pré-requis, juste avoir l'envie de découvrir...",
+    "duree": 2,
+    "effectif_max": 18,
+    "infos": "RDV à la salle de cette atelier.",
+    "horaires": "Lundi P6-P7 Mardi P1-P2 Mardi P3-P4  Jeudi P1-P2 Jeudi P3-P4 jeudi P6-P7 Vendredi P1-P2 Vendredi P3-P4 ",
+    "theme": null,
+    "nom_prof": "SASSI",
+    "prenom_prof": "Kamel"
+  },
+  {
+    "code": "ZAL1",
+    "nom": "Basket",
+    "description": "Viens découvrir ou perfectionner ton basket avec des basketteurs professionnels ! Nous ferons un peu de technique et ensuite nous ferons des matchs! Let's play !!!",
+    "duree": 6,
+    "effectif_max": 20,
+    "infos": "RDV à la salle de gym avec des chaussures de sport et une gourde.",
+    "horaires": "Lundi P1-P7   ",
+    "theme": null,
+    "nom_prof": "ZALI",
+    "prenom_prof": "Mélodie"
+  },
+  {
+    "code": "ZAL3",
+    "nom": "Pilates",
+    "description": "Viens faire un cours de Pilates et du stretching, le tout dans une ambiance chaleureuse. Aucun pré-requis n'est demandé.",
+    "duree": 2,
+    "effectif_max": 10,
+    "infos": 0,
+    "horaires": " jeudi P6-P7 ",
+    "theme": null,
+    "nom_prof": "ZALI",
+    "prenom_prof": "Mélodie"
+  },
+  {
+    "code": "VAC1",
+    "nom": "Sortie RAC à Berne",
+    "description": "Les deux classes de RAC font une sortie à Berne (trajet en train) pour visiter le musée de la communication, pique-niquer sur place, voir la fosse aux ours et visiter un peu le centre-ville.",
+    "duree": 6,
+    "effectif_max": 34,
+    "infos": "Informations habituelles pour cette sortie faite depuis quelques années.",
+    "horaires": "Mardi P1-P7   ",
+    "theme": null,
+    "nom_prof": "VACCARO",
+    "prenom_prof": "Noé"
+  },
+  {
+    "code": "BRA1",
+    "nom": "Danse contemporaine",
+    "description": "Durant cet atelier, tu apprendras une chorégraphie de danse contemporaine. Que tu aies déjà fait de la danse ou pas, tu es bienvenu·e ! Viens avec une tenue confortable (pas de baskets).",
+    "duree": 4,
+    "effectif_max": 16,
+    "infos": 0,
+    "horaires": "  Vendredi P1-P4 ",
+    "theme": null,
+    "nom_prof": "BRABIS LAUPER",
+    "prenom_prof": "Pauline"
+  },
+  {
+    "code": "BRO1",
+    "nom": "À la découverte des roches et de leurs secrets",
+    "description": "Plonge dans l’univers fascinant des roches et deviens géologue le temps d’un atelier ! Tu apprendras à reconnaître les trois grandes familles de roches — magmatiques, sédimentaires et métamorphiques — en les manipulant, en observant leurs textures et leurs couleurs, et en découvrant comment elles se forment. Prêt·e à percer les mystères du monde minéral ?",
+    "duree": 4,
+    "effectif_max": 20,
+    "infos": 0,
+    "horaires": "Mardi P1-P4   ",
+    "theme": null,
+    "nom_prof": "BROCARD",
+    "prenom_prof": "Annaëlle"
+  },
+  {
+    "code": "MET1",
+    "nom": "Entraînement équipe athlétisme",
+    "description": "Notre équipe filles d'athlétisme est qualifiée pour les Finales suisses d'athlétisme, nous aimerions leur imposer (proposer vivement) un entraînement spécial en vue de cet événement. Pour avoir de bonnes conditions, nous souhaiterions nous déplacer à Yverdon pour profiter du stade et des infrastructures.",
+    "duree": 6,
+    "effectif_max": 12,
+    "infos": "Entraînement en athlétisme en vue des Finales suisses de Winterthur. Obligatoire pour les qualifiée et ouvert aux motivés (9-10ème)",
+    "horaires": "Mardi P1-P7   ",
+    "theme": null,
+    "nom_prof": "METTRAUX",
+    "prenom_prof": "Vincent"
+  },
+  {
+    "code": "TRU1",
+    "nom": "Let’s Bake Cookies… in English",
+    "description": "Dans cette activité gourmande, vous enfilez votre tablier et devenez chefs pâtissiers… version anglaise ! En binôme, vous suivez une recette de cookies entièrement en anglais : ingrédients, étapes, consignes, tout se fait dans la langue de Shakespeare. Vous devrez comprendre, collaborer et communiquer pour réussir votre fournée : peser, mélanger, façonner, goûter… tout en utilisant le vocabulaire culinaire appris sur le moment. Une activité parfaite pour pratiquer l’anglais de façon ludique — et repartir avec de délicieux cookies faits maison !",
+    "duree": 2,
+    "effectif_max": 16,
+    "infos": 0,
+    "horaires": "Lundi P1-P2 Lundi P3-P4 Lundi P6-P7   ",
+    "theme": null,
+    "nom_prof": "TRUJANOVIC",
+    "prenom_prof": "Teodora"
+  },
+  {
+    "code": "MAA1",
+    "nom": "Découverte du LANDI Assens",
+    "description": "Découverte des différents métiers du LANDI",
+    "duree": 4,
+    "effectif_max": 20,
+    "infos": 0,
+    "horaires": " Jeudi P1-P4  ",
+    "theme": null,
+    "nom_prof": "MARENDAZ",
+    "prenom_prof": "Aude"
+  },
+  {
+    "code": "STC1",
+    "nom": "Créer la carte d’un monde imaginaire",
+    "description": "Tu es fan de fantasy ou de jeux de rôles ? Tu rêves de créer la carte d’un royaume imaginaire ? Ou tu t’y es déjà essayé, mais tu aimerais approfondir tes connaissances ? Alors tu es le/la bienvenu(e) dans cet atelier pour découvrir les bases et créer une carte de fantasy, que ce soit un pays montagneux, une ville fortifiée, une île paradisiaque ou tout autre cadre imaginaire... Tu auras ainsi l’occasion de découvrir le logiciel en ligne \"Inkarnate\" pour concevoir et enregistrer tes projets !",
+    "duree": 2,
+    "effectif_max": 24,
+    "infos": 0,
+    "horaires": "Lundi P3-P4 Mardi P1-P2   ",
+    "theme": null,
+    "nom_prof": "STADLER",
+    "prenom_prof": "Céline"
+  },
+  {
+    "code": "STC2",
+    "nom": "Le metal",
+    "description": "Qu’est-ce que ce genre musical qu’on associe aux vêtements noirs, aux cris de rage et aux riffs agressifs, mais qui reste généralement méconnu ? Vous découvrirez, au cours de cet atelier, qu’il existe de nombreux types de metal : dark metal, death, power, metal symphonique, ou même « pirate metal » … à travers le monde, de nombreux groupes explorent les limites du genre, dans des langues différentes et avec un but différent. Peut-être l’occasion de découvrir votre nouveau groupe préféré ?",
+    "duree": 2,
+    "effectif_max": 25,
+    "infos": "Il est important de prendre votre smartphone chargé ainsi que des écouteurs pour cet atelier.",
+    "horaires": "Lundi P6-P7   ",
+    "theme": null,
+    "nom_prof": "STADLER",
+    "prenom_prof": "Céline"
+  },
+  {
+    "code": "STC3",
+    "nom": "Ecriture interactive",
+    "description": "Avez-vous déjà lu un « livre dont vous êtes le héros » ? Mais oui, vous savez : une histoire où vous avez dû faire des choix, en tant que lecteur, des choix qui ont fait une différence et changé le cours du récit que vous lisiez. C’est un livre, mais c’est aussi un jeu lors duquel vous devez résoudre des mystères et déterminer le destin d’un personnage. Maintenant, imaginez qu’il existe un moyen pour créer vous-même votre histoire interactive. Elle demandera au lecteur de choisir entre plusieurs scénarios, pour résoudre des énigmes ou tout simplement pour avoir plusieurs fins alternatives à une histoire que vous avez imaginée. C’est ce que vous propose cet atelier !",
+    "duree": 2,
+    "effectif_max": 24,
+    "infos": 0,
+    "horaires": "Mardi P3-P4   ",
+    "theme": null,
+    "nom_prof": "STADLER",
+    "prenom_prof": "Céline"
+  },
+  {
+    "code": "BUG1",
+    "nom": "Énigmes et jeux de logique",
+    "description": "Retrouvez le plaisir de mettre à l’épreuve vos neurones, votre imagination, votre intuition et vos pouvoir de déduction. Durant cet atelier les élèves seront invités à résoudre, individuellement ou en groupe, les énigmes les plus mystérieuses et les paradoxes les plus étranges. Armez-vous de courage et tester vos méninges face au grand défi. Êtes-vous prêts ?",
+    "duree": 2,
+    "effectif_max": 20,
+    "infos": "De quoi écrire et une calculatrice",
+    "horaires": "Lundi P3-P4 Lundi P6-P7 Mardi P1-P2 Mardi P3-P4 Mardi P6-P7  Jeudi P1-P2 Jeudi P3-P4 jeudi P6-P7 Vendredi P6-P7 ",
+    "theme": null,
+    "nom_prof": "BUGNON",
+    "prenom_prof": "Oussama"
+  },
+  {
+    "code": "FIL1",
+    "nom": "Parkour - PK",
+    "description": "Saut du voleur, passe-muraille, saut du chat, tic-tac... autant de termes que tu as peut-être déjà entendus... et que tu aimerais tester? Eh bien, tu frappes à la bonne porte! Dans cet atelier, tu pourras t'initier au PK, découvrir de nouvelles capacités, dépasser tes peurs, connaître tes limites et prendre confiance en toi.",
+    "duree": 2,
+    "effectif_max": 30,
+    "infos": "Affaire de sports intérieur",
+    "horaires": "Lundi P1-P2 Lundi P3-P4 Lundi P6-P7   ",
+    "theme": null,
+    "nom_prof": "FILISETTI",
+    "prenom_prof": "Gilles"
+  },
+  {
+    "code": "FIL2",
+    "nom": "Jeux de société",
+    "description": "De la bataille à l'Escape game, en passant par les jeux de plateau les plus connus! Si tu veux venir te mesurer aux autres dans la bonne humeur et le plaisir de jouer, cet atelier est fait pour toi!",
+    "duree": 2,
+    "effectif_max": 36,
+    "infos": "-",
+    "horaires": "Mardi P1-P2 Mardi P3-P4 Mardi P6-P7   ",
+    "theme": null,
+    "nom_prof": "FILISETTI",
+    "prenom_prof": "Gilles"
+  },
+  {
+    "code": "GIA1",
+    "nom": "Unlock - jeu de plateau",
+    "description": "Plonge dans l'univers fascinant des Escape Games, mais cette fois, autour d'une table ! Tu aimes les défis, résoudre des énigmes et vivre des aventures palpitantes avec tes amis ? Alors viens tester tes talents de détective dans l'atelier Unlock, un jeu de plateau coopératif où chaque partie est une aventure unique. À toi de combiner logique, observation et créativité pour déverrouiller tous les secrets et réussir à t’échapper avant la fin du temps imparti !",
+    "duree": 2,
+    "effectif_max": 20,
+    "infos": 0,
+    "horaires": "Mardi P1-P2 Mardi P3-P4 Mardi P6-P7   Vendredi P6-P7 ",
+    "theme": null,
+    "nom_prof": "GIANNINI",
+    "prenom_prof": "Sandro"
+  },
+  {
+    "code": "JUR1",
+    "nom": "Geocaching aventure !",
+    "description": "Prêt·e à devenir explorateur·trice ? Dans cet atelier, tu partiras à la recherche de caches secrètes disséminées aux alentours de l'école à l'aide de l'application Geocaching. Munis d’indices, d’énigmes et d’un sens de l’observation aiguisé, vous devrez collaborer, réfléchir et… trouver le trésor ! À toi de jouer : sauras-tu dénicher les caches avant les autres ?",
+    "duree": 4,
+    "effectif_max": 12,
+    "infos": "Pour cet atelier les élèves devront avoir leur smartphone avec l'application Geocaching installée et un compte créé. Nous serons en extérieur donc il faudra porter des habits adaptés à la météo ainsi que des bonnes chaussures. Le rendez-vous est au Collège des Trois-Sapins salle 132.",
+    "horaires": "Lundi P1-P4 Mardi P1-P4  Jeudi P1-P4  ",
+    "theme": null,
+    "nom_prof": "JURIENS",
+    "prenom_prof": "Sandy"
+  },
+  {
+    "code": "MAM1",
+    "nom": "Devenir arbitre de football",
+    "description": "Atelier pour initier les élèves à l’arbitrage footballistique : compréhension des règles clés, gestion du jeu, placement optimal, communication sur le terrain et mises en situation pratiques pour développer confiance, responsabilité et esprit sportif chez les futurs arbitres.",
+    "duree": 4,
+    "effectif_max": 16,
+    "infos": "Pour cet atelier, merci de prendre des affaires de sports et des chaussures de sports.",
+    "horaires": "Mardi P1-P4  Jeudi P1-P4  ",
+    "theme": null,
+    "nom_prof": "MAMMOLI",
+    "prenom_prof": "Mattia"
+  },
+  {
+    "code": "IVA1",
+    "nom": "Créer ton premier site Internet",
+    "description": "Créer ton premier site Internet avec HTML.",
+    "duree": 2,
+    "effectif_max": 16,
+    "infos": 0,
+    "horaires": " Jeudi P3-P4  Vendredi P1-P2 Vendredi P3-P4 ",
+    "theme": null,
+    "nom_prof": "IVANOVA",
+    "prenom_prof": "Galia"
+  },
+  {
+    "code": "IVA2",
+    "nom": "Cours de bulgare",
+    "description": "Voir l'alphabet cyrillique, écrire son prénom avec et apprendre à lire.",
+    "duree": 2,
+    "effectif_max": 18,
+    "infos": 0,
+    "horaires": "Mardi P3-P4 Mardi P6-P7  jeudi P6-P7 Vendredi P6-P7 ",
+    "theme": null,
+    "nom_prof": "IVANOVA",
+    "prenom_prof": "Galia"
+  },
+  {
+    "code": "BAU1",
+    "nom": "Bounou lobé",
+    "description": "Bounou lobé? Comment ça va? En Casamance, au sud du Sénégal vivent les Diola. Tu veux apprendre quelques mots et découvrir une spécialité culinaire sénégalaise à base de poisson? Alors je me réjouis de t’accueillir!! Si tu n'aimes pas le poisson ou goûter de nouvelles saveurs, choisis un autre atelier qui te conviendra mieux.",
+    "duree": 6,
+    "effectif_max": 14,
+    "infos": "- Mets des habits adaptés pour faire la cuisine. Tu peux prendre un vieux t-shirt ou un tablier pour protéger tes vêtements. - Pour pouvoir emporter ce que tu auras cuisiné, pense à prendre un grand et petit contenant (tupperware) avec couvercles.",
+    "horaires": "Lundi P1-P7   ",
+    "theme": null,
+    "nom_prof": "BAUR",
+    "prenom_prof": "Aline"
+  },
+  {
+    "code": "BAU2",
+    "nom": "Mets des paillettes dans ta vie!",
+    "description": "Parfois, on est un peu bof, on manque de motivation. Dans ces moments, un mot ou une phrase aide à retrouver le sourire. Trouve, invente, copie un mot, une pensée ou une chose à faire pour te sentir mieux ou réconforter les autres. Dans cet atelier, tu vas écrire, créer, décorer, dessiner. Tu pourras bien sûr utiliser des paillettes! :)",
+    "duree": 4,
+    "effectif_max": 15,
+    "infos": 0,
+    "horaires": "  ",
+    "theme": null,
+    "nom_prof": "BAUR",
+    "prenom_prof": "Aline"
+  },
+  {
+    "code": "SEL1",
+    "nom": "Équipe TikTok des Trois-Sapins",
+    "description": "Dans cet atelier, les élèves apprennent à comprendre et analyser le fonctionnement de TikTok : son algorithme, sa logique d’attention, ses tendances, ses effets positifs et les risques associés (désinformation, mise en scène, addiction, manipulation de l’attention, etc.). Pour mettre ces notions en pratique, les élèves créent une version fictive du compte TikTok du collège, sans aucune publication réelle. Nous définirons la ligne éditoriale, élaborerons des concepts de vidéos, suivrons des tendances, imaginerons comment annoncer des événements du collège (sports, ventes, projets, ambiance de l’école), et créerons un prototype de contenu, mais tout reste strictement en interne, non publié et non connecté à un vrai public. Le but est de comprendre comment on construit un message, comment une vidéo influence l’attention, et comment un créateur peut transmettre de l’information de manière responsable.",
+    "duree": 6,
+    "effectif_max": 10,
+    "infos": "Durée de l’atelier : 2 jours au Collège des Trois-Sapins. Horaire : à définir Pause de midi : vous êtes libérés comme un jour de cours classique Matériel à apporter : téléphone chargé écouteurs ou micro si disponible matériel simple pour prendre des notes (storyboard, idées) Nous travaillerons sur un compte fictif : aucun contenu ne sera publié ni partagé en dehors de la classe. Aucune donnée personnelle ni image identifiable ne pourra être utilisée sans autorisation explicite. Objectif : comprendre le fonctionnement de l’algorithme, analyser l’impact des réseaux sociaux, apprendre à créer du contenu responsable et développer un regard critique.",
+    "horaires": "Lundi P1-P7 Mardi P1-P7   ",
+    "theme": null,
+    "nom_prof": "SELMONMUSAJ",
+    "prenom_prof": "Jetlir"
+  },
+  {
+    "code": "ROM1",
+    "nom": "Nage de sauvetage",
+    "description": "Nage de sauvetage: Viens apprendre à sauver quelqu’un de la noyade, ramener une victime au bord du bassin, la sortir de l’eau et lui administrer les gestes de premiers secours afin de lui sauver la vie. Matériel: maillot de bain, training léger et t-shirt (pour aller dans l’eau), 2 linges de bains, affaires de douche",
+    "duree": 2,
+    "effectif_max": 20,
+    "infos": "Rendez-vous devant la piscine Matériel à prendre: maillot de bain, training léger et t-shirt (pour aller dans l’eau), 2 linges de bains, affaires de douche",
+    "horaires": "Lundi P1-P2 Lundi P3-P4 Lundi P6-P7   ",
+    "theme": null,
+    "nom_prof": "ROMANO",
+    "prenom_prof": "Katia"
+  },
+  {
+    "code": "DER1",
+    "nom": "Atelier d'écriture",
+    "description": "Lors de cet atelier d'écriture, tu écris ce que tu penses sur des thèmes de la vie de tous les jours, tu inventes des histoires, tu joues avec les mots... C'est simple : tu as juste besoin d'un stylo , de quelques pistes d'écriture proposées par l'animatrice, de quelques feuilles, d'un zeste d'imagination, et c'est parti ! Ici, tout est permis, sauf le manque de respect, bien sûr. L'atelier d'écriture est un lieu où tu peux librement t'exprimer, dans un cadre bienveillant, et sans avoir peur d'être jugé. Alors oui, les portes te sont grandes ouvertes! Laisse sortir les mots de ta bouche et de ton cœur, car ici, on pet s'évader, rire et rêver.",
+    "duree": 4,
+    "effectif_max": 12,
+    "infos": "Prends une trousse avec tes stylos préférés!",
+    "horaires": "Mardi P1-P4   ",
+    "theme": null,
+    "nom_prof": "DE RABANO CHABAUD",
+    "prenom_prof": "Marie-José"
+  },
+  {
+    "code": "DES1",
+    "nom": "Réalité virtuelle",
+    "description": "Tu aimes les technologies inovatrices, tu veux développer ton imaginaire, traverser des mondes virtuels en tous genres tout en t'amusant ? Cet atelier est fait pour toi !",
+    "duree": 2,
+    "effectif_max": 16,
+    "infos": 0,
+    "horaires": "Lundi P3-P4 Lundi P6-P7 Mardi P1-P2 Mardi P3-P4 Mardi P6-P7  Jeudi P1-P2 Jeudi P3-P4 jeudi P6-P7 Vendredi P1-P2 Vendredi P3-P4 Vendredi P6-P7 ",
+    "theme": null,
+    "nom_prof": "DESARZENS",
+    "prenom_prof": "Yan"
+  },
+  {
+    "code": "BRO2",
+    "nom": "Premiers pas en photographie",
+    "description": "Découvre la photo autrement avec l'atelier \"Premiers pas en photographie\" ! En quelques astuces - règle des tiers, lignes directrices, gestion de l'espace - tu apprendras à transformer de simples scènes en images qui accrochent. Viens explorer ton environnement avec un nouveau regard et repars avec des photos dont tu seras fier.e. Prêt.e à révéler le/la photographe qui est en toi ?",
+    "duree": 2,
+    "effectif_max": 20,
+    "infos": "A prendre avec soi : Si possible, un téléphone chargé, à utiliser uniquement lorsque l'enseignante le demande. ",
+    "horaires": "Mardi P6-P7   ",
+    "theme": null,
+    "nom_prof": "BROCARD",
+    "prenom_prof": "Annaëlle"
+  },
+  {
+    "code": "TYE1",
+    "nom": "Photographie Argentique",
+    "description": "Cet atelier propose une immersion complète dans l’univers de la photographie argentique, de la préparation de la prise de vue jusqu’au développement du film. Les participant·e·s découvriront le fonctionnement d’un appareil argentique (réglages de base, sensibilité ISO, ouverture, vitesse, mise au point), apprendront à composer une image et à gérer la lumière sans aide numérique. Dans un second temps, l’atelier se poursuivra en chambre noire : présentation du matériel, manipulation sécurisée des produits, développement d’un film pas à pas.",
+    "duree": 4,
+    "effectif_max": 12,
+    "infos": 0,
+    "horaires": "Lundi P1-P4 Mardi P1-P4   ",
+    "theme": null,
+    "nom_prof": "TYE",
+    "prenom_prof": "Robert"
+  },
+  {
+    "code": "WER1",
+    "nom": "A la découverte des abeilles",
+    "description": "\"A la découverte des abeilles\" est un atelier qui a pour but de vous faire découvrir la vie des abeilles et leur production de miel. Ces insectes essentiels pour la vie sont très intéressants et pourront vous surprendre. Une partie se déroulera durant la matinée où nous apprendrons à mieux les connaître et nous aurons l'occasion de jouer à un jeu sur ce thème. Durant l'après-midi nous iront visiter les abeilles dans leur environnement habituel.",
+    "duree": 6,
+    "effectif_max": 10,
+    "infos": "L'activité se déroulera sur la journée entière. Il faudra prendre un pic-nique et nous mangerons tous ensemble à midi. Le lieu de rendez-vous se fera au collège à 8h15. Il faudra porter des chaussures fermées avec des chaussettes hautes et un pantalon long pour les mesures de sécurité.",
+    "horaires": " Jeudi P1-P7 ",
+    "theme": null,
+    "nom_prof": "WERMELINGER",
+    "prenom_prof": "Emilie"
+  },
+  {
+    "code": "BOS1",
+    "nom": "Atelier de cuisine",
+    "description": "Découvre de nouvelles saveurs dans un atelier d'expérimentation culinaire",
+    "duree": 4,
+    "effectif_max": 14,
+    "infos": 0,
+    "horaires": " Jeudi P1-P4  ",
+    "theme": null,
+    "nom_prof": "BOSER",
+    "prenom_prof": "Matthieu"
+  },
+  {
+    "code": "BOU1",
+    "nom": "Histoire des jeux vidéos sur console",
+    "description": "Viens découvrir, manette en main, l'histoire des jeux vidéos sur console de la seconde à la neuvième génération.",
+    "duree": 4,
+    "effectif_max": 26,
+    "infos": 0,
+    "horaires": "  ",
+    "theme": null,
+    "nom_prof": "BOUCHETEIL",
+    "prenom_prof": "Olivier"
+  },
+  {
+    "code": "PEL1",
+    "nom": "Mini salon des écoles professionnelles",
+    "description": "Une opportunité pour préparer ton avenir ! Viens découvrir les formations proposées dans les écoles professionnelles romandes, discuter avec des apprenti-e-s, découvrir de nouveaux métiers de manière pratique (ateliers). Grâce à cet atelier tu comprendras la différence entre un apprentissage en entreprise ou dans une école.",
+    "duree": 2,
+    "effectif_max": 50,
+    "infos": 0,
+    "horaires": " Jeudi P1-P2 Jeudi P3-P4  ",
+    "theme": null,
+    "nom_prof": "PELLOUX",
+    "prenom_prof": "Marc"
+  },
+  {
+    "code": "DOU1",
+    "nom": "Plateforme 10 et MCBA - Découvre les musées lausannois",
+    "description": "Tu aimerais en savoir plus sur le monde des musées sur Plateforme 10, le quartier des arts qui réunit trois grands musées lausannois ? Si la culture muséale et artistique t’intéresse, cet atelier est l’occasion de faire une visite enrichissante de ce nouveau pôle et de découvrir de nombreuses œuvres !",
+    "duree": 4,
+    "effectif_max": 22,
+    "infos": 0,
+    "horaires": " Jeudi P1-P4  ",
+    "theme": null,
+    "nom_prof": "DOUCET",
+    "prenom_prof": "Clara"
+  },
+  {
+    "code": "DOU2",
+    "nom": "Crée ton propre bullet journal",
+    "description": "Tu aimes le bricolage et tu as de l’imagination ? Alors viens confectionner et personnaliser ton propre bullet journal afin d’y déposer tes pensées, to-do lists et/ou d’y organiser ta semaine ! Efficacité prouvée pour réduire le stress et laisser libre cours à sa créativité !",
+    "duree": 2,
+    "effectif_max": 16,
+    "infos": 0,
+    "horaires": "Lundi P3-P4   ",
+    "theme": null,
+    "nom_prof": "DOUCET",
+    "prenom_prof": "Clra"
+  },
+  {
+    "code": "TOL1",
+    "nom": "Voyage au pays des Egoungoun",
+    "description": "Egoun, masque traditionnel du Bénin qui raconte la vie après la mort. Nous découvrirons les différentes facettes de ces rites qui permettent d'accéder à l'autre monde.",
+    "duree": 2,
+    "effectif_max": 20,
+    "infos": 0,
+    "horaires": "Lundi P1-P2 Lundi P3-P4 Mardi P6-P7   ",
+    "theme": null,
+    "nom_prof": "TOLO",
+    "prenom_prof": "Seho Ronel"
+  },
+  {
+    "code": "TOL2",
+    "nom": "Au pays du wax",
+    "description": "Découverte des tissus africains avec les différents messages qu'ils véhiculent.",
+    "duree": 2,
+    "effectif_max": 20,
+    "infos": 0,
+    "horaires": "Lundi P6-P7 Mardi P3-P4   ",
+    "theme": null,
+    "nom_prof": "TOLO",
+    "prenom_prof": "Seho Ronel"
+  },
+  {
+    "code": "JUR2",
+    "nom": "Visite de la fromagerie de Peney-le-Jorat",
+    "description": "Nous partirons dans la matinée pour nous rendre à la fromagerie de Peney le Jorat. Un employé de la fromagerie nous fera alors le plaisir de nous expliquer tous les secrets de la fabrication du gruyère. Après la visite des ateliers de fabrication du fromage, nous irons visiter la cave où reposent les fromages. Nous rentrerons en fin de matinée.",
+    "duree": 4,
+    "effectif_max": 16,
+    "infos": 0,
+    "horaires": "  Vendredi P1-P4 ",
+    "theme": null,
+    "nom_prof": "JURIENS",
+    "prenom_prof": "Sandy"
+  },
+  {
+    "code": "STK1",
+    "nom": "Visite du musée olympique de Lausanne",
+    "description": "Citius, altius, fortius – plus vite, plus haut, plus fort ! Plonge dans le monde des JO avec une visite du musée olympique de Lausanne. Nous découvrirons l’histoire et l’évolution des jeux de l’antiquité à nos jours, le monde des JO et de l’esprit olympique.",
+    "duree": 6,
+    "effectif_max": 22,
+    "infos": 0,
+    "horaires": "Lundi P1-P2 Lundi P3-P4 Lundi P7-P8   ",
+    "theme": null,
+    "nom_prof": "STANGLMEIER LEHMANN",
+    "prenom_prof": "Kathrin"
+  },
+  {
+    "code": "STK2",
+    "nom": "Kin ball",
+    "description": "Le kin-ball est un sport collectif (trois équipes de quatre joueurs) qui se joue avec un gros ballon d'environ 1m de diamètre. C'est un sport qui met l'accès sur le fairplay, l'esprit d'équipe et le respect et demande une implication de tous les joueurs.",
+    "duree": 2,
+    "effectif_max": 18,
+    "infos": "Prendre une tenue de sport avec des chaussures de sport d'intérieur.",
+    "horaires": "Mardi P1-P2 Mardi P3-P4 Mardi P7-P8   ",
+    "theme": null,
+    "nom_prof": "STANGLMEIER LEHMANN",
+    "prenom_prof": "Kathrin"
+  },
+  {
+    "code": "CLE1",
+    "nom": "Visite et entraînement au stade de la Tuillière",
+    "description": "Prends tes affaires de foot et viens découvrir les secrets du stade du lausanne-Sport. Tu pourras non seulement le visiter, mais également profiter d'un entraînement spécial de football dans l'antre des joueurs vaudois.",
+    "duree": 6,
+    "effectif_max": 22,
+    "infos": 0,
+    "horaires": "Lundi P1-P2 Lundi P3-P4 Lundi P7-P8  jeudi P7-P8 ",
+    "theme": null,
+    "nom_prof": "CLEMENT",
+    "prenom_prof": "David"
+  },
+  {
+    "code": "CLE2",
+    "nom": "Jeux et énigmes mathématiques",
+    "description": "Tu penses être un mateux ? Viens te frotter à des énigmes mathématiques complexes et te dépasser en tentant de résoudre des défis exigents.",
+    "duree": 2,
+    "effectif_max": 22,
+    "infos": 0,
+    "horaires": "Mardi P1-P2 Mardi P3-P4 Mardi P7-P8   Vendredi P1-P2 Vendredi P3-P4 ",
+    "theme": null,
+    "nom_prof": "CLEMENT",
+    "prenom_prof": "David"
+  }
+];
+
+        // Organiser les ateliers par catégorie
+        const ateliersByCategory = {};
+        ateliersData.forEach(atelier => {
+            const category = categorizeAtelier(atelier);
+            if (!ateliersByCategory[category]) {
+                ateliersByCategory[category] = [];
+            }
+            ateliersByCategory[category].push(atelier);
+        });
+
+        // Fonction pour afficher les ateliers
+        function displayAteliers(categories = null) {
+            const container = document.getElementById('ateliers-container');
+            container.innerHTML = '';
+
+            const categoriesToDisplay = categories || Object.keys(ateliersByCategory).sort();
+            let visibleCount = 0;
+
+            categoriesToDisplay.forEach(category => {
+                if (ateliersByCategory[category] && ateliersByCategory[category].length > 0) {
+                    const section = document.createElement('div');
+                    section.className = 'category-section';
+                    
+                    const title = document.createElement('h2');
+                    title.className = 'category-title';
+                    title.textContent = category;
+                    section.appendChild(title);
+
+                    const grid = document.createElement('div');
+                    grid.className = 'ateliers-grid';
+
+                    ateliersByCategory[category].forEach(atelier => {
+                        grid.appendChild(createAtelierCard(atelier));
+                        visibleCount++;
+                    });
+
+                    section.appendChild(grid);
+                    container.appendChild(section);
+                }
+            });
+
+            document.getElementById('visible-ateliers').textContent = visibleCount;
+            document.getElementById('no-results').classList.toggle('hidden', visibleCount > 0);
+        }
+
+        // Filtrage par catégorie
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+
+                const category = this.dataset.category;
+                if (category === 'tous') {
+                    displayAteliers();
+                } else {
+                    displayAteliers([category]);
+                }
+                
+                // Réinitialiser la recherche
+                document.getElementById('search').value = '';
+            });
+        });
+
+        // Recherche
+        document.getElementById('search').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const cards = document.querySelectorAll('.atelier-card');
+            let visibleCount = 0;
+
+            cards.forEach(card => {
+                const name = card.dataset.name;
+                const visible = name.includes(searchTerm);
+                card.style.display = visible ? '' : 'none';
+                if (visible) visibleCount++;
+            });
+
+            document.getElementById('visible-ateliers').textContent = visibleCount;
+            document.getElementById('no-results').classList.toggle('hidden', visibleCount > 0);
+
+            // Masquer les sections vides
+            document.querySelectorAll('.category-section').forEach(section => {
+                const visibleCards = section.querySelectorAll('.atelier-card:not([style*="display: none"])');
+                section.style.display = visibleCards.length > 0 ? '' : 'none';
+            });
+        });
+
+        // Initialisation
+        document.getElementById('total-ateliers').textContent = ateliersData.length;
+        displayAteliers();
+    </script>
+</body>
+</html>
