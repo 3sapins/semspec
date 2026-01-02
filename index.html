@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ateliers - Semaine Spéciale Trois-Sapins 2026</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            padding: 40px 20px;
+            background: white;
+            border-radius: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        h1 {
+            font-size: 2.5em;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            color: #666;
+            font-weight: 300;
+        }
+
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+            padding: 12px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.2);
+        }
+
+        .filter-btn {
+            padding: 12px 25px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .filter-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .category-section {
+            margin-bottom: 40px;
+        }
+
+        .category-title {
+            font-size: 1.8em;
+            color: white;
+            margin-bottom: 20px;
+            padding: 15px 25px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            display: inline-block;
+        }
+
+        .ateliers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .atelier-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .atelier-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+
+        .atelier-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .atelier-header {
+            margin-bottom: 15px;
+        }
+
+        .atelier-title {
+            font-size: 1.3em;
+            color: #333;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .atelier-code {
+            display: inline-block;
+            background: #f0f0f0;
+            color: #666;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .atelier-description {
+            color: #666;
+            margin: 15px 0;
+            line-height: 1.6;
+            font-size: 0.95em;
+        }
+
+        .atelier-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .info-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 12px;
+            background: #f8f9fa;
+            border-radius: 20px;
+            font-size: 0.85em;
+            color: #555;
+        }
+
+        .info-badge strong {
+            color: #667eea;
+        }
+
+        .atelier-horaires {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+
+        .atelier-infos-eleves {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            padding: 10px 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+
+        .atelier-prof {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+            font-size: 0.9em;
+            color: #777;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            background: white;
+            border-radius: 15px;
+            color: #999;
+            font-size: 1.2em;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .ateliers-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filters {
+                flex-direction: column;
+            }
+
+            .search-box {
+                min-width: 100%;
+            }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .emoji {
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎨 Semaine Spéciale Trois-Sapins 2026</h1>
+            <p class="subtitle">Découvrez tous les ateliers proposés</p>
+        </header>
+
+        <div class="stats" id="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="total-ateliers">0</div>
+                <div class="stat-label">Ateliers disponibles</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="visible-ateliers">0</div>
+                <div class="stat-label">Ateliers affichés</div>
+            </div>
+        </div>
+
+        <div class="filters">
+            <input type="text" class="search-box" id="search" placeholder="🔍 Rechercher un atelier...">
+            <button class="filter-btn active" data-category="tous">Tous</button>
+            <button class="filter-btn" data-category="Artisanat et création">🎨 Artisanat</button>
+            <button class="filter-btn" data-category="Cuisine et gastronomie">🍳 Cuisine</button>
+            <button class="filter-btn" data-category="Sport et activités physiques">⚽ Sport</button>
+            <button class="filter-btn" data-category="Sciences et technologies">🔬 Sciences</button>
+            <button class="filter-btn" data-category="Arts et culture">🎭 Arts</button>
+            <button class="filter-btn" data-category="Bien-être et santé">🧘 Bien-être</button>
+            <button class="filter-btn" data-category="Théâtre, littérature et cinéma">📚 Littérature</button>
+            <button class="filter-btn" data-category="Jeux et divertissements">🎮 Jeux</button>
+            <button class="filter-btn" data-category="Musique et danse">🎵 Musique</button>
+            <button class="filter-btn" data-category="Autre">📌 Autre</button>
+        </div>
+
+        <div id="ateliers-container"></div>
+        <div id="no-results" class="no-results hidden">
+            Aucun atelier ne correspond à votre recherche.
+        </div>
+    </div>
+
+    <script>
+        // Données des ateliers (sera rempli dynamiquement)
+        const ateliersData = [];
+    </script>
+    <script src="ateliers_data.js"></script>
+    <script>
+        // Catégorisation des ateliers
+        function categorizeAtelier(atelier) {
+            const nom = atelier.nom.toLowerCase();
+            const theme = atelier.theme ? atelier.theme.toLowerCase() : '';
+            
+            // Vérifier le thème d'abord
+            if (theme.includes('artisanat') || theme.includes('création')) return 'Artisanat et création';
+            if (theme.includes('cuisine') || theme.includes('gastronomie')) return 'Cuisine et gastronomie';
+            if (theme.includes('sport')) return 'Sport et activités physiques';
+            if (theme.includes('sciences') || theme.includes('technolog')) return 'Sciences et technologies';
+            if (theme.includes('arts') || theme.includes('culture')) return 'Arts et culture';
+            if (theme.includes('bien-être') || theme.includes('santé')) return 'Bien-être et santé';
+            if (theme.includes('théâtre') || theme.includes('littérature') || theme.includes('cinéma')) return 'Théâtre, littérature et cinéma';
+            if (theme.includes('jeux') || theme.includes('divertissement')) return 'Jeux et divertissements';
+            if (theme.includes('musique') || theme.includes('danse')) return 'Musique et danse';
+            
+            // Sinon, catégoriser par nom
+            if (nom.includes('cuisine') || nom.includes('menu') || nom.includes('muffin') || nom.includes('dessert') || nom.includes('crêpe')) return 'Cuisine et gastronomie';
+            if (nom.includes('sport') || nom.includes('fitness') || nom.includes('yoga') || nom.includes('course')) return 'Sport et activités physiques';
+            if (nom.includes('sciences') || nom.includes('chimie') || nom.includes('physique') || nom.includes('robot')) return 'Sciences et technologies';
+            if (nom.includes('peinture') || nom.includes('dessin') || nom.includes('photo') || nom.includes('création')) return 'Artisanat et création';
+            if (nom.includes('théâtre') || nom.includes('cinéma') || nom.includes('film') || nom.includes('lecture')) return 'Théâtre, littérature et cinéma';
+            if (nom.includes('musique') || nom.includes('chant') || nom.includes('danse')) return 'Musique et danse';
+            if (nom.includes('jeux') || nom.includes('escape') || nom.includes('quiz')) return 'Jeux et divertissements';
+            if (nom.includes('hypnose') || nom.includes('sommeil') || nom.includes('relaxation') || nom.includes('bien-être')) return 'Bien-être et santé';
+            
+            return 'Autre';
+        }
+
+        // Organiser les ateliers par catégorie
+        const ateliersByCategory = {};
+        ateliersData.forEach(atelier => {
+            const category = categorizeAtelier(atelier);
+            if (!ateliersByCategory[category]) {
+                ateliersByCategory[category] = [];
+            }
+            ateliersByCategory[category].push(atelier);
+        });
+
+        // Fonction pour formater la durée
+        function formatDuree(duree) {
+            if (!duree) return 'Non spécifié';
+            return duree === 2 ? '2 périodes (1 demi-journée)' : 
+                   duree === 4 ? '4 périodes (1 journée)' : 
+                   duree === 6 ? '6 périodes (1.5 journée)' :
+                   `${duree} périodes`;
+        }
+
+        // Fonction pour créer une carte d'atelier
+        function createAtelierCard(atelier) {
+            const card = document.createElement('div');
+            card.className = 'atelier-card';
+            card.dataset.category = categorizeAtelier(atelier);
+            card.dataset.name = atelier.nom.toLowerCase();
+            
+            let html = `
+                <div class="atelier-header">
+                    <h3 class="atelier-title">${atelier.nom}</h3>
+                    <span class="atelier-code">${atelier.code}</span>
+                </div>
+            `;
+
+            if (atelier.description && atelier.description !== 'None') {
+                html += `<div class="atelier-description">${atelier.description}</div>`;
+            }
+
+            html += `
+                <div class="atelier-info">
+                    <span class="info-badge"><strong>⏱️ Durée:</strong> ${formatDuree(atelier.duree)}</span>
+                    <span class="info-badge"><strong>👥 Max:</strong> ${atelier.effectif_max || 'Non spécifié'} participants</span>
+                </div>
+            `;
+
+            if (atelier.horaires && atelier.horaires.trim()) {
+                html += `
+                    <div class="atelier-horaires">
+                        <strong>📅 Horaires:</strong><br>
+                        ${atelier.horaires.trim()}
+                    </div>
+                `;
+            }
+
+            if (atelier.infos && atelier.infos !== 0 && atelier.infos !== '0') {
+                html += `
+                    <div class="atelier-infos-eleves">
+                        <strong>ℹ️ Informations aux élèves:</strong><br>
+                        ${atelier.infos}
+                    </div>
+                `;
+            }
+
+            if (atelier.nom_prof && atelier.prenom_prof) {
+                html += `
+                    <div class="atelier-prof">
+                        👨‍🏫 Animé par: ${atelier.prenom_prof} ${atelier.nom_prof}
+                    </div>
+                `;
+            }
+
+            card.innerHTML = html;
+            return card;
+        }
+
+        // Fonction pour afficher les ateliers
+        function displayAteliers(categories = null) {
+            const container = document.getElementById('ateliers-container');
+            container.innerHTML = '';
+
+            const categoriesToDisplay = categories || Object.keys(ateliersByCategory).sort();
+            let visibleCount = 0;
+
+            categoriesToDisplay.forEach(category => {
+                if (ateliersByCategory[category] && ateliersByCategory[category].length > 0) {
+                    const section = document.createElement('div');
+                    section.className = 'category-section';
+                    
+                    const title = document.createElement('h2');
+                    title.className = 'category-title';
+                    title.textContent = category;
+                    section.appendChild(title);
+
+                    const grid = document.createElement('div');
+                    grid.className = 'ateliers-grid';
+
+                    ateliersByCategory[category].forEach(atelier => {
+                        grid.appendChild(createAtelierCard(atelier));
+                        visibleCount++;
+                    });
+
+                    section.appendChild(grid);
+                    container.appendChild(section);
+                }
+            });
+
+            document.getElementById('visible-ateliers').textContent = visibleCount;
+            document.getElementById('no-results').classList.toggle('hidden', visibleCount > 0);
+        }
+
+        // Filtrage par catégorie
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+
+                const category = this.dataset.category;
+                if (category === 'tous') {
+                    displayAteliers();
+                } else {
+                    displayAteliers([category]);
+                }
+                
+                // Réinitialiser la recherche
+                document.getElementById('search').value = '';
+            });
+        });
+
+        // Recherche
+        document.getElementById('search').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const cards = document.querySelectorAll('.atelier-card');
+            let visibleCount = 0;
+
+            cards.forEach(card => {
+                const name = card.dataset.name;
+                const visible = name.includes(searchTerm);
+                card.style.display = visible ? '' : 'none';
+                if (visible) visibleCount++;
+            });
+
+            document.getElementById('visible-ateliers').textContent = visibleCount;
+            document.getElementById('no-results').classList.toggle('hidden', visibleCount > 0);
+
+            // Masquer les sections vides
+            document.querySelectorAll('.category-section').forEach(section => {
+                const visibleCards = section.querySelectorAll('.atelier-card:not([style*="display: none"])');
+                section.style.display = visibleCards.length > 0 ? '' : 'none';
+            });
+        });
+
+        // Initialisation
+        document.getElementById('total-ateliers').textContent = ateliersData.length;
+        displayAteliers();
+    </script>
+</body>
+</html>
