@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inscriptions - Semaine Spéciale | Collège des Trois-Sapins</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 25px 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        #loginPage, #dashboardPage {
+            display: none;
+        }
+
+        .login-box {
+            background: white;
+            max-width: 450px;
+            margin: 100px auto;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        }
+
+        .login-box h2 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 30px;
+            font-size: 32px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 15px;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .tab {
+            padding: 12px 25px;
+            background: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .alert-info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .ateliers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .atelier-card {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .atelier-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
+            border-color: #667eea;
+        }
+
+        .atelier-card.complet {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .atelier-card.inscrit {
+            border-color: #10b981;
+            background: #f0fdf4;
+        }
+
+        .atelier-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+
+        .atelier-nom {
+            font-size: 18px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .atelier-tag {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .tag-disponible {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .tag-complet {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .tag-inscrit {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .atelier-info {
+            margin: 8px 0;
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .atelier-info strong {
+            color: #374151;
+        }
+
+        .atelier-description {
+            color: #6b7280;
+            font-size: 13px;
+            margin: 12px 0;
+            line-height: 1.5;
+        }
+
+        .atelier-actions {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-size: 18px;
+        }
+
+        .mes-inscriptions-liste {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .inscription-card {
+            background: #f9fafb;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .inscription-card.obligatoire {
+            border-left-color: #f59e0b;
+            background: #fffbeb;
+        }
+
+        .inscription-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .inscription-nom {
+            font-size: 18px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .badge-obligatoire {
+            background: #f59e0b;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .ateliers-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- PAGE DE CONNEXION -->
+    <div id="loginPage">
+        <div class="login-box">
+            <h2>👨‍🎓 Inscriptions</h2>
+            <p style="text-align: center; color: #666; margin-bottom: 30px;">Semaine Spéciale - Collège des Trois-Sapins</p>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="acronyme">Identifiant</label>
+                    <input type="text" id="acronyme" placeholder="Ton identifiant" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Mot de passe</label>
+                    <input type="password" id="password" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Se connecter</button>
+            </form>
+            <div id="loginError" style="display: none; margin-top: 15px;"></div>
+        </div>
+    </div>
+
+    <!-- DASHBOARD ÉLÈVE -->
+    <div id="dashboardPage">
+        <div class="container">
+            <div class="header">
+                <div>
+                    <h1>🎓 Semaine Spéciale - Inscriptions</h1>
+                    <p style="color: #666; margin-top: 5px;">Collège des Trois-Sapins, Echallens</p>
+                </div>
+                <div style="text-align: right;">
+                    <p><strong id="userName"></strong></p>
+                    <p style="color: #666; font-size: 14px;">Classe: <strong id="userClasse"></strong></p>
+                    <button class="btn btn-secondary" onclick="showChangePassword()" style="margin-top: 10px; margin-right: 10px;">🔑 Mot de passe</button>
+                    <button class="btn btn-danger" onclick="logout()" style="margin-top: 10px;">Déconnexion</button>
+                </div>
+            </div>
+
+            <!-- ONGLETS -->
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('ateliers')">🎨 Ateliers Disponibles</button>
+                <button class="tab" onclick="showTab('inscriptions')">📋 Mes Inscriptions</button>
+            </div>
+
+            <!-- TAB: ATELIERS DISPONIBLES -->
+            <div id="tabAteliers" class="tab-content active">
+                <h2 style="margin-bottom: 20px; color: #374151;">Ateliers Disponibles</h2>
+                
+                <div id="alertsAteliers"></div>
+
+                <div id="ateliersGrid">
+                    <div class="loading">Chargement des ateliers...</div>
+                </div>
+            </div>
+
+            <!-- TAB: MES INSCRIPTIONS -->
+            <div id="tabInscriptions" class="tab-content">
+                <h2 style="margin-bottom: 20px; color: #374151;">Mes Inscriptions</h2>
+                
+                <div id="alertsInscriptions"></div>
+
+                <div id="inscriptionsListe">
+                    <div class="loading">Chargement...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api';
+        let currentToken = null;
+        let currentUser = null;
+        let userClasse = '';
+
+        // Au chargement
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('token');
+            const user = localStorage.getItem('user');
+            
+            if (token && user) {
+                currentToken = token;
+                currentUser = JSON.parse(user);
+                
+                if (currentUser.role === 'eleve' || currentUser.role === 'admin') {
+                    showDashboard();
+                } else {
+                    showLogin();
+                }
+            } else {
+                showLogin();
+            }
+        });
+
+        function showLogin() {
+            document.getElementById('loginPage').style.display = 'block';
+            document.getElementById('dashboardPage').style.display = 'none';
+        }
+
+        function showDashboard() {
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('dashboardPage').style.display = 'block';
+            document.getElementById('userName').textContent = `${currentUser.prenom} ${currentUser.nom}`;
+            
+            loadAteliers();
+            loadMesInscriptions();
+        }
+
+        // Connexion
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const acronyme = document.getElementById('acronyme').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ acronyme, password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.data.user.role !== 'eleve' && data.data.user.role !== 'admin') {
+                        showAlert('loginError', 'Accès réservé aux élèves', 'error');
+                        return;
+                    }
+                    
+                    currentToken = data.data.token;
+                    currentUser = data.data.user;
+                    
+                    localStorage.setItem('token', currentToken);
+                    localStorage.setItem('user', JSON.stringify(currentUser));
+                    
+                    showDashboard();
+                } else {
+                    showAlert('loginError', data.message, 'error');
+                }
+            } catch (error) {
+                showAlert('loginError', 'Erreur de connexion au serveur', 'error');
+            }
+        });
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            currentToken = null;
+            currentUser = null;
+            showLogin();
+        }
+
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            
+            document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
+            event.target.classList.add('active');
+            
+            if (tabName === 'inscriptions') loadMesInscriptions();
+        }
+
+        // Ateliers disponibles
+        async function loadAteliers() {
+            try {
+                const response = await fetch(`${API_URL}/eleves/ateliers-disponibles`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.eleve_info) {
+                        userClasse = data.eleve_info.classe;
+                        document.getElementById('userClasse').textContent = userClasse;
+                    }
+                    
+                    // Afficher un bandeau si inscriptions fermées, mais quand même montrer les ateliers
+                    if (!data.inscriptions_ouvertes) {
+                        const banner = document.createElement('div');
+                        banner.className = 'alert alert-warning';
+                        banner.style.cssText = `
+                            background: #fef3c7;
+                            border-left: 4px solid #f59e0b;
+                            padding: 15px 20px;
+                            border-radius: 8px;
+                            margin-bottom: 20px;
+                        `;
+                        banner.innerHTML = `
+                            <strong>⚠️ Inscriptions fermées</strong><br>
+                            Vous pouvez consulter les ateliers mais les inscriptions ne sont pas encore ouvertes.
+                            ${data.quota_pourcent && data.quota_pourcent < 100 ? 
+                                `<br><small>Quota actuel : ${data.quota_pourcent}% des places disponibles</small>` : ''}
+                        `;
+                        const container = document.getElementById('ateliersGrid');
+                        container.innerHTML = '';
+                        container.appendChild(banner);
+                    }
+                    
+                    // Toujours afficher les ateliers (fermé ou ouvert)
+                    displayAteliers(data.data, !data.inscriptions_ouvertes);
+                }
+            } catch (error) {
+                console.error('Erreur ateliers:', error);
+            }
+        }
+
+        function displayAteliers(ateliers, readOnly = false) {
+            const container = document.getElementById('ateliersGrid');
+            
+            if (ateliers.length === 0) {
+                const emptyMsg = document.createElement('div');
+                emptyMsg.className = 'alert alert-info';
+                emptyMsg.textContent = 'Aucun atelier disponible pour le moment.';
+                container.appendChild(emptyMsg);
+                return;
+            }
+            
+            let html = '<div class="ateliers-grid">';
+            
+            ateliers.forEach(a => {
+                const complet = a.places_restantes <= 0;
+                const inscrit = a.deja_inscrit === 1;
+                
+                const cardClass = complet ? 'atelier-card complet' : inscrit ? 'atelier-card inscrit' : 'atelier-card';
+                const tagClass = complet ? 'tag-complet' : inscrit ? 'tag-inscrit' : 'tag-disponible';
+                const tagText = complet ? 'Complet' : inscrit ? 'Inscrit' : `${a.places_restantes} places`;
+                
+                const jourDisplay = a.jour.charAt(0).toUpperCase() + a.jour.slice(1);
+                
+                html += `
+                    <div class="${cardClass}">
+                        <div class="atelier-header">
+                            <div class="atelier-nom">${a.nom}</div>
+                            <div class="atelier-tag ${tagClass}">${tagText}</div>
+                        </div>
+                        
+                        <div class="atelier-info">
+                            <strong>👨‍🏫</strong> ${a.enseignant_prenom} ${a.enseignant_nom}
+                        </div>
+                        
+                        <div class="atelier-info">
+                            <strong>📅</strong> ${jourDisplay} - ${a.periode} (${a.heure_debut.substring(0, 5)} - ${a.heure_fin.substring(0, 5)})
+                        </div>
+                        
+                        <div class="atelier-info">
+                            <strong>🏫</strong> ${a.salle_nom}
+                        </div>
+                        
+                        <div class="atelier-info">
+                            <strong>⏱️</strong> ${a.duree} périodes
+                        </div>
+                        
+                        ${a.description ? `<div class="atelier-description">${a.description}</div>` : ''}
+                        
+                        ${a.informations_eleves ? `
+                            <div class="alert alert-info" style="margin-top: 12px; padding: 10px; font-size: 13px;">
+                                <strong>ℹ️ Informations :</strong><br>${a.informations_eleves}
+                            </div>
+                        ` : ''}
+                        
+                        <div class="atelier-actions">
+                            ${readOnly ? `
+                                <div style="text-align: center; color: #f59e0b; font-weight: 600; font-size: 13px;">
+                                    🔒 Inscriptions fermées
+                                </div>
+                            ` : !complet && !inscrit ? `
+                                <button class="btn btn-primary" style="width: 100%;" onclick="inscrire(${a.planning_id})">
+                                    ✅ S'inscrire
+                                </button>
+                            ` : inscrit ? `
+                                <div style="text-align: center; color: #10b981; font-weight: 600;">
+                                    ✅ Tu es inscrit(e) à cet atelier
+                                </div>
+                            ` : `
+                                <div style="text-align: center; color: #ef4444; font-weight: 600;">
+                                    ❌ Atelier complet
+                                </div>
+                            `}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            const gridContainer = document.createElement('div');
+            gridContainer.innerHTML = html;
+            container.appendChild(gridContainer);
+        }
+
+        async function inscrire(planningId) {
+            if (!confirm('Confirmes-tu ton inscription à cet atelier ?')) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/eleves/inscrire/${planningId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('alertsAteliers', '✅ ' + data.message, 'success');
+                    loadAteliers();
+                    loadMesInscriptions();
+                } else {
+                    showAlert('alertsAteliers', '❌ ' + data.message, 'error');
+                }
+            } catch (error) {
+                showAlert('alertsAteliers', 'Erreur lors de l\'inscription', 'error');
+            }
+        }
+
+        // Mes inscriptions
+        async function loadMesInscriptions() {
+            try {
+                const response = await fetch(`${API_URL}/eleves/mes-inscriptions`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayMesInscriptions(data.data);
+                }
+            } catch (error) {
+                console.error('Erreur inscriptions:', error);
+            }
+        }
+
+        function displayMesInscriptions(inscriptions) {
+            const container = document.getElementById('inscriptionsListe');
+            
+            if (inscriptions.length === 0) {
+                container.innerHTML = '<div class="alert alert-info">Tu n\'es inscrit(e) à aucun atelier pour le moment.</div>';
+                return;
+            }
+            
+            let html = '<div class="mes-inscriptions-liste">';
+            
+            inscriptions.forEach(i => {
+                const jourDisplay = i.jour ? i.jour.charAt(0).toUpperCase() + i.jour.slice(1) : 'À placer';
+                const obligatoire = i.inscription_manuelle;
+                
+                html += `
+                    <div class="inscription-card ${obligatoire ? 'obligatoire' : ''}">
+                        <div class="inscription-header">
+                            <div class="inscription-nom">${i.atelier_nom}</div>
+                            ${obligatoire ? '<div class="badge-obligatoire">Obligatoire</div>' : ''}
+                        </div>
+                        
+                        <div class="atelier-info">
+                            <strong>👨‍🏫</strong> ${i.enseignant_prenom} ${i.enseignant_nom}
+                        </div>
+                        
+                        ${i.jour ? `
+                            <div class="atelier-info">
+                                <strong>📅</strong> ${jourDisplay} - ${i.periode} (${i.heure_debut.substring(0, 5)} - ${i.heure_fin.substring(0, 5)})
+                            </div>
+                            
+                            <div class="atelier-info">
+                                <strong>🏫</strong> ${i.salle_nom}
+                            </div>
+                        ` : '<div class="alert alert-warning" style="margin-top: 10px;">⏳ Atelier pas encore placé dans le planning</div>'}
+                        
+                        ${i.informations_eleves ? `
+                            <div class="alert alert-info" style="margin-top: 12px; padding: 10px; font-size: 13px;">
+                                <strong>ℹ️ Informations :</strong><br>${i.informations_eleves}
+                            </div>
+                        ` : ''}
+                        
+                        ${!obligatoire ? `
+                            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
+                                <button class="btn btn-danger" style="width: 100%;" onclick="desinscrire(${i.id})">
+                                    ❌ Se désinscrire
+                                </button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        async function desinscrire(inscriptionId) {
+            if (!confirm('Es-tu sûr(e) de vouloir te désinscrire de cet atelier ?')) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/eleves/desinscrire/${inscriptionId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('alertsInscriptions', '✅ ' + data.message, 'success');
+                    loadMesInscriptions();
+                    loadAteliers();
+                } else {
+                    showAlert('alertsInscriptions', '❌ ' + data.message, 'error');
+                }
+            } catch (error) {
+                showAlert('alertsInscriptions', 'Erreur lors de la désinscription', 'error');
+            }
+        }
+
+        function showAlert(containerId, message, type) {
+            const container = document.getElementById(containerId);
+			container.style.display='block';
+            const alertClass = type === 'success' ? 'alert-success' : type === 'error' ? 'alert-error' : 'alert-info';
+            
+            container.innerHTML = `<div class="alert ${alertClass}">${message}</div>`;
+            
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 5000);
+        }
+
+        // === CHANGEMENT MOT DE PASSE ===
+        function showChangePassword() {
+            const modal = document.createElement('div');
+            modal.id = 'passwordModal';
+            modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;';
+            modal.innerHTML = `
+                <div style="background:white;padding:30px;border-radius:15px;max-width:400px;width:90%;">
+                    <h3 style="margin-bottom:20px;color:#667eea;">🔑 Changer mon mot de passe</h3>
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block;margin-bottom:5px;font-weight:600;">Ancien mot de passe</label>
+                        <input type="password" id="oldPassword" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;">
+                    </div>
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block;margin-bottom:5px;font-weight:600;">Nouveau mot de passe</label>
+                        <input type="password" id="newPassword" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;">
+                    </div>
+                    <div style="margin-bottom:20px;">
+                        <label style="display:block;margin-bottom:5px;font-weight:600;">Confirmer le nouveau</label>
+                        <input type="password" id="confirmPassword" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;">
+                    </div>
+                    <div id="passwordError" style="color:#ef4444;margin-bottom:15px;display:none;"></div>
+                    <div style="display:flex;gap:10px;">
+                        <button onclick="changePassword()" class="btn btn-primary" style="flex:1;">Changer</button>
+                        <button onclick="document.getElementById('passwordModal').remove()" class="btn btn-secondary" style="flex:1;">Annuler</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        async function changePassword() {
+            const oldPassword = document.getElementById('oldPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const errorDiv = document.getElementById('passwordError');
+
+            if (!oldPassword || !newPassword || !confirmPassword) {
+                errorDiv.textContent = 'Tous les champs sont requis';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                errorDiv.textContent = 'Les mots de passe ne correspondent pas';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (newPassword.length < 6) {
+                errorDiv.textContent = 'Le mot de passe doit contenir au moins 6 caractères';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/auth/change-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ oldPassword, newPassword })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    document.getElementById('passwordModal').remove();
+                    showAlert('alertAteliers', '✅ Mot de passe modifié avec succès !', 'success');
+                } else {
+                    errorDiv.textContent = result.message || 'Erreur lors du changement';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Erreur de connexion';
+                errorDiv.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>

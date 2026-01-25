@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pointage Présences | Enseignant</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container { max-width: 1000px; margin: 0 auto; }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        h1 { color: #d97706; font-size: 24px; }
+        h2 { color: #333; font-size: 18px; margin-bottom: 15px; }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-primary { background: #f59e0b; color: white; }
+        .btn-primary:hover { background: #d97706; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-success:hover { background: #059669; }
+        .btn-secondary { background: #6b7280; color: white; }
+        .btn-secondary:hover { background: #4b5563; }
+        .btn-danger { background: #ef4444; color: white; }
+
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .card-header h3 { font-size: 16px; }
+
+        .card-body { padding: 20px; }
+
+        .atelier-item {
+            background: #f9fafb;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-left: 4px solid #d97706;
+        }
+
+        .atelier-item:hover {
+            background: #f3f4f6;
+            transform: translateX(5px);
+        }
+
+        .atelier-item.valide {
+            border-left-color: #10b981;
+            background: #ecfdf5;
+        }
+
+        .atelier-info h4 { color: #333; margin-bottom: 5px; }
+        .atelier-info p { color: #6b7280; font-size: 13px; }
+
+        .atelier-stats {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .stat-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .stat-badge.inscrits { background: #e0e7ff; color: #4338ca; }
+        .stat-badge.valide { background: #d1fae5; color: #059669; }
+        .stat-badge.en-attente { background: #fef3c7; color: #d97706; }
+
+        /* Liste élèves */
+        .eleve-list { margin-top: 15px; }
+
+        .eleve-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            border-bottom: 1px solid #e5e7eb;
+            gap: 15px;
+        }
+
+        .eleve-item:last-child { border-bottom: none; }
+
+        .eleve-item:hover { background: #f9fafb; }
+
+        .eleve-checkbox {
+            display: flex;
+            gap: 10px;
+        }
+
+        .eleve-checkbox input[type="radio"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .eleve-checkbox label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 13px;
+        }
+
+        .eleve-checkbox label.present { background: #d1fae5; color: #059669; }
+        .eleve-checkbox label.absent { background: #fee2e2; color: #dc2626; }
+
+        .eleve-checkbox input[type="radio"]:checked + label.present,
+        .eleve-checkbox input[type="radio"]:checked + label.absent {
+            font-weight: bold;
+        }
+
+        .eleve-info {
+            flex: 1;
+        }
+
+        .eleve-info strong { color: #333; }
+        .eleve-info span { color: #6b7280; font-size: 13px; margin-left: 10px; }
+
+        .eleve-comment {
+            width: 150px;
+        }
+
+        .eleve-comment input {
+            width: 100%;
+            padding: 5px 10px;
+            border: 1px solid #e5e7eb;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+
+        .summary-bar {
+            background: #f3f4f6;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .summary-stats {
+            display: flex;
+            gap: 20px;
+        }
+
+        .summary-stat {
+            text-align: center;
+        }
+
+        .summary-stat .value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .summary-stat .label {
+            font-size: 11px;
+            color: #6b7280;
+        }
+
+        .summary-stat.presents .value { color: #10b981; }
+        .summary-stat.absents .value { color: #ef4444; }
+
+        .validation-info {
+            background: #d1fae5;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #059669;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 15px;
+            color: white;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .back-link:hover { text-decoration: underline; }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active { display: flex; }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 { font-size: 18px; }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .modal-body { padding: 20px; }
+
+        @media (max-width: 600px) {
+            .eleve-item { flex-direction: column; align-items: flex-start; }
+            .eleve-comment { width: 100%; margin-top: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="enseignants.html" class="back-link">← Retour à mon espace</a>
+        
+        <div class="header">
+            <h1>📋 Pointage des Présences</h1>
+            <div class="btn-group">
+                <button class="btn btn-secondary" onclick="location.reload()">↻ Actualiser</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3>Mes Ateliers</h3>
+            </div>
+            <div class="card-body">
+                <div id="ateliersListe" class="loading">
+                    Chargement de vos ateliers...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Pointage -->
+    <div id="modalPointage" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Pointage</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="modalAtelierInfo"></div>
+                <div id="modalElevesListe" class="eleve-list"></div>
+                <div id="modalSummary" class="summary-bar" style="display: none;"></div>
+            </div>
+            <div style="padding: 20px; border-top: 1px solid #e5e7eb; display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="closeModal()">Annuler</button>
+                <button class="btn btn-primary" onclick="savePointage(false)">💾 Enregistrer</button>
+                <button class="btn btn-success" onclick="savePointage(true)">✅ Valider Définitivement</button>
+                <button class="btn btn-secondary" onclick="printPresence()">🖨️ Imprimer</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = 'login.html';
+
+        let currentAtelier = null;
+        let currentCreneau = null;
+        let elevesData = [];
+
+        document.addEventListener('DOMContentLoaded', loadMesAteliers);
+
+        async function loadMesAteliers() {
+            try {
+                const response = await fetch('/api/presence/mes-ateliers', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+
+                const container = document.getElementById('ateliersListe');
+
+                if (!result.data || result.data.length === 0) {
+                    container.innerHTML = '<p style="color: #6b7280; text-align: center;">Aucun atelier assigné.</p>';
+                    return;
+                }
+
+                let html = '';
+                result.data.forEach(a => {
+                    const isValide = a.valide_le !== null;
+                    const jourCap = a.jour.charAt(0).toUpperCase() + a.jour.slice(1);
+                    
+                    html += `
+                        <div class="atelier-item ${isValide ? 'valide' : ''}" onclick="openPointage(${a.atelier_id}, ${a.creneau_id})">
+                            <div class="atelier-info">
+                                <h4>${a.atelier_nom}</h4>
+                                <p>📅 ${jourCap} ${a.periode} | 🚪 ${a.salle_nom}</p>
+                            </div>
+                            <div class="atelier-stats">
+                                <span class="stat-badge inscrits">👥 ${a.total_inscrits} inscrits</span>
+                                ${isValide 
+                                    ? `<span class="stat-badge valide">✅ Validé (${a.presents}P/${a.absents}A)</span>`
+                                    : `<span class="stat-badge en-attente">⏳ À pointer</span>`
+                                }
+                            </div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                document.getElementById('ateliersListe').innerHTML = 
+                    '<p style="color: #ef4444;">Erreur de chargement</p>';
+            }
+        }
+
+        async function openPointage(atelierId, creneauId) {
+            currentAtelier = atelierId;
+            currentCreneau = creneauId;
+
+            document.getElementById('modalPointage').classList.add('active');
+            document.getElementById('modalElevesListe').innerHTML = '<div class="loading">Chargement...</div>';
+
+            try {
+                const response = await fetch(`/api/presence/atelier/${atelierId}/${creneauId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+
+                if (!result.success) {
+                    alert('Erreur: ' + result.message);
+                    closeModal();
+                    return;
+                }
+
+                const { atelier, eleves, validation } = result.data;
+                elevesData = eleves;
+
+                // Header
+                const jourCap = atelier.jour.charAt(0).toUpperCase() + atelier.jour.slice(1);
+                document.getElementById('modalTitle').textContent = atelier.nom;
+                document.getElementById('modalAtelierInfo').innerHTML = `
+                    <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <p><strong>📅 Créneau :</strong> ${jourCap} ${atelier.periode}</p>
+                        <p><strong>🚪 Salle :</strong> ${atelier.salle_nom}</p>
+                        <p><strong>👨‍🏫 Enseignant(s) :</strong> ${atelier.enseignants_noms || '-'}</p>
+                        ${validation.valide_le 
+                            ? `<p style="color: #10b981; margin-top: 10px;">✅ Validé le ${new Date(validation.valide_le).toLocaleString('fr-CH')} par ${validation.valide_par}</p>`
+                            : ''
+                        }
+                    </div>
+                `;
+
+                // Liste élèves
+                let html = '';
+                eleves.forEach((e, i) => {
+                    const isPresent = e.statut === 'present';
+                    const isAbsent = e.statut === 'absent';
+                    
+                    html += `
+                        <div class="eleve-item">
+                            <div class="eleve-checkbox">
+                                <input type="radio" name="presence_${e.eleve_id}" id="present_${e.eleve_id}" 
+                                    value="present" ${isPresent ? 'checked' : ''} onchange="updateSummary()">
+                                <label for="present_${e.eleve_id}" class="present">✓ P</label>
+                                
+                                <input type="radio" name="presence_${e.eleve_id}" id="absent_${e.eleve_id}" 
+                                    value="absent" ${isAbsent ? 'checked' : ''} onchange="updateSummary()">
+                                <label for="absent_${e.eleve_id}" class="absent">✗ A</label>
+                            </div>
+                            <div class="eleve-info">
+                                <strong>${e.nom} ${e.prenom}</strong>
+                                <span>${e.classe}</span>
+                            </div>
+                            <div class="eleve-comment">
+                                <input type="text" id="comment_${e.eleve_id}" placeholder="Remarque..." 
+                                    value="${e.commentaire || ''}">
+                            </div>
+                        </div>
+                    `;
+                });
+
+                document.getElementById('modalElevesListe').innerHTML = html;
+                document.getElementById('modalSummary').style.display = 'flex';
+                updateSummary();
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Erreur de chargement');
+                closeModal();
+            }
+        }
+
+        function updateSummary() {
+            let presents = 0, absents = 0, nonPointes = 0;
+
+            elevesData.forEach(e => {
+                const presentRadio = document.getElementById(`present_${e.eleve_id}`);
+                const absentRadio = document.getElementById(`absent_${e.eleve_id}`);
+                
+                if (presentRadio && presentRadio.checked) presents++;
+                else if (absentRadio && absentRadio.checked) absents++;
+                else nonPointes++;
+            });
+
+            document.getElementById('modalSummary').innerHTML = `
+                <div class="summary-stats">
+                    <div class="summary-stat presents">
+                        <div class="value">${presents}</div>
+                        <div class="label">Présents</div>
+                    </div>
+                    <div class="summary-stat absents">
+                        <div class="value">${absents}</div>
+                        <div class="label">Absents</div>
+                    </div>
+                    <div class="summary-stat">
+                        <div class="value">${nonPointes}</div>
+                        <div class="label">Non pointés</div>
+                    </div>
+                </div>
+                <div>
+                    <strong>Total : ${elevesData.length} élèves</strong>
+                </div>
+            `;
+        }
+
+        async function savePointage(valider = false) {
+            const presences = elevesData.map(e => {
+                const presentRadio = document.getElementById(`present_${e.eleve_id}`);
+                const absentRadio = document.getElementById(`absent_${e.eleve_id}`);
+                const comment = document.getElementById(`comment_${e.eleve_id}`)?.value || '';
+                
+                let statut = 'non_pointe';
+                if (presentRadio && presentRadio.checked) statut = 'present';
+                else if (absentRadio && absentRadio.checked) statut = 'absent';
+                
+                return {
+                    eleve_id: e.eleve_id,
+                    statut: statut,
+                    commentaire: comment
+                };
+            });
+
+            // Vérifier si tous sont pointés avant validation
+            if (valider) {
+                const nonPointes = presences.filter(p => p.statut === 'non_pointe').length;
+                if (nonPointes > 0) {
+                    if (!confirm(`${nonPointes} élève(s) non pointé(s). Les marquer comme absents et valider ?`)) {
+                        return;
+                    }
+                    // Marquer les non pointés comme absents
+                    presences.forEach(p => {
+                        if (p.statut === 'non_pointe') p.statut = 'absent';
+                    });
+                }
+            }
+
+            try {
+                const endpoint = valider 
+                    ? `/api/presence/atelier/${currentAtelier}/${currentCreneau}/valider`
+                    : `/api/presence/atelier/${currentAtelier}/${currentCreneau}/pointer`;
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ presences })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(valider ? '✅ Présences validées !' : '💾 Présences enregistrées');
+                    closeModal();
+                    loadMesAteliers();
+                } else {
+                    alert('Erreur: ' + result.message);
+                }
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Erreur lors de l\'enregistrement');
+            }
+        }
+
+        function printPresence() {
+            window.open(`/api/print/presence/${currentAtelier}/${currentCreneau}`, '_blank');
+        }
+
+        function closeModal() {
+            document.getElementById('modalPointage').classList.remove('active');
+            currentAtelier = null;
+            currentCreneau = null;
+            elevesData = [];
+        }
+
+        // Fermer modal avec Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

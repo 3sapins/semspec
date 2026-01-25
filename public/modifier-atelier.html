@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modifier un Atelier | Admin</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 30px;
+            font-size: 32px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        label .required {
+            color: #ef4444;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .enseignants-group {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+
+        .enseignants-group h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .enseignant-select {
+            margin-bottom: 15px;
+        }
+
+        .helper-text {
+            font-size: 13px;
+            color: #6b7280;
+            margin-top: 5px;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 14px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            flex: 1;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border-left: 4px solid #10b981;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+
+        .loading {
+            display: block;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .warning-box {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .warning-box strong {
+            color: #92400e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✏️ Modifier l'Atelier</h1>
+
+        <div id="alert" class="alert"></div>
+        
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Chargement...</p>
+        </div>
+
+        <div id="formContainer" style="display: none;">
+            <div class="warning-box">
+                <strong>⚠️ Attention :</strong> Si l'atelier est déjà dans le planning avec des élèves inscrits, 
+                certaines modifications peuvent nécessiter de replacer l'atelier.
+            </div>
+
+            <form id="modifyAtelierForm">
+                <!-- ID caché -->
+                <input type="hidden" id="atelierId">
+
+                <!-- Informations de base -->
+                <div class="form-group">
+                    <label>Nom de l'atelier <span class="required">*</span></label>
+                    <input type="text" id="nom" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="description"></textarea>
+                </div>
+
+                <!-- Enseignants -->
+                <div class="enseignants-group">
+                    <h3>👥 Enseignants</h3>
+                    
+                    <div class="enseignant-select">
+                        <label>Enseignant principal <span class="required">*</span></label>
+                        <select id="enseignant1" required>
+                            <option value="">-- Sélectionner --</option>
+                        </select>
+                    </div>
+
+                    <div class="enseignant-select">
+                        <label>Enseignant accompagnant 2 (optionnel)</label>
+                        <select id="enseignant2">
+                            <option value="">-- Aucun --</option>
+                        </select>
+                    </div>
+
+                    <div class="enseignant-select">
+                        <label>Enseignant accompagnant 3 (optionnel)</label>
+                        <select id="enseignant3">
+                            <option value="">-- Aucun --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Durée et places -->
+                <div class="form-group">
+                    <label>Durée <span class="required">*</span></label>
+                    <select id="duree" required>
+                        <option value="">-- Sélectionner --</option>
+                        <option value="2">2 périodes (1h35)</option>
+                        <option value="4">4 périodes (3h10)</option>
+                        <option value="6">6 périodes (journée complète)</option>
+                    </select>
+                    <p class="helper-text">⚠️ Modifier la durée nécessitera de replacer l'atelier dans le planning</p>
+                </div>
+
+                <div class="form-group">
+                    <label>Nombre de places maximum <span class="required">*</span></label>
+                    <input type="number" id="places" required min="1" max="100">
+                </div>
+
+                <!-- Budget et salle -->
+                <div class="form-group">
+                    <label>Budget maximum (CHF)</label>
+                    <input type="number" id="budget" min="0" step="0.01">
+                </div>
+
+                <div class="form-group">
+                    <label>Type de salle demandé</label>
+                    <select id="type_salle">
+                        <option value="">-- Aucune préférence --</option>
+                        <option value="Classe standard">Classe standard</option>
+                        <option value="Salle informatique">Salle informatique</option>
+                        <option value="Atelier">Atelier</option>
+                        <option value="Laboratoire">Laboratoire</option>
+                        <option value="Salle de sport">Salle de sport</option>
+                        <option value="Extérieur">Extérieur</option>
+                    </select>
+                </div>
+
+                <!-- Informations complémentaires -->
+                <div class="form-group">
+                    <label>Informations pour les élèves</label>
+                    <textarea id="infos_eleves"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Remarques internes</label>
+                    <textarea id="remarques"></textarea>
+                </div>
+
+                <!-- Boutons -->
+                <div class="buttons">
+                    <button type="button" class="btn btn-secondary" onclick="window.history.back()">
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        💾 Enregistrer les modifications
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let atelierId = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Récupérer l'ID de l'atelier depuis l'URL
+            const urlParams = new URLSearchParams(window.location.search);
+            atelierId = urlParams.get('id');
+
+            if (!atelierId) {
+                showAlert('❌ ID atelier manquant', 'error');
+                setTimeout(() => window.location.href = 'index.html', 2000);
+                return;
+            }
+
+            await loadEnseignants();
+            await loadAtelier();
+        });
+
+        // Charger la liste des enseignants
+        async function loadEnseignants() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch('/api/admin/enseignants/liste', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) throw new Error('Erreur de chargement');
+
+                const result = await response.json();
+                const enseignants = result.data;
+
+                // Remplir les 3 selects
+                ['enseignant1', 'enseignant2', 'enseignant3'].forEach(selectId => {
+                    const select = document.getElementById(selectId);
+                    enseignants.forEach(ens => {
+                        const option = document.createElement('option');
+                        option.value = ens.acronyme;
+                        option.textContent = `${ens.nom} ${ens.prenom} (${ens.acronyme})`;
+                        select.appendChild(option);
+                    });
+                });
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                showAlert('Erreur lors du chargement des enseignants', 'error');
+            }
+        }
+
+        // Charger les données de l'atelier
+        async function loadAtelier() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/admin/ateliers/${atelierId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) throw new Error('Atelier non trouvé');
+
+                const result = await response.json();
+                const atelier = result.data;
+
+                // Remplir le formulaire
+                document.getElementById('atelierId').value = atelier.id;
+                document.getElementById('nom').value = atelier.nom;
+                document.getElementById('description').value = atelier.description || '';
+                document.getElementById('enseignant1').value = atelier.enseignant_acronyme;
+                document.getElementById('enseignant2').value = atelier.enseignant2_acronyme || '';
+                document.getElementById('enseignant3').value = atelier.enseignant3_acronyme || '';
+                document.getElementById('duree').value = atelier.duree;
+                document.getElementById('places').value = atelier.nombre_places_max;
+                document.getElementById('budget').value = atelier.budget_max || 0;
+                document.getElementById('type_salle').value = atelier.type_salle_demande || '';
+                document.getElementById('infos_eleves').value = atelier.informations_eleves || '';
+                document.getElementById('remarques').value = atelier.remarques || '';
+
+                // Afficher le formulaire
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('formContainer').style.display = 'block';
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                showAlert('❌ Impossible de charger l\'atelier', 'error');
+                document.getElementById('loading').innerHTML = '<p style="color: #ef4444;">Erreur de chargement</p>';
+            }
+        }
+
+        // Soumettre le formulaire
+        document.getElementById('modifyAtelierForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const data = {
+                nom: document.getElementById('nom').value,
+                description: document.getElementById('description').value || null,
+                enseignant_acronyme: document.getElementById('enseignant1').value,
+                enseignant2_acronyme: document.getElementById('enseignant2').value || null,
+                enseignant3_acronyme: document.getElementById('enseignant3').value || null,
+                duree: parseInt(document.getElementById('duree').value),
+                nombre_places_max: parseInt(document.getElementById('places').value),
+                budget_max: parseFloat(document.getElementById('budget').value) || 0,
+                type_salle_demande: document.getElementById('type_salle').value || null,
+                remarques: document.getElementById('remarques').value || null,
+                informations_eleves: document.getElementById('infos_eleves').value || null
+            };
+
+            try {
+                const response = await fetch(`/api/admin/ateliers/${atelierId}/modifier`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert('✅ Atelier modifié avec succès !', 'success');
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 2000);
+                } else {
+                    throw new Error(result.message);
+                }
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                showAlert('❌ ' + error.message, 'error');
+            }
+        });
+
+        function showAlert(message, type) {
+            const alert = document.getElementById('alert');
+            alert.textContent = message;
+            alert.className = `alert alert-${type}`;
+            alert.style.display = 'block';
+
+            if (type === 'success') {
+                setTimeout(() => {
+                    alert.style.display = 'none';
+                }, 5000);
+            }
+        }
+    </script>
+</body>
+</html>

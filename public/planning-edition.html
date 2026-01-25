@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Édition Planning | Admin</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1600px; margin: 0 auto; }
+        .header {
+            background: white;
+            padding: 25px 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        h1 { color: #667eea; font-size: 28px; }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-secondary { background: #e5e7eb; color: #374151; }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-small { padding: 6px 12px; font-size: 12px; margin: 2px; }
+        
+        .planning-grid {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+        }
+        
+        table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; }
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        th:first-child { border-top-left-radius: 8px; }
+        th:last-child { border-top-right-radius: 8px; }
+        
+        td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #e5e7eb;
+            vertical-align: top;
+        }
+        tr:hover { background: #f9fafb; }
+        
+        .atelier-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 5px;
+            font-size: 11px;
+            position: relative;
+        }
+        
+        .atelier-card.suite {
+            background: repeating-linear-gradient(
+                45deg,
+                #667eea,
+                #667eea 10px,
+                #5568d3 10px,
+                #5568d3 20px
+            );
+            opacity: 0.9;
+        }
+        
+        .atelier-name { font-weight: 600; margin-bottom: 4px; }
+        .atelier-info { font-size: 10px; opacity: 0.9; }
+        
+        .atelier-actions {
+            display: flex;
+            gap: 4px;
+            margin-top: 6px;
+        }
+        
+        .empty-cell { color: #9ca3af; text-align: center; font-style: italic; }
+        
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active { display: flex; }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        .modal-header {
+            font-size: 20px;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+        
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-weight: 600; margin-bottom: 8px; }
+        select, input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border-left: 4px solid #10b981;
+        }
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✏️ Édition du Planning</h1>
+            <a href="index.html" class="btn btn-secondary">← Retour</a>
+        </div>
+
+        <div id="alert" class="alert"></div>
+
+        <div class="planning-grid">
+            <table id="planningTable">
+                <thead>
+                    <tr>
+                        <th>Salle</th>
+                        <!-- Colonnes générées dynamiquement -->
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Lignes générées dynamiquement -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal Modifier -->
+    <div id="modalModifier" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">✏️ Déplacer l'Atelier</div>
+            <div id="modalAtelierInfo"></div>
+            
+            <div class="form-group">
+                <label>Nouvelle Salle</label>
+                <select id="modalSalle"></select>
+            </div>
+            
+            <div class="form-group">
+                <label>Nouveau Créneau</label>
+                <select id="modalCreneau"></select>
+            </div>
+            
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="closeModal()">Annuler</button>
+                <button class="btn btn-primary" onclick="saveModification()">💾 Déplacer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Supprimer -->
+    <div id="modalSupprimer" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">🗑️ Supprimer du Planning</div>
+            <div id="modalSupprimerInfo"></div>
+            
+            <p style="margin: 20px 0; color: #991b1b;">
+                ⚠️ Êtes-vous sûr de vouloir retirer cet atelier du planning ?
+                Les élèves déjà inscrits resteront inscrits.
+            </p>
+            
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="closeModal()">Annuler</button>
+                <button class="btn btn-danger" onclick="confirmSupprimer()">🗑️ Supprimer</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = 'login.html';
+
+        let currentPlanningId = null;
+        let planningData = {};
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadPlanning();
+            loadSalles();
+            loadCreneaux();
+        });
+
+        async function loadPlanning() {
+            try {
+                const response = await fetch('/api/planning/grid', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                planningData = result.data;
+                displayPlanning(result.data);
+            } catch (error) {
+                console.error('Erreur:', error);
+                showAlert('Erreur de chargement du planning', 'error');
+            }
+        }
+
+        function displayPlanning(grid) {
+            const jours = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
+            const periodes = ['P1-2', 'P3-4', 'P6-7'];
+            
+            // Récupérer toutes les salles
+            const salles = new Set();
+            Object.values(grid).forEach(jourData => {
+                Object.values(jourData).forEach(periodeData => {
+                    Object.keys(periodeData).forEach(salle => salles.add(salle));
+                });
+            });
+            const sallesList = Array.from(salles).sort();
+
+            // Header
+            let headerHtml = '<tr><th>Salle</th>';
+            jours.forEach(jour => {
+                periodes.forEach(periode => {
+                    if (jour === 'mercredi' && periode === 'P6-7') return;
+                    headerHtml += `<th>${jour.charAt(0).toUpperCase() + jour.slice(1)}<br>${periode}</th>`;
+                });
+            });
+            headerHtml += '</tr>';
+            
+            document.querySelector('#planningTable thead').innerHTML = headerHtml;
+
+            // Lignes
+            let bodyHtml = '';
+            sallesList.forEach(salle => {
+                bodyHtml += `<tr><td style="font-weight: 600;">${salle}</td>`;
+                
+                jours.forEach(jour => {
+                    periodes.forEach(periode => {
+                        if (jour === 'mercredi' && periode === 'P6-7') return;
+                        
+                        const atelier = grid[jour]?.[periode]?.[salle];
+                        
+                        if (atelier) {
+                            const suiteClass = atelier.suite_atelier ? 'suite' : '';
+                            
+                            bodyHtml += `<td>
+                                <div class="atelier-card ${suiteClass}">
+                                    ${atelier.suite_atelier ? '↓ Suite<br>' : ''}
+                                    <div class="atelier-name">${atelier.atelier_nom}</div>
+                                    <div class="atelier-info">
+                                        ${atelier.enseignants || atelier.enseignant_acronyme}
+                                    </div>
+                                    <div class="atelier-info">
+                                        ${atelier.nombre_inscrits}/${atelier.nombre_places_max} élèves
+                                    </div>
+                                    ${!atelier.suite_atelier ? `
+                                        <div class="atelier-actions">
+                                            <button class="btn btn-primary btn-small" onclick="openModifier(${atelier.planning_id}, '${atelier.atelier_nom}', '${salle}', '${jour}', '${periode}')">
+                                                ✏️
+                                            </button>
+                                            <button class="btn btn-danger btn-small" onclick="openSupprimer(${atelier.planning_id}, '${atelier.atelier_nom}')">
+                                                🗑️
+                                            </button>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </td>`;
+                        } else {
+                            bodyHtml += '<td class="empty-cell">—</td>';
+                        }
+                    });
+                });
+                
+                bodyHtml += '</tr>';
+            });
+
+            document.querySelector('#planningTable tbody').innerHTML = bodyHtml;
+        }
+
+        async function loadSalles() {
+            try {
+                const response = await fetch('/api/gestion/salles', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                
+                const select = document.getElementById('modalSalle');
+                select.innerHTML = '<option value="">-- Sélectionner --</option>';
+                result.data.forEach(s => {
+                    select.innerHTML += `<option value="${s.id}">${s.nom}</option>`;
+                });
+            } catch (error) {
+                console.error('Erreur salles:', error);
+            }
+        }
+
+        async function loadCreneaux() {
+            try {
+                const response = await fetch('/api/planning/creneaux', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                
+                const select = document.getElementById('modalCreneau');
+                select.innerHTML = '<option value="">-- Sélectionner --</option>';
+                result.data.forEach(c => {
+                    select.innerHTML += `<option value="${c.id}">${c.jour} ${c.periode} (${c.heure_debut}-${c.heure_fin})</option>`;
+                });
+            } catch (error) {
+                console.error('Erreur créneaux:', error);
+            }
+        }
+
+        function openModifier(planningId, atelierNom, salle, jour, periode) {
+            currentPlanningId = planningId;
+            document.getElementById('modalAtelierInfo').innerHTML = `
+                <p><strong>Atelier :</strong> ${atelierNom}</p>
+                <p><strong>Actuellement :</strong> ${salle}, ${jour} ${periode}</p>
+                <hr style="margin: 15px 0;">
+            `;
+            document.getElementById('modalModifier').classList.add('active');
+        }
+
+        function openSupprimer(planningId, atelierNom) {
+            currentPlanningId = planningId;
+            document.getElementById('modalSupprimerInfo').innerHTML = `
+                <p style="font-size: 16px; margin: 10px 0;"><strong>${atelierNom}</strong></p>
+            `;
+            document.getElementById('modalSupprimer').classList.add('active');
+        }
+
+        function closeModal() {
+            document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
+            currentPlanningId = null;
+        }
+
+        async function saveModification() {
+            const salleId = document.getElementById('modalSalle').value;
+            const creneauId = document.getElementById('modalCreneau').value;
+
+            if (!salleId || !creneauId) {
+                showAlert('Veuillez sélectionner une salle ET un créneau', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/planning/${currentPlanningId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        salle_id: parseInt(salleId),
+                        creneau_debut_id: parseInt(creneauId)
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert('✅ Atelier déplacé avec succès !', 'success');
+                    closeModal();
+                    setTimeout(() => loadPlanning(), 1000);
+                } else {
+                    showAlert('❌ ' + result.message, 'error');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                showAlert('❌ Erreur lors du déplacement', 'error');
+            }
+        }
+
+        async function confirmSupprimer() {
+            try {
+                const response = await fetch(`/api/planning/${currentPlanningId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert('✅ Atelier retiré du planning !', 'success');
+                    closeModal();
+                    setTimeout(() => loadPlanning(), 1000);
+                } else {
+                    showAlert('❌ ' + result.message, 'error');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                showAlert('❌ Erreur lors de la suppression', 'error');
+            }
+        }
+
+        function showAlert(message, type) {
+            const alert = document.getElementById('alert');
+            alert.textContent = message;
+            alert.className = `alert alert-${type}`;
+            alert.style.display = 'block';
+            setTimeout(() => alert.style.display = 'none', 5000);
+        }
+
+        // Fermer modal en cliquant en dehors
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeModal();
+            });
+        });
+    </script>
+</body>
+</html>

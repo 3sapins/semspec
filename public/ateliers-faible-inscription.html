@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ateliers Faible Inscription | Admin</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        h1 { color: #ef4444; font-size: 24px; }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-decoration: none;
+        }
+
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5a67d8; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-secondary { background: #6b7280; color: white; }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            padding: 15px 20px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-body { padding: 20px; }
+
+        .filters {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filters label {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .filters select, .filters input {
+            padding: 10px 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border-left: 4px solid #10b981;
+        }
+
+        .stat-banner {
+            background: #fef2f2;
+            border: 2px solid #fecaca;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .stat-banner .big-number {
+            font-size: 48px;
+            font-weight: 700;
+            color: #ef4444;
+        }
+
+        .stat-banner .label {
+            color: #991b1b;
+            font-size: 14px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        th {
+            background: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        tr:hover { background: #fef2f2; }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-danger { background: #fee2e2; color: #dc2626; }
+        .badge-warning { background: #fef3c7; color: #d97706; }
+        .badge-info { background: #dbeafe; color: #1e40af; }
+
+        .inscrits-cell {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .inscrits-0 { color: #dc2626; }
+        .inscrits-1 { color: #f59e0b; }
+        .inscrits-2 { color: #f59e0b; }
+
+        .manque {
+            color: #dc2626;
+            font-size: 12px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+            color: #10b981;
+        }
+
+        .empty-state .icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-btn {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover { transform: scale(1.05); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚠️ Ateliers à Faible Inscription</h1>
+            <div>
+                <button class="btn btn-primary" onclick="location.reload()">↻ Actualiser</button>
+                <a href="index.html" class="btn btn-secondary">← Retour</a>
+            </div>
+        </div>
+
+        <div class="alert alert-warning">
+            💡 <strong>Attention :</strong> Ces ateliers risquent de ne pas avoir assez d'élèves pour être maintenus. 
+            Envisagez de contacter les enseignants concernés ou de promouvoir ces ateliers auprès des élèves.
+        </div>
+
+        <!-- Stat Banner -->
+        <div class="stat-banner">
+            <div class="big-number" id="totalAteliers">-</div>
+            <div class="label">ateliers avec moins de <span id="seuilDisplay">3</span> inscrits</div>
+        </div>
+
+        <!-- Filtres -->
+        <div class="card">
+            <div class="card-body">
+                <div class="filters">
+                    <label>Seuil minimum :</label>
+                    <select id="seuil" onchange="loadAteliers()">
+                        <option value="3" selected>Moins de 3 inscrits</option>
+                        <option value="5">Moins de 5 inscrits</option>
+                        <option value="8">Moins de 8 inscrits</option>
+                        <option value="10">Moins de 10 inscrits</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Liste -->
+        <div class="card">
+            <div class="card-header">
+                📋 Liste des Ateliers Concernés
+            </div>
+            <div class="card-body">
+                <div id="ateliersListe">
+                    <p style="text-align: center; color: #6b7280;">Chargement...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = 'login.html';
+
+        document.addEventListener('DOMContentLoaded', loadAteliers);
+
+        async function loadAteliers() {
+            const seuil = document.getElementById('seuil').value;
+            document.getElementById('seuilDisplay').textContent = seuil;
+
+            try {
+                const response = await fetch(`/api/admin/ateliers/faible-inscription?seuil=${seuil}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+
+                if (!result.success) {
+                    alert('Erreur: ' + result.message);
+                    return;
+                }
+
+                displayAteliers(result.data, result.seuil);
+                document.getElementById('totalAteliers').textContent = result.total;
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                document.getElementById('ateliersListe').innerHTML = 
+                    '<p style="color: #ef4444;">Erreur de chargement</p>';
+            }
+        }
+
+        function displayAteliers(ateliers, seuil) {
+            const container = document.getElementById('ateliersListe');
+
+            if (ateliers.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">🎉</div>
+                        <h2>Excellent !</h2>
+                        <p>Tous les ateliers ont au moins ${seuil} inscrits.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Atelier</th>
+                            <th>Enseignant</th>
+                            <th>Créneaux</th>
+                            <th style="text-align: center;">Inscrits</th>
+                            <th style="text-align: center;">Min requis</th>
+                            <th style="text-align: center;">Manque</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            ateliers.forEach(a => {
+                const inscritsClass = `inscrits-${Math.min(a.nb_inscrits, 2)}`;
+                const manque = a.manque_pour_minimum > 0 
+                    ? `<span class="badge badge-danger">-${a.manque_pour_minimum}</span>`
+                    : '<span class="badge badge-info">OK</span>';
+
+                html += `
+                    <tr>
+                        <td>
+                            <strong>${a.atelier_nom}</strong>
+                        </td>
+                        <td>
+                            ${a.enseignant_nom || a.enseignant_acronyme}
+                            <br><small style="color: #6b7280;">${a.enseignant_acronyme}</small>
+                        </td>
+                        <td>
+                            <small>${a.creneaux || '-'}</small>
+                        </td>
+                        <td style="text-align: center;">
+                            <span class="inscrits-cell ${inscritsClass}">${a.nb_inscrits}</span>
+                            <span style="color: #6b7280;">/ ${a.places_max}</span>
+                        </td>
+                        <td style="text-align: center;">
+                            ${a.places_min || '-'}
+                        </td>
+                        <td style="text-align: center;">
+                            ${manque}
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

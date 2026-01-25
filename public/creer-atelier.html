@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Créer un Atelier | Admin</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 30px;
+            font-size: 32px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        label .required {
+            color: #ef4444;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .enseignants-group {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+
+        .enseignants-group h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .enseignant-select {
+            margin-bottom: 15px;
+        }
+
+        .helper-text {
+            font-size: 13px;
+            color: #6b7280;
+            margin-top: 5px;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 14px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            flex: 1;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border-left: 4px solid #10b981;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>➕ Créer un Atelier</h1>
+
+        <div id="alert" class="alert"></div>
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 10px;">Création en cours...</p>
+        </div>
+
+        <form id="createAtelierForm">
+            <!-- Informations de base -->
+            <div class="form-group">
+                <label>Nom de l'atelier <span class="required">*</span></label>
+                <input type="text" id="nom" required placeholder="Ex: Atelier Robotique">
+            </div>
+
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="description" placeholder="Décrivez l'atelier..."></textarea>
+            </div>
+
+            <!-- Enseignants -->
+            <div class="enseignants-group">
+                <h3>👥 Enseignants</h3>
+                
+                <div class="enseignant-select">
+                    <label>Enseignant principal <span class="required">*</span></label>
+                    <select id="enseignant1" required>
+                        <option value="">-- Sélectionner --</option>
+                    </select>
+                </div>
+
+                <div class="enseignant-select">
+                    <label>Enseignant accompagnant 2 (optionnel)</label>
+                    <select id="enseignant2">
+                        <option value="">-- Aucun --</option>
+                    </select>
+                </div>
+
+                <div class="enseignant-select">
+                    <label>Enseignant accompagnant 3 (optionnel)</label>
+                    <select id="enseignant3">
+                        <option value="">-- Aucun --</option>
+                    </select>
+                </div>
+
+                <p class="helper-text">💡 Vous pouvez ajouter jusqu'à 3 enseignants pour accompagner l'atelier</p>
+            </div>
+
+            <!-- Durée et places -->
+            <div class="form-group">
+                <label>Durée <span class="required">*</span></label>
+                <select id="duree" required>
+                    <option value="">-- Sélectionner --</option>
+                    <option value="2">2 périodes (1h35)</option>
+                    <option value="4">4 périodes (3h10 - matin ou après-midi)</option>
+                    <option value="6">6 périodes (journée complète)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Nombre de places maximum <span class="required">*</span></label>
+                <input type="number" id="places" required min="1" max="100" placeholder="Ex: 20">
+            </div>
+
+            <!-- Budget et salle -->
+            <div class="form-group">
+                <label>Budget maximum (CHF)</label>
+                <input type="number" id="budget" min="0" step="0.01" placeholder="Ex: 500.00">
+            </div>
+
+            <div class="form-group">
+                <label>Type de salle demandé</label>
+                <select id="type_salle">
+                    <option value="">-- Aucune préférence --</option>
+                    <option value="Classe standard">Classe standard</option>
+                    <option value="Salle informatique">Salle informatique</option>
+                    <option value="Atelier">Atelier</option>
+                    <option value="Laboratoire">Laboratoire</option>
+                    <option value="Salle de sport">Salle de sport</option>
+                    <option value="Extérieur">Extérieur</option>
+                </select>
+            </div>
+
+            <!-- Informations complémentaires -->
+            <div class="form-group">
+                <label>Informations pour les élèves</label>
+                <textarea id="infos_eleves" placeholder="Ex: Matériel à apporter, lieu de rendez-vous, tenue recommandée..."></textarea>
+                <p class="helper-text">Ces informations seront visibles par les élèves lors de l'inscription</p>
+            </div>
+
+            <div class="form-group">
+                <label>Remarques internes (admin/enseignants)</label>
+                <textarea id="remarques" placeholder="Remarques pour l'organisation interne..."></textarea>
+            </div>
+
+            <!-- Boutons -->
+            <div class="buttons">
+                <button type="button" class="btn btn-secondary" onclick="window.location.href='index.html'">
+                    Annuler
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    ✅ Créer l'atelier
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // Charger les enseignants au chargement de la page
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadEnseignants();
+        });
+
+        // Charger la liste des enseignants
+        async function loadEnseignants() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch('/api/admin/enseignants/liste', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) throw new Error('Erreur de chargement');
+
+                const result = await response.json();
+                const enseignants = result.data;
+
+                // Remplir les 3 selects
+                ['enseignant1', 'enseignant2', 'enseignant3'].forEach(selectId => {
+                    const select = document.getElementById(selectId);
+                    enseignants.forEach(ens => {
+                        const option = document.createElement('option');
+                        option.value = ens.acronyme;
+                        option.textContent = `${ens.nom} ${ens.prenom} (${ens.acronyme})`;
+                        select.appendChild(option);
+                    });
+                });
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                showAlert('Erreur lors du chargement des enseignants', 'error');
+            }
+        }
+
+        // Soumettre le formulaire
+        document.getElementById('createAtelierForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // Récupérer les données
+            const data = {
+                nom: document.getElementById('nom').value,
+                description: document.getElementById('description').value || null,
+                enseignant_acronyme: document.getElementById('enseignant1').value,
+                enseignant2_acronyme: document.getElementById('enseignant2').value || null,
+                enseignant3_acronyme: document.getElementById('enseignant3').value || null,
+                duree: parseInt(document.getElementById('duree').value),
+                nombre_places_max: parseInt(document.getElementById('places').value),
+                budget_max: parseFloat(document.getElementById('budget').value) || 0,
+                type_salle_demande: document.getElementById('type_salle').value || null,
+                remarques: document.getElementById('remarques').value || null,
+                informations_eleves: document.getElementById('infos_eleves').value || null
+            };
+
+            // Afficher le loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('createAtelierForm').style.display = 'none';
+
+            try {
+                const response = await fetch('/api/admin/ateliers/creer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert('✅ Atelier créé avec succès !', 'success');
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 2000);
+                } else {
+                    throw new Error(result.message);
+                }
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                showAlert('❌ ' + error.message, 'error');
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('createAtelierForm').style.display = 'block';
+            }
+        });
+
+        // Afficher une alerte
+        function showAlert(message, type) {
+            const alert = document.getElementById('alert');
+            alert.textContent = message;
+            alert.className = `alert alert-${type}`;
+            alert.style.display = 'block';
+
+            if (type === 'success') {
+                setTimeout(() => {
+                    alert.style.display = 'none';
+                }, 5000);
+            }
+        }
+    </script>
+</body>
+</html>

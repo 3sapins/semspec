@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planning Visuel | Admin</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 25px 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            color: #667eea;
+            font-size: 28px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
+
+        .planning-grid {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 13px;
+        }
+
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 10px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        th:first-child {
+            border-top-left-radius: 8px;
+        }
+
+        th:last-child {
+            border-top-right-radius: 8px;
+        }
+
+        td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #e5e7eb;
+            vertical-align: top;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover {
+            background: #f9fafb;
+        }
+
+        .salle-name {
+            font-weight: 600;
+            color: #374151;
+            white-space: nowrap;
+        }
+
+        .atelier-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+
+        .atelier-card.suite {
+            background: repeating-linear-gradient(
+                45deg,
+                #667eea,
+                #667eea 10px,
+                #5568d3 10px,
+                #5568d3 20px
+            );
+            border-top: 2px dashed white;
+            opacity: 0.9;
+        }
+
+        .atelier-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .atelier-info {
+            font-size: 11px;
+            opacity: 0.9;
+        }
+
+        .badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            margin-top: 4px;
+        }
+
+        .empty-cell {
+            color: #9ca3af;
+            text-align: center;
+            font-style: italic;
+        }
+
+        .legend {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-box {
+            width: 30px;
+            height: 20px;
+            border-radius: 4px;
+        }
+
+        .legend-box.debut {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .legend-box.suite {
+            background: repeating-linear-gradient(
+                45deg,
+                #667eea,
+                #667eea 5px,
+                #5568d3 5px,
+                #5568d3 10px
+            );
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: white;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📅 Planning Visuel Multi-Blocs</h1>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button class="btn btn-success" onclick="allocuerPlanning()" style="background: #10b981;">
+                    🚀 Allocation Automatique
+                </button>
+                <button class="btn btn-primary" onclick="location.reload()">
+                    🔄 Actualiser
+                </button>
+                <a href="index.html" class="btn btn-secondary">← Retour</a>
+            </div>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Chargement du planning...</p>
+        </div>
+
+        <div id="planningContainer" class="planning-grid" style="display: none;">
+            <table id="planningTable">
+                <!-- Le planning sera généré ici -->
+            </table>
+
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-box debut"></div>
+                    <span>Début d'atelier</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-box suite"></div>
+                    <span>Suite d'atelier (multi-périodes)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadPlanning();
+        });
+
+        async function loadPlanning() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/planning/grid', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) throw new Error('Erreur de chargement');
+
+                const result = await response.json();
+                displayPlanning(result.data);
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('planningContainer').style.display = 'block';
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                document.getElementById('loading').innerHTML = 
+                    '<p style="color: #ef4444;">Erreur de chargement</p>';
+            }
+        }
+
+        function displayPlanning(grid) {
+            const jours = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
+            const periodes = ['P1-2', 'P3-4', 'P6-7'];
+            
+            // Récupérer toutes les salles
+            const salles = new Set();
+            Object.values(grid).forEach(jourData => {
+                Object.values(jourData).forEach(periodeData => {
+                    Object.keys(periodeData).forEach(salle => salles.add(salle));
+                });
+            });
+            const sallesList = Array.from(salles).sort();
+
+            // Créer le header
+            let html = '<thead><tr><th>Salle</th>';
+            jours.forEach(jour => {
+                periodes.forEach(periode => {
+                    if (jour === 'mercredi' && periode === 'P6-7') return;
+                    html += `<th>${jour.charAt(0).toUpperCase() + jour.slice(1)}<br>${periode}</th>`;
+                });
+            });
+            html += '</tr></thead><tbody>';
+
+            // Créer les lignes
+            sallesList.forEach(salle => {
+                html += `<tr><td class="salle-name">${salle}</td>`;
+                
+                jours.forEach(jour => {
+                    periodes.forEach(periode => {
+                        if (jour === 'mercredi' && periode === 'P6-7') return;
+                        
+                        const atelier = grid[jour]?.[periode]?.[salle];
+                        
+                        if (atelier) {
+                            const suiteClass = atelier.suite_atelier ? 'suite' : '';
+                            const dureeInfo = atelier.duree > 2 ? `${atelier.duree}p` : '';
+                            
+                            html += `<td>
+                                <div class="atelier-card ${suiteClass}">
+                                    ${atelier.suite_atelier ? '↓ Suite<br>' : ''}
+                                    <div class="atelier-name">${atelier.atelier_nom}</div>
+                                    <div class="atelier-info">
+                                        ${atelier.enseignants || atelier.enseignant_acronyme}
+                                    </div>
+                                    <div class="atelier-info">
+                                        ${atelier.nombre_inscrits}/${atelier.nombre_places_max} inscrits
+                                    </div>
+                                    ${dureeInfo ? `<div class="badge">${dureeInfo}</div>` : ''}
+                                </div>
+                            </td>`;
+                        } else {
+                            html += '<td class="empty-cell">—</td>';
+                        }
+                    });
+                });
+                
+                html += '</tr>';
+            });
+
+            html += '</tbody>';
+            document.getElementById('planningTable').innerHTML = html;
+        }
+
+        async function allocuerPlanning() {
+            if (!confirm('⚠️ Lancer l\'allocation automatique du planning ?\n\nCela placera tous les ateliers validés dans le planning.')) {
+                return;
+            }
+            
+            const originalBtn = event.target;
+            const originalText = originalBtn.textContent;
+            originalBtn.disabled = true;
+            originalBtn.textContent = '⏳ Allocation en cours...';
+            
+            try {
+                const response = await fetch('/api/planning/allouer', {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': `Bearer ${localStorage.getItem('token')}` 
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ Planning alloué avec succès !\n\n` +
+                          `📊 Statistiques :\n` +
+                          `• ${result.ateliers_places || 0} ateliers placés\n` +
+                          `• ${result.ateliers_non_places || 0} non placés\n\n` +
+                          `Le planning va se recharger.`);
+                    location.reload();
+                } else {
+                    alert('❌ Erreur : ' + (result.message || 'Échec allocation'));
+                    originalBtn.disabled = false;
+                    originalBtn.textContent = originalText;
+                }
+            } catch (error) {
+                console.error('Erreur allocation:', error);
+                alert('❌ Erreur lors de l\'allocation automatique');
+                originalBtn.disabled = false;
+                originalBtn.textContent = originalText;
+            }
+        }
+    </script>
+</body>
+</html>

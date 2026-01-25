@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planning Enseignants | Admin</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container { max-width: 1800px; margin: 0 auto; }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        h1 { color: #667eea; font-size: 24px; }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5a67d8; }
+        .btn-secondary { background: #6b7280; color: white; }
+        .btn-secondary:hover { background: #4b5563; }
+
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
+
+        .legend-bar {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 25px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .legend-box {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+
+        .legend-atelier { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .legend-piquet { background: #f59e0b; }
+        .legend-degagement { background: #10b981; }
+        .legend-surcharge { background: #ef4444; }
+
+        .planning-grid {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+            padding: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1400px;
+        }
+
+        th, td {
+            border: 1px solid #e5e7eb;
+            padding: 8px;
+            text-align: center;
+            vertical-align: middle;
+            min-width: 100px;
+        }
+
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+            font-size: 12px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        th:first-child, th:nth-child(2), th:nth-child(3) {
+            position: sticky;
+            left: 0;
+            z-index: 20;
+        }
+
+        th:nth-child(2) { left: 80px; }
+        th:nth-child(3) { left: 180px; }
+
+        td:first-child, td:nth-child(2), td:nth-child(3) {
+            background: #f9fafb;
+            font-weight: 600;
+            position: sticky;
+            left: 0;
+            z-index: 5;
+        }
+
+        td:nth-child(2) { left: 80px; background: #f3f4f6; }
+        td:nth-child(3) { left: 180px; background: #f9fafb; }
+
+        .enseignant-cell {
+            min-width: 80px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .charge-cell {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .charge-ok { color: #10b981; font-weight: 600; }
+        .charge-warning { color: #f59e0b; font-weight: 600; }
+        .charge-danger { color: #ef4444; font-weight: 600; }
+
+        .total-cell {
+            background: #f3f4f6 !important;
+            font-weight: 700;
+        }
+
+        .atelier-mini {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 5px;
+            font-size: 11px;
+            margin: 2px;
+            display: inline-block;
+            max-width: 90px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+
+        .atelier-mini:hover {
+            transform: scale(1.05);
+        }
+
+        .atelier-mini.suite {
+            opacity: 0.7;
+            background: repeating-linear-gradient(
+                45deg,
+                #667eea,
+                #667eea 5px,
+                #764ba2 5px,
+                #764ba2 10px
+            );
+        }
+
+        .piquet-badge {
+            background: #f59e0b;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 5px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .degagement-badge {
+            background: #10b981;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 5px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .empty-cell {
+            color: #d1d5db;
+            font-size: 12px;
+        }
+
+        .row-surcharge {
+            background: #fef2f2 !important;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: white;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .stats-summary {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-box {
+            background: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>👨‍🏫 Planning par Enseignant</h1>
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="location.reload()">
+                    ↻ Actualiser
+                </button>
+                <a href="planning.html" class="btn btn-secondary">📅 Planning Salles</a>
+                <a href="index.html" class="btn btn-secondary">← Retour</a>
+            </div>
+        </div>
+
+        <div class="legend-bar">
+            <span style="font-weight: 600;">Légende :</span>
+            <div class="legend-item">
+                <div class="legend-box legend-atelier"></div>
+                <span>Atelier</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box legend-piquet"></div>
+                <span>Piquet</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box legend-degagement"></div>
+                <span>Dégagement</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box legend-surcharge"></div>
+                <span>Surcharge (> charge max)</span>
+            </div>
+        </div>
+
+        <div class="stats-summary">
+            <div class="stat-box">
+                <div class="stat-value" id="statEnseignants">-</div>
+                <div class="stat-label">Enseignants</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="statOccupes">-</div>
+                <div class="stat-label">Avec Ateliers</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="statPiquet">-</div>
+                <div class="stat-label">En Piquet</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="statSurcharge" style="color: #ef4444;">-</div>
+                <div class="stat-label">En Surcharge</div>
+            </div>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Chargement du planning enseignants...</p>
+        </div>
+
+        <div id="planningContainer" class="planning-grid" style="display: none;">
+            <table id="planningTable">
+                <thead></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = 'login.html';
+
+        document.addEventListener('DOMContentLoaded', loadPlanningEnseignants);
+
+        async function loadPlanningEnseignants() {
+            try {
+                // Charger les enseignants
+                const ensResponse = await fetch('/api/gestion/enseignants', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const ensResult = await ensResponse.json();
+                const enseignants = ensResult.data || [];
+
+                // Charger le planning
+                const planResponse = await fetch('/api/planning/grid', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const planResult = await planResponse.json();
+                const planning = planResult.data || {};
+
+                // Charger les piquets
+                const piquetResponse = await fetch('/api/gestion/piquet', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const piquetResult = await piquetResponse.json();
+                const piquets = piquetResult.data || [];
+
+                // Charger les créneaux
+                const creneauxResponse = await fetch('/api/planning/creneaux', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const creneauxResult = await creneauxResponse.json();
+                const creneaux = creneauxResult.data || [];
+
+                // Organiser les données
+                displayPlanningEnseignants(enseignants, planning, piquets, creneaux);
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('planningContainer').style.display = 'block';
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                document.getElementById('loading').innerHTML = 
+                    '<p style="color: #fee2e2;">❌ Erreur de chargement</p>';
+            }
+        }
+
+        function displayPlanningEnseignants(enseignants, planning, piquets, creneaux) {
+            const jours = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
+            const periodes = ['P1-2', 'P3-4', 'P6-7'];
+
+            // Créer map des piquets par enseignant et créneau
+            const piquetMap = {};
+            piquets.forEach(p => {
+                const key = `${p.acronyme}_${p.jour}_${p.periode}`;
+                piquetMap[key] = p;
+            });
+
+            // Créer map des ateliers par enseignant et créneau
+            const atelierMap = {};
+            Object.entries(planning).forEach(([jour, jourData]) => {
+                Object.entries(jourData).forEach(([periode, periodeData]) => {
+                    Object.entries(periodeData).forEach(([salle, atelier]) => {
+                        if (atelier) {
+                            // Enseignant principal
+                            const key1 = `${atelier.enseignant_acronyme}_${jour}_${periode}`;
+                            if (!atelierMap[key1]) atelierMap[key1] = [];
+                            atelierMap[key1].push({...atelier, salle});
+
+                            // Enseignants supplémentaires
+                            if (atelier.enseignant2_acronyme) {
+                                const key2 = `${atelier.enseignant2_acronyme}_${jour}_${periode}`;
+                                if (!atelierMap[key2]) atelierMap[key2] = [];
+                                atelierMap[key2].push({...atelier, salle});
+                            }
+                            if (atelier.enseignant3_acronyme) {
+                                const key3 = `${atelier.enseignant3_acronyme}_${jour}_${periode}`;
+                                if (!atelierMap[key3]) atelierMap[key3] = [];
+                                atelierMap[key3].push({...atelier, salle});
+                            }
+                        }
+                    });
+                });
+            });
+
+            // Header
+            let headerHtml = '<tr><th style="min-width:80px;">Acronyme</th><th style="min-width:100px;">Nom</th><th style="min-width:80px;">Charge</th>';
+            jours.forEach(jour => {
+                periodes.forEach(periode => {
+                    if (jour === 'mercredi' && periode === 'P6-7') return;
+                    const jourCap = jour.charAt(0).toUpperCase() + jour.slice(1);
+                    headerHtml += `<th>${jourCap}<br>${periode}</th>`;
+                });
+            });
+            headerHtml += '<th>Total</th></tr>';
+            document.querySelector('#planningTable thead').innerHTML = headerHtml;
+
+            // Stats
+            let enseignantsOccupes = 0;
+            let enseignantsEnPiquet = new Set();
+            let enseignantsEnSurcharge = 0;
+
+            // Body
+            let bodyHtml = '';
+            
+            // Trier enseignants par nom
+            enseignants.sort((a, b) => a.nom.localeCompare(b.nom));
+
+            enseignants.forEach(ens => {
+                let totalPeriodes = 0;
+                let hasAtelier = false;
+                let rowClass = '';
+
+                let rowHtml = `<tr>`;
+                rowHtml += `<td class="enseignant-cell">${ens.acronyme}</td>`;
+                rowHtml += `<td>${ens.nom}</td>`;
+                
+                // Charge max
+                const chargeMax = ens.charge_max || 0;
+                rowHtml += `<td class="charge-cell">${chargeMax > 0 ? chargeMax + 'p' : '-'}</td>`;
+
+                jours.forEach(jour => {
+                    periodes.forEach(periode => {
+                        if (jour === 'mercredi' && periode === 'P6-7') return;
+
+                        const key = `${ens.acronyme}_${jour}_${periode}`;
+                        const ateliers = atelierMap[key] || [];
+                        const piquet = piquetMap[key];
+
+                        let cellContent = '';
+
+                        if (ateliers.length > 0) {
+                            hasAtelier = true;
+                            ateliers.forEach(a => {
+                                const suiteClass = a.suite_atelier ? 'suite' : '';
+                                cellContent += `<div class="atelier-mini ${suiteClass}" title="${a.atelier_nom} - ${a.salle}">${a.atelier_nom}</div>`;
+                                if (!a.suite_atelier) {
+                                    totalPeriodes += a.duree || 2;
+                                }
+                            });
+                        } else if (piquet) {
+                            enseignantsEnPiquet.add(ens.acronyme);
+                            if (piquet.type === 'piquet') {
+                                cellContent = `<span class="piquet-badge">PIQUET</span>`;
+                            } else {
+                                cellContent = `<span class="degagement-badge">DÉGAG.</span>`;
+                            }
+                        } else {
+                            cellContent = `<span class="empty-cell">—</span>`;
+                        }
+
+                        rowHtml += `<td>${cellContent}</td>`;
+                    });
+                });
+
+                // Total et vérification surcharge
+                let totalClass = '';
+                if (chargeMax > 0) {
+                    if (totalPeriodes > chargeMax) {
+                        totalClass = 'charge-danger';
+                        enseignantsEnSurcharge++;
+                        rowClass = 'row-surcharge';
+                    } else if (totalPeriodes >= chargeMax * 0.9) {
+                        totalClass = 'charge-warning';
+                    } else {
+                        totalClass = 'charge-ok';
+                    }
+                }
+
+                rowHtml += `<td class="total-cell ${totalClass}">${totalPeriodes}p</td>`;
+                rowHtml += '</tr>';
+
+                if (hasAtelier) enseignantsOccupes++;
+
+                // Appliquer classe de ligne si surcharge
+                if (rowClass) {
+                    rowHtml = rowHtml.replace('<tr>', `<tr class="${rowClass}">`);
+                }
+
+                bodyHtml += rowHtml;
+            });
+
+            document.querySelector('#planningTable tbody').innerHTML = bodyHtml;
+
+            // Mettre à jour stats
+            document.getElementById('statEnseignants').textContent = enseignants.length;
+            document.getElementById('statOccupes').textContent = enseignantsOccupes;
+            document.getElementById('statPiquet').textContent = enseignantsEnPiquet.size;
+            document.getElementById('statSurcharge').textContent = enseignantsEnSurcharge;
+        }
+    </script>
+</body>
+</html>

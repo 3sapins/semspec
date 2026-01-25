@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion Quota | Admin</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 32px;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 40px;
+            font-size: 16px;
+        }
+
+        .quota-display {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .quota-value {
+            font-size: 72px;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+
+        .quota-label {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+
+        .slider-container {
+            margin: 40px 0;
+        }
+
+        .slider-wrapper {
+            position: relative;
+            padding: 20px 0;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #e5e7eb;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.5);
+            transition: transform 0.2s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.5);
+        }
+
+        .slider-marks {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .examples {
+            background: #f9fafb;
+            padding: 25px;
+            border-radius: 12px;
+            margin: 30px 0;
+        }
+
+        .examples h3 {
+            color: #374151;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .example-item {
+            padding: 12px 15px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .example-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .example-label {
+            color: #374151;
+            font-weight: 500;
+        }
+
+        .example-value {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .info-box {
+            background: #dbeafe;
+            border-left: 4px solid #3b82f6;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 30px 0;
+        }
+
+        .info-box h4 {
+            color: #1e40af;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .info-box p {
+            color: #1e3a8a;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 14px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            flex: 1;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border-left: 4px solid #10b981;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Gestion du Quota</h1>
+        <p class="subtitle">Contrôlez le pourcentage de places disponibles pour une ouverture progressive</p>
+
+        <div id="alert" class="alert"></div>
+
+        <!-- Affichage du quota actuel -->
+        <div class="quota-display">
+            <div class="quota-label">Quota actuel</div>
+            <div class="quota-value" id="quotaValue">100<span style="font-size: 48px;">%</span></div>
+            <div class="quota-label">des places sont disponibles</div>
+        </div>
+
+        <!-- Slider -->
+        <div class="slider-container">
+            <div class="slider-wrapper">
+                <input type="range" id="quotaSlider" min="0" max="100" value="100" step="2">
+            </div>
+            <div class="slider-marks">
+                <span>0%</span>
+                <span>25%</span>
+                <span>50%</span>
+                <span>75%</span>
+                <span>100%</span>
+            </div>
+        </div>
+
+        <!-- Exemples -->
+        <div class="examples">
+            <h3>📈 Impact sur les ateliers</h3>
+            <div id="examplesContainer">
+                <div class="example-item">
+                    <span class="example-label">Atelier 20 places</span>
+                    <span class="example-value" id="example20">20 disponibles</span>
+                </div>
+                <div class="example-item">
+                    <span class="example-label">Atelier 30 places</span>
+                    <span class="example-value" id="example30">30 disponibles</span>
+                </div>
+                <div class="example-item">
+                    <span class="example-label">Atelier 15 places</span>
+                    <span class="example-value" id="example15">15 disponibles</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info box -->
+        <div class="info-box">
+            <h4>💡 Comment ça marche ?</h4>
+            <p>
+                Le quota permet une ouverture progressive des inscriptions. 
+                Par exemple, avec un quota de 50%, un atelier de 20 places n'en affichera que 10 aux élèves. 
+                Vous pouvez augmenter le quota au fur et à mesure pour libérer plus de places.
+            </p>
+        </div>
+
+        <!-- Boutons -->
+        <div class="buttons">
+            <button type="button" class="btn btn-secondary" onclick="window.location.href='index.html'">
+                Annuler
+            </button>
+            <button type="button" class="btn btn-primary" onclick="saveQuota()">
+                💾 Enregistrer le quota
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let currentQuota = 100;
+
+        // Charger le quota actuel au chargement
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadCurrentQuota();
+            updateDisplay();
+        });
+
+        // Charger le quota actuel depuis la BDD
+        async function loadCurrentQuota() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch('/api/admin/configuration', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) throw new Error('Erreur de chargement');
+
+                const result = await response.json();
+                const quotaConfig = result.data.find(c => c.cle === 'quota_places_pourcent');
+                
+                if (quotaConfig) {
+                    currentQuota = parseFloat(quotaConfig.valeur);
+                    document.getElementById('quotaSlider').value = currentQuota;
+                    updateDisplay();
+                }
+
+            } catch (error) {
+                console.error('Erreur:', error);
+            }
+        }
+
+        // Mettre à jour l'affichage quand le slider bouge
+        document.getElementById('quotaSlider').addEventListener('input', (e) => {
+            currentQuota = parseInt(e.target.value);
+            updateDisplay();
+        });
+
+        // Mettre à jour l'affichage
+        function updateDisplay() {
+            // Valeur principale
+            document.getElementById('quotaValue').innerHTML = 
+                `${currentQuota}<span style="font-size: 48px;">%</span>`;
+
+            // Exemples
+            document.getElementById('example20').textContent = 
+                `${Math.ceil(20 * currentQuota / 100)} disponibles`;
+            document.getElementById('example30').textContent = 
+                `${Math.ceil(30 * currentQuota / 100)} disponibles`;
+            document.getElementById('example15').textContent = 
+                `${Math.ceil(15 * currentQuota / 100)} disponibles`;
+        }
+
+        // Sauvegarder le quota
+        async function saveQuota() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/configuration/quota', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        quota: currentQuota
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert('✅ Quota mis à jour avec succès !', 'success');
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 2000);
+                } else {
+                    throw new Error(result.message);
+                }
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                showAlert('❌ ' + error.message, 'error');
+            }
+        }
+
+        // Afficher une alerte
+        function showAlert(message, type) {
+            const alert = document.getElementById('alert');
+            alert.textContent = message;
+            alert.className = `alert alert-${type}`;
+            alert.style.display = 'block';
+
+            if (type === 'success') {
+                setTimeout(() => {
+                    alert.style.display = 'none';
+                }, 5000);
+            }
+        }
+    </script>
+</body>
+</html>

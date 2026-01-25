@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enseignants - Semaine Spéciale | Collège des Trois-Sapins</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 25px 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        #loginPage, #dashboardPage {
+            display: none;
+        }
+
+        .login-box {
+            background: white;
+            max-width: 450px;
+            margin: 100px auto;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        }
+
+        .login-box h2 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 30px;
+            font-size: 32px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 12px 25px;
+            background: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .tab-content {
+            display: none;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card h3 {
+            font-size: 14px;
+            font-weight: 600;
+            opacity: 0.9;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-card .value {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .label {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 2px solid #10b981;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 2px solid #ef4444;
+        }
+
+        .alert-info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 2px solid #3b82f6;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .table th {
+            background: #f9fafb;
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .table tr:hover {
+            background: #f9fafb;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-draft {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .badge-submitted {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-validated {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-refused {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .disponibilites-grid {
+            display: grid;
+            grid-template-columns: 150px repeat(5, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .jour-header {
+            background: #667eea;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .periode-label {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .creneau-cell {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .creneau-cell.disponible {
+            background: #d1fae5;
+            border-color: #10b981;
+        }
+
+        .creneau-cell.indisponible {
+            background: #fee2e2;
+            border-color: #ef4444;
+        }
+
+        .creneau-cell:hover {
+            transform: scale(1.05);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            color: #667eea;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6b7280;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-size: 18px;
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .disponibilites-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- PAGE DE CONNEXION -->
+    <div id="loginPage">
+        <div class="login-box">
+            <h2>👨‍🏫 Espace Enseignants</h2>
+            <p style="text-align: center; color: #666; margin-bottom: 30px;">Collège des Trois-Sapins</p>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="acronyme">Acronyme</label>
+                    <input type="text" id="acronyme" placeholder="DUP" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Mot de passe</label>
+                    <input type="password" id="password" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Se connecter</button>
+            </form>
+            <div id="loginError" style="display: none; margin-top: 15px;"></div>
+        </div>
+    </div>
+
+    <!-- DASHBOARD ENSEIGNANT -->
+    <div id="dashboardPage">
+        <div class="container">
+            <div class="header">
+                <div>
+                    <h1>👨‍🏫 Semaine Spéciale - Espace Enseignants</h1>
+                    <p style="color: #666; margin-top: 5px;">Collège des Trois-Sapins, Echallens</p>
+                </div>
+                <div style="text-align: right;">
+                    <p><strong id="userName"></strong></p>
+                    <button class="btn btn-secondary" onclick="showChangePassword()" style="margin-right: 10px;">🔑 Mot de passe</button>
+                    <button class="btn btn-danger" onclick="logout()">Déconnexion</button>
+                </div>
+            </div>
+
+            <!-- ONGLETS -->
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('dashboard')">📊 Tableau de bord</button>
+                <button class="tab" onclick="showTab('ateliers')">🎨 Mes Ateliers</button>
+                <button class="tab" onclick="showTab('disponibilites')">📅 Disponibilités</button>
+                <button class="tab" onclick="window.location.href='presence.html'" style="background: #10b981; color: white;">📋 Pointage Présences</button>
+            </div>
+
+            <!-- TAB: DASHBOARD -->
+            <div id="tabDashboard" class="tab-content active">
+                <h2 style="margin-bottom: 20px; color: #374151;">Vue d'ensemble</h2>
+                <div class="stats-grid" id="statsGrid">
+                    <div class="loading">Chargement...</div>
+                </div>
+
+                <div style="margin-top: 30px;">
+                    <h3 style="margin-bottom: 15px; color: #374151;">Actions rapides</h3>
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="openCreateAtelierModal()">➕ Créer un atelier</button>
+                        <button class="btn btn-success" onclick="showTab('disponibilites')">📅 Déclarer mes disponibilités</button>
+                        <button class="btn" style="background: #10b981; color: white;" onclick="window.location.href='presence.html'">📋 Pointer les présences</button>
+                        <button class="btn btn-secondary" onclick="window.open('/api/print/horaire/enseignant/' + currentUser.acronyme, '_blank')">🖨️ Mon horaire</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: ATELIERS -->
+            <div id="tabAteliers" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="color: #374151;">Mes Ateliers</h2>
+                    <button class="btn btn-primary" onclick="openCreateAtelierModal()">➕ Créer un atelier</button>
+                </div>
+
+                <div id="alertsAteliers"></div>
+                <div id="ateliersTable">
+                    <div class="loading">Chargement des ateliers...</div>
+                </div>
+            </div>
+
+            <!-- TAB: DISPONIBILITÉS -->
+            <div id="tabDisponibilites" class="tab-content">
+                <h2 style="margin-bottom: 20px; color: #374151;">Mes Disponibilités</h2>
+                
+                <div class="alert alert-info">
+                    📌 Cochez les créneaux durant lesquels vous êtes <strong>disponible</strong> pour animer un atelier pendant la semaine spéciale.
+                </div>
+
+                <div id="alertsDisponibilites"></div>
+
+                <div id="disponibilitesGrid" style="margin-top: 30px;">
+                    <div class="loading">Chargement des créneaux...</div>
+                </div>
+
+                <div style="margin-top: 30px; text-align: center;">
+                    <button class="btn btn-success" onclick="saveDisponibilites()">💾 Enregistrer mes disponibilités</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CRÉER/ÉDITER ATELIER -->
+    <div id="modalAtelier" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalAtelierTitle">Créer un atelier</h2>
+                <button class="close-modal" onclick="closeAtelierModal()">×</button>
+            </div>
+
+            <form id="formAtelier">
+                <input type="hidden" id="atelierIdEdit" value="">
+                
+                <div class="form-group">
+                    <label for="atelierNom">Nom de l'atelier *</label>
+                    <input type="text" id="atelierNom" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="atelierDescription">Description</label>
+                    <textarea id="atelierDescription"></textarea>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="atelierDuree">Durée (périodes) *</label>
+                        <select id="atelierDuree" required>
+                            <option value="2">2 périodes (1 créneau)</option>
+                            <option value="4">4 périodes (2 créneaux)</option>
+                            <option value="6">6 périodes (journée)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="atelierPlaces">Nombre de places max *</label>
+                        <input type="number" id="atelierPlaces" min="1" max="60" required>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="atelierBudget">Budget max (CHF)</label>
+                        <input type="number" id="atelierBudget" min="0" step="0.01" value="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="atelierTypeSalle">Type de salle demandée</label>
+                        <select id="atelierTypeSalle">
+                            <option value="">-- Aucune préférence --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="atelierRemarques">Remarques (internes)</label>
+                    <textarea id="atelierRemarques"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="atelierInfosEleves">Informations pour les élèves</label>
+                    <textarea id="atelierInfosEleves" placeholder="Ex: Matériel à apporter, lieu de rendez-vous, etc."></textarea>
+                </div>
+
+                <div style="display: flex; gap: 15px; margin-top: 20px;">
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">💾 Enregistrer (brouillon)</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeAtelierModal()">Annuler</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api';
+        let currentToken = null;
+        let currentUser = null;
+        let disponibilites = [];
+        let typesSalles = [];
+
+        // Au chargement
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('token');
+            const user = localStorage.getItem('user');
+            
+            if (token && user) {
+                currentToken = token;
+                currentUser = JSON.parse(user);
+                
+                if (currentUser.role === 'enseignant' || currentUser.role === 'admin') {
+                    showDashboard();
+                } else {
+                    showLogin();
+                }
+            } else {
+                showLogin();
+            }
+        });
+
+        function showLogin() {
+            document.getElementById('loginPage').style.display = 'block';
+            document.getElementById('dashboardPage').style.display = 'none';
+        }
+
+        function showDashboard() {
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('dashboardPage').style.display = 'block';
+            document.getElementById('userName').textContent = `${currentUser.prenom} ${currentUser.nom} (${currentUser.acronyme})`;
+            
+            loadStats();
+            loadAteliers();
+            loadDisponibilites();
+            loadTypesSalles();
+        }
+
+        // Connexion
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const acronyme = document.getElementById('acronyme').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ acronyme, password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.data.user.role !== 'enseignant' && data.data.user.role !== 'admin') {
+                        showAlert('loginError', 'Accès réservé aux enseignants', 'error');
+                        return;
+                    }
+                    
+                    currentToken = data.data.token;
+                    currentUser = data.data.user;
+                    
+                    localStorage.setItem('token', currentToken);
+                    localStorage.setItem('user', JSON.stringify(currentUser));
+                    
+                    showDashboard();
+                } else {
+                    showAlert('loginError', data.message, 'error');
+                }
+            } catch (error) {
+                showAlert('loginError', 'Erreur de connexion au serveur', 'error');
+            }
+        });
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            currentToken = null;
+            currentUser = null;
+            showLogin();
+        }
+
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            
+            document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
+            event.target.classList.add('active');
+            
+            if (tabName === 'ateliers') loadAteliers();
+            if (tabName === 'disponibilites') loadDisponibilites();
+        }
+
+        // Statistiques
+        async function loadStats() {
+            try {
+                const response = await fetch(`${API_URL}/enseignants/dashboard`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayStats(data.data);
+                }
+            } catch (error) {
+                console.error('Erreur stats:', error);
+            }
+        }
+
+        function displayStats(stats) {
+            const grid = document.getElementById('statsGrid');
+            
+            const brouillon = stats.ateliers.find(a => a.statut === 'brouillon')?.count || 0;
+            const soumis = stats.ateliers.find(a => a.statut === 'soumis')?.count || 0;
+            const valides = stats.ateliers.find(a => a.statut === 'valide')?.count || 0;
+            
+            grid.innerHTML = `
+                <div class="stat-card">
+                    <h3>Brouillons</h3>
+                    <div class="value">${brouillon}</div>
+                    <div class="label">À compléter</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Soumis</h3>
+                    <div class="value">${soumis}</div>
+                    <div class="label">En attente validation</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Validés</h3>
+                    <div class="value">${valides}</div>
+                    <div class="label">Prêts</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Inscriptions</h3>
+                    <div class="value">${stats.inscriptions_total}</div>
+                    <div class="label">Élèves inscrits</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Disponibilités</h3>
+                    <div class="value">${stats.disponibilites_declarees}/${stats.creneaux_total}</div>
+                    <div class="label">Créneaux déclarés</div>
+                </div>
+            `;
+        }
+
+        // Ateliers
+        async function loadAteliers() {
+            try {
+                const response = await fetch(`${API_URL}/enseignants/ateliers`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayAteliers(data.data);
+                }
+            } catch (error) {
+                console.error('Erreur ateliers:', error);
+            }
+        }
+
+        function displayAteliers(ateliers) {
+            const container = document.getElementById('ateliersTable');
+            
+            if (ateliers.length === 0) {
+                container.innerHTML = '<div class="alert alert-info">Vous n\'avez pas encore créé d\'atelier. Cliquez sur "Créer un atelier" pour commencer !</div>';
+                return;
+            }
+            
+            let html = '<table class="table"><thead><tr><th>Nom</th><th>Durée</th><th>Places</th><th>Budget</th><th>Statut</th><th>Actions</th></tr></thead><tbody>';
+            
+            ateliers.forEach(a => {
+                const statusClass = {
+                    'brouillon': 'badge-draft',
+                    'soumis': 'badge-submitted',
+                    'valide': 'badge-validated',
+                    'refuse': 'badge-refused'
+                }[a.statut];
+                
+                const statusText = {
+                    'brouillon': 'Brouillon',
+                    'soumis': 'Soumis',
+                    'valide': 'Validé',
+                    'refuse': 'Refusé'
+                }[a.statut];
+                
+                html += `
+                    <tr>
+                        <td><strong>${a.nom}</strong></td>
+                        <td>${a.duree} périodes</td>
+                        <td>${a.nombre_inscrits}/${a.nombre_places_max}</td>
+                        <td>${a.budget_max !== null && a.budget_max !== undefined
+    ? Number(a.budget_max).toFixed(2) + ' CHF'
+    : '—'}</td>
+                        <td><span class="badge ${statusClass}">${statusText}</span></td>
+                        <td>
+                            ${a.statut === 'brouillon' ? `
+                                <button class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;" onclick="editAtelier(${a.id})">✏️ Modifier</button>
+                                <button class="btn btn-success" style="padding: 5px 10px; font-size: 12px;" onclick="submitAtelier(${a.id})">✅ Soumettre</button>
+                                <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="deleteAtelier(${a.id})">🗑️</button>
+                            ` : a.statut === 'refuse' ? `
+                                <button class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;" onclick="editAtelier(${a.id})">✏️ Modifier</button>
+                            ` : ''}
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        // Types de salles
+        async function loadTypesSalles() {
+            try {
+                const response = await fetch(`${API_URL}/enseignants/types-salles`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    typesSalles = data.data;
+                    const select = document.getElementById('atelierTypeSalle');
+                    data.data.forEach(type => {
+                        const option = document.createElement('option');
+                        option.value = type;
+                        option.textContent = type;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Erreur types salles:', error);
+            }
+        }
+
+        // Modal atelier
+        function openCreateAtelierModal() {
+            document.getElementById('modalAtelierTitle').textContent = 'Créer un atelier';
+            document.getElementById('formAtelier').reset();
+            document.getElementById('atelierIdEdit').value = '';
+            document.getElementById('modalAtelier').classList.add('active');
+        }
+
+        function closeAtelierModal() {
+            document.getElementById('modalAtelier').classList.remove('active');
+        }
+
+        async function editAtelier(id) {
+            try {
+                const response = await fetch(`${API_URL}/enseignants/ateliers/${id}`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const a = data.data;
+                    document.getElementById('modalAtelierTitle').textContent = 'Modifier l\'atelier';
+                    document.getElementById('atelierIdEdit').value = a.id;
+                    document.getElementById('atelierNom').value = a.nom;
+                    document.getElementById('atelierDescription').value = a.description || '';
+                    document.getElementById('atelierDuree').value = a.duree;
+                    document.getElementById('atelierPlaces').value = a.nombre_places_max;
+                    document.getElementById('atelierBudget').value = a.budget_max;
+                    document.getElementById('atelierTypeSalle').value = a.type_salle_demande || '';
+                    document.getElementById('atelierRemarques').value = a.remarques || '';
+                    document.getElementById('atelierInfosEleves').value = a.informations_eleves || '';
+                    
+                    document.getElementById('modalAtelier').classList.add('active');
+                }
+            } catch (error) {
+                alert('Erreur lors du chargement de l\'atelier');
+            }
+        }
+
+        // Soumettre formulaire atelier
+        document.getElementById('formAtelier').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const atelierId = document.getElementById('atelierIdEdit').value;
+            const isEdit = atelierId !== '';
+            
+            const atelierData = {
+                nom: document.getElementById('atelierNom').value,
+                description: document.getElementById('atelierDescription').value,
+                duree: parseInt(document.getElementById('atelierDuree').value),
+                nombre_places_max: parseInt(document.getElementById('atelierPlaces').value),
+                budget_max: parseFloat(document.getElementById('atelierBudget').value),
+                type_salle_demande: document.getElementById('atelierTypeSalle').value || null,
+                remarques: document.getElementById('atelierRemarques').value,
+                informations_eleves: document.getElementById('atelierInfosEleves').value
+            };
+            
+            try {
+                const url = isEdit ? `${API_URL}/enseignants/ateliers/${atelierId}` : `${API_URL}/enseignants/ateliers`;
+                const method = isEdit ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Authorization': `Bearer ${currentToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(atelierData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    closeAtelierModal();
+                    showAlert('alertsAteliers', data.message, 'success');
+                    loadAteliers();
+                    loadStats();
+                } else {
+                    alert(data.message);
+                }
+            } catch (error) {
+                alert('Erreur lors de l\'enregistrement');
+            }
+        });
+
+        async function submitAtelier(id) {
+            if (!confirm('Êtes-vous sûr de vouloir soumettre cet atelier pour validation ?')) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/enseignants/ateliers/${id}/soumettre`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('alertsAteliers', data.message, 'success');
+                    loadAteliers();
+                    loadStats();
+                }
+            } catch (error) {
+                alert('Erreur lors de la soumission');
+            }
+        }
+
+        async function deleteAtelier(id) {
+            if (!confirm('Êtes-vous sûr de vouloir supprimer cet atelier ?')) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/enseignants/ateliers/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('alertsAteliers', data.message, 'success');
+                    loadAteliers();
+                    loadStats();
+                }
+            } catch (error) {
+                alert('Erreur lors de la suppression');
+            }
+        }
+
+        // Disponibilités
+        async function loadDisponibilites() {
+            try {
+                const response = await fetch(`${API_URL}/enseignants/disponibilites`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    disponibilites = data.data;
+                    displayDisponibilites();
+                }
+            } catch (error) {
+                console.error('Erreur disponibilités:', error);
+            }
+        }
+
+        function displayDisponibilites() {
+            const container = document.getElementById('disponibilitesGrid');
+            
+            // Grouper par jour
+            const jours = {
+                'lundi': [],
+                'mardi': [],
+                'mercredi': [],
+                'jeudi': [],
+                'vendredi': []
+            };
+            
+            disponibilites.forEach(d => {
+                jours[d.jour].push(d);
+            });
+            
+            let html = '<div style="display: grid; grid-template-columns: 150px repeat(5, 1fr); gap: 10px;">';
+            
+            // Headers jours
+            html += '<div></div>';
+            ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'].forEach(jour => {
+                html += `<div class="jour-header">${jour}</div>`;
+            });
+            
+            // Lignes de créneaux
+            const periodes = ['P1-2', 'P3-4', 'P6-7'];
+            
+            periodes.forEach(periode => {
+                html += `<div class="periode-label">${periode}</div>`;
+                
+                Object.keys(jours).forEach(jour => {
+                    const creneau = jours[jour].find(c => c.periode === periode);
+                    
+                    if (creneau) {
+                        const classes = creneau.disponible ? 'disponible' : 'indisponible';
+                        html += `
+                            <div class="creneau-cell ${classes}" onclick="toggleDisponibilite(${creneau.creneau_id})">
+                                ${creneau.disponible ? '✅ Disponible' : '❌ Indisponible'}
+                            </div>
+                        `;
+                    } else {
+                        html += '<div class="creneau-cell" style="background: #f9fafb; cursor: not-allowed;">-</div>';
+                    }
+                });
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function toggleDisponibilite(creneauId) {
+            const index = disponibilites.findIndex(d => d.creneau_id === creneauId);
+            if (index !== -1) {
+                disponibilites[index].disponible = !disponibilites[index].disponible;
+                displayDisponibilites();
+            }
+        }
+
+        async function saveDisponibilites() {
+            try {
+                const response = await fetch(`${API_URL}/enseignants/disponibilites`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${currentToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ disponibilites })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('alertsDisponibilites', data.message, 'success');
+                    loadStats();
+                }
+            } catch (error) {
+                showAlert('alertsDisponibilites', 'Erreur lors de l\'enregistrement', 'error');
+            }
+        }
+
+        function showAlert(containerId, message, type) {
+            const container = document.getElementById(containerId);
+            const alertClass = type === 'success' ? 'alert-success' : type === 'error' ? 'alert-error' : 'alert-info';
+            
+            container.innerHTML = `<div class="alert ${alertClass}">${message}</div>`;
+            
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 5000);
+        }
+
+        // === CHANGEMENT MOT DE PASSE ===
+        function showChangePassword() {
+            const modal = document.createElement('div');
+            modal.id = 'passwordModal';
+            modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;';
+            modal.innerHTML = `
+                <div style="background:white;padding:30px;border-radius:15px;max-width:400px;width:90%;">
+                    <h3 style="margin-bottom:20px;color:#667eea;">🔑 Changer mon mot de passe</h3>
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block;margin-bottom:5px;font-weight:600;">Ancien mot de passe</label>
+                        <input type="password" id="oldPassword" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;">
+                    </div>
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block;margin-bottom:5px;font-weight:600;">Nouveau mot de passe</label>
+                        <input type="password" id="newPassword" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;">
+                    </div>
+                    <div style="margin-bottom:20px;">
+                        <label style="display:block;margin-bottom:5px;font-weight:600;">Confirmer le nouveau</label>
+                        <input type="password" id="confirmPassword" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;">
+                    </div>
+                    <div id="passwordError" style="color:#ef4444;margin-bottom:15px;display:none;"></div>
+                    <div style="display:flex;gap:10px;">
+                        <button onclick="changePassword()" class="btn btn-primary" style="flex:1;">Changer</button>
+                        <button onclick="document.getElementById('passwordModal').remove()" class="btn btn-secondary" style="flex:1;">Annuler</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        async function changePassword() {
+            const oldPassword = document.getElementById('oldPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const errorDiv = document.getElementById('passwordError');
+
+            if (!oldPassword || !newPassword || !confirmPassword) {
+                errorDiv.textContent = 'Tous les champs sont requis';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                errorDiv.textContent = 'Les mots de passe ne correspondent pas';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (newPassword.length < 6) {
+                errorDiv.textContent = 'Le mot de passe doit contenir au moins 6 caractères';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/auth/change-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ oldPassword, newPassword })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    document.getElementById('passwordModal').remove();
+                    showAlert('✅ Mot de passe modifié avec succès !', 'success');
+                } else {
+                    errorDiv.textContent = result.message || 'Erreur lors du changement';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Erreur de connexion';
+                errorDiv.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>

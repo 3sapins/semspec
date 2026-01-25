@@ -1,0 +1,36 @@
+{
+  "name": "semaine-speciale",
+  "version": "5.3.0",
+  "description": "Plateforme de gestion de la Semaine Spéciale - Collège des Trois-Sapins, Echallens",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "echo \"No tests yet\" && exit 0",
+    "db:init": "mysql -u root -p semaine_speciale < schema_mysql.sql"
+  },
+  "keywords": [
+    "education",
+    "workshop",
+    "management",
+    "school"
+  ],
+  "author": "Collège des Trois-Sapins",
+  "license": "MIT",
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "csv-parse": "^5.5.3",
+    "dotenv": "^16.4.7",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.9.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

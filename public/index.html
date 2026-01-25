@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Semaine Spéciale</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        h1 { color: #667eea; font-size: 32px; }
+        .user-info { color: #6b7280; }
+        
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .nav-card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+        
+        .nav-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+        }
+        
+        .nav-card-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        
+        .nav-card-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 10px;
+        }
+        
+        .nav-card-desc {
+            color: #6b7280;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            color: #6b7280;
+            font-size: 14px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5568d3; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-secondary { background: #e5e7eb; color: #374151; }
+        
+        .section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 20px;
+        }
+        
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border-left: 4px solid #10b981;
+        }
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>🎓 Administration Semaine Spéciale</h1>
+                <p class="user-info">Connecté en tant qu'administrateur</p>
+            </div>
+            <button onclick="logout()" class="btn btn-secondary">Déconnexion</button>
+        </div>
+
+        <div id="alert" class="alert"></div>
+
+        <!-- Statistiques -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-value" id="statAteliers">0</div>
+                <div class="stat-label">Ateliers</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statInscriptions">0</div>
+                <div class="stat-label">Inscriptions</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statEleves">0</div>
+                <div class="stat-label">Élèves</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statEnseignants">0</div>
+                <div class="stat-label">Enseignants</div>
+            </div>
+        </div>
+
+        <!-- Navigation Principale -->
+        <div class="nav-grid">
+            <a href="creer-atelier.html" class="nav-card">
+                <div class="nav-card-icon">➕</div>
+                <div class="nav-card-title">Créer un Atelier</div>
+                <div class="nav-card-desc">Créer un nouvel atelier avec jusqu'à 3 enseignants</div>
+            </a>
+
+            <a href="ateliers.html" class="nav-card">
+                <div class="nav-card-icon">🎨</div>
+                <div class="nav-card-title">Liste Ateliers</div>
+                <div class="nav-card-desc">Voir, modifier et supprimer tous les ateliers</div>
+            </a>
+
+            <a href="planning.html" class="nav-card">
+                <div class="nav-card-icon">📅</div>
+                <div class="nav-card-title">Planning Salles</div>
+                <div class="nav-card-desc">Visualiser, modifier et allouer le planning</div>
+            </a>
+
+            <a href="planning-enseignants.html" class="nav-card">
+                <div class="nav-card-icon">👨‍🏫</div>
+                <div class="nav-card-title">Planning Enseignants</div>
+                <div class="nav-card-desc">Vue par enseignant avec charge et piquets</div>
+            </a>
+
+            <a href="gestion.html" class="nav-card">
+                <div class="nav-card-icon">🔧</div>
+                <div class="nav-card-title">Gestion</div>
+                <div class="nav-card-desc">Listes, imports CSV, inscriptions, piquets</div>
+            </a>
+
+            <a href="quota.html" class="nav-card">
+                <div class="nav-card-icon">📊</div>
+                <div class="nav-card-title">Quota</div>
+                <div class="nav-card-desc">Contrôle progressif des places (0-100%)</div>
+            </a>
+
+            <a href="presences-admin.html" class="nav-card" style="border: 2px solid #ef4444;">
+                <div class="nav-card-icon">📋</div>
+                <div class="nav-card-title">Présences & Absences</div>
+                <div class="nav-card-desc">Suivi des pointages et liste des absents</div>
+            </a>
+
+            <a href="impressions.html" class="nav-card" style="border: 2px solid #f59e0b;">
+                <div class="nav-card-icon">🖨️</div>
+                <div class="nav-card-title">Centre d'Impression</div>
+                <div class="nav-card-desc">Horaires, listes de présence, rapports</div>
+            </a>
+
+            <a href="budget.html" class="nav-card" style="border: 2px solid #10b981;">
+                <div class="nav-card-icon">💰</div>
+                <div class="nav-card-title">Budget</div>
+                <div class="nav-card-desc">Récapitulatif budgétaire par atelier</div>
+            </a>
+
+            <a href="inscriptions-classes.html" class="nav-card" style="border: 2px solid #3b82f6;">
+                <div class="nav-card-icon">🔐</div>
+                <div class="nav-card-title">Inscriptions Classes</div>
+                <div class="nav-card-desc">Ouvrir/Fermer par classe</div>
+            </a>
+
+            <a href="ateliers-faible-inscription.html" class="nav-card" style="border: 2px solid #f59e0b;">
+                <div class="nav-card-icon">⚠️</div>
+                <div class="nav-card-title">Faibles Inscriptions</div>
+                <div class="nav-card-desc">Ateliers avec moins de 3 inscrits</div>
+            </a>
+        </div>
+
+        <!-- Section Ateliers -->
+        <div class="section">
+            <div class="section-title">📋 Ateliers</div>
+            
+            <div style="margin-bottom: 20px;">
+                <button class="btn btn-primary" onclick="window.location.href='creer-atelier.html'">
+                    ➕ Créer un Atelier
+                </button>
+                <button class="btn btn-primary" onclick="loadAteliers()">
+                    🔄 Actualiser
+                </button>
+            </div>
+
+            <div id="ateliersContainer">
+                <p>Chargement...</p>
+            </div>
+        </div>
+
+        <!-- Configuration -->
+        <div class="section">
+            <div class="section-title">⚙️ Configuration</div>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                <button class="btn btn-primary" onclick="toggleInscriptions()">
+                    🔓 Ouvrir/Fermer Inscriptions
+                </button>
+                <button class="btn btn-primary" onclick="window.location.href='quota.html'">
+                    📊 Gérer Quota
+                </button>
+                <button class="btn btn-primary" onclick="allocuerPlanning()">
+                    🚀 Allouer Planning
+                </button>
+                <button class="btn btn-danger" onclick="resetPlanning()">
+                    🔄 Réinitialiser Planning
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        console.log('Token trouvé:', token ? token.substring(0, 20) + '...' : 'AUCUN');
+        
+        if (!token) {
+            console.log('Pas de token, redirection vers login');
+            window.location.replace('login.html');
+        }
+
+        // Vérifier que le token est valide en faisant une requête test
+        fetch('/api/admin/stats', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        }).then(response => {
+            console.log('Réponse stats:', response.status);
+            if (!response.ok) {
+                console.log('Token invalide, redirection vers login');
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                window.location.replace('login.html');
+            }
+        }).catch(err => {
+            console.error('Erreur vérification token:', err);
+        });
+
+        // Charger statistiques
+        async function loadStats() {
+            try {
+                // Ateliers
+                const respAteliers = await fetch('/api/admin/ateliers', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const ateliers = await respAteliers.json();
+                const ateliersValides = (ateliers.data || []).filter(a => a.statut === 'valide').length;
+                document.getElementById('statAteliers').textContent = ateliersValides;
+
+                // Élèves (vraie requête)
+                try {
+                    const respEleves = await fetch('/api/gestion/eleves', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const eleves = await respEleves.json();
+                    document.getElementById('statEleves').textContent = eleves.data?.length || 0;
+                } catch (e) {
+                    document.getElementById('statEleves').textContent = '-';
+                }
+
+                // Enseignants (vraie requête)
+                try {
+                    const respEnseignants = await fetch('/api/gestion/enseignants', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const enseignants = await respEnseignants.json();
+                    document.getElementById('statEnseignants').textContent = enseignants.data?.length || 0;
+                } catch (e) {
+                    document.getElementById('statEnseignants').textContent = '-';
+                }
+
+                // Inscriptions (depuis planning)
+                try {
+                    const respPlanning = await fetch('/api/planning/grid', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const planning = await respPlanning.json();
+                    // Compter inscriptions totales (éviter doublons d'ateliers multi-blocs)
+                    let inscriptionsSet = new Set();
+                    Object.values(planning.data || {}).forEach(jour => {
+                        Object.values(jour).forEach(periode => {
+                            Object.values(periode).forEach(atelier => {
+                                if (atelier && !atelier.suite_atelier) {
+                                    // Utiliser atelier_id comme clé pour éviter doublons
+                                    inscriptionsSet.add(`${atelier.atelier_id}_${atelier.nombre_inscrits}`);
+                                }
+                            });
+                        });
+                    });
+                    let totalInscriptions = 0;
+                    inscriptionsSet.forEach(item => {
+                        const inscrits = parseInt(item.split('_')[1]) || 0;
+                        totalInscriptions += inscrits;
+                    });
+                    document.getElementById('statInscriptions').textContent = totalInscriptions;
+                } catch (e) {
+                    document.getElementById('statInscriptions').textContent = '-';
+                }
+
+            } catch (error) {
+                console.error('Erreur stats:', error);
+            }
+        }
+
+        // Charger ateliers
+        async function loadAteliers() {
+            try {
+                const response = await fetch('/api/admin/ateliers', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+
+                const container = document.getElementById('ateliersContainer');
+                
+                if (!result.data || result.data.length === 0) {
+                    container.innerHTML = '<p style="color: #6b7280;">Aucun atelier créé pour le moment.</p>';
+                    return;
+                }
+
+                let html = '<div style="display: grid; gap: 15px;">';
+                result.data.forEach(atelier => {
+                    const statusClass = atelier.statut === 'valide' ? 'success' : atelier.statut === 'refuse' ? 'error' : 'warning';
+                    const statusText = atelier.statut === 'valide' ? '✅ Validé' : atelier.statut === 'refuse' ? '❌ Refusé' : '⏳ En attente';
+                    
+                    html += `
+                        <div style="background: #f9fafb; padding: 20px; border-radius: 10px; border-left: 4px solid #667eea;">
+                            <div style="display: flex; justify-content: space-between; align-items: start;">
+                                <div style="flex: 1;">
+                                    <h3 style="color: #1f2937; margin-bottom: 10px;">${atelier.nom}</h3>
+                                    <p style="color: #6b7280; font-size: 14px; margin-bottom: 8px;">
+                                        👨‍🏫 ${atelier.enseignant_prenom} ${atelier.enseignant_nom} (${atelier.enseignant_acronyme})
+                                        ${atelier.enseignant2_acronyme ? ` + ${atelier.enseignant2_acronyme}` : ''}
+                                        ${atelier.enseignant3_acronyme ? ` + ${atelier.enseignant3_acronyme}` : ''}
+                                    </p>
+                                    <p style="color: #6b7280; font-size: 14px; margin-bottom: 8px;">
+                                        ⏱️ ${atelier.duree} périodes | 
+                                        👥 ${atelier.nombre_places_max} places |
+                                        🏫 ${atelier.type_salle || 'Tout type'}
+                                    </p>
+                                    <p style="color: #6b7280; font-size: 14px;">
+                                        ${statusText}
+                                    </p>
+                                </div>
+                                <div style="display: flex; gap: 8px; flex-direction: column;">
+                                    <button class="btn btn-primary" style="padding: 8px 16px; font-size: 12px;" onclick="window.location.href='modifier-atelier.html?id=${atelier.id}'">
+                                        ✏️ Modifier
+                                    </button>
+                                    ${atelier.statut === 'en_attente' ? `
+                                        <button class="btn btn-primary" style="padding: 8px 16px; font-size: 12px;" onclick="validerAtelier(${atelier.id})">
+                                            ✅ Valider
+                                        </button>
+                                    ` : ''}
+                                    <button class="btn btn-danger" style="padding: 8px 16px; font-size: 12px;" onclick="supprimerAtelier(${atelier.id})">
+                                        🗑️ Supprimer
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+
+            } catch (error) {
+                console.error('Erreur ateliers:', error);
+                document.getElementById('ateliersContainer').innerHTML = 
+                    '<p style="color: #ef4444;">Erreur de chargement des ateliers</p>';
+            }
+        }
+
+        async function validerAtelier(id) {
+            try {
+                const response = await fetch(`/api/admin/ateliers/${id}/valider`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showAlert('Atelier validé !', 'success');
+                    loadAteliers();
+                } else {
+                    showAlert(result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Erreur de validation', 'error');
+            }
+        }
+
+        async function supprimerAtelier(id) {
+            if (!confirm('Supprimer cet atelier définitivement ?')) return;
+            try {
+                const response = await fetch(`/api/admin/ateliers/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showAlert('Atelier supprimé', 'success');
+                    loadAteliers();
+                    loadStats();
+                } else {
+                    showAlert(result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Erreur de suppression', 'error');
+            }
+        }
+
+        async function toggleInscriptions() {
+            try {
+                // D'abord, récupérer l'état actuel
+                const configResponse = await fetch('/api/admin/configuration', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const configResult = await configResponse.json();
+                const inscriptionsConfig = configResult.data.find(c => c.cle === 'inscriptions_ouvertes');
+                const actuellementOuvert = inscriptionsConfig?.valeur === 'true';
+                
+                const action = actuellementOuvert ? 'FERMER' : 'OUVRIR';
+                if (!confirm(`Voulez-vous ${action} les inscriptions ?`)) return;
+                
+                const response = await fetch('/api/admin/configuration/inscriptions', {
+                    method: 'PUT',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    },
+                    body: JSON.stringify({ ouvert: !actuellementOuvert })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showAlert(result.message, 'success');
+                } else {
+                    showAlert(result.message, 'error');
+                }
+            } catch (error) {
+                console.error('Erreur toggle inscriptions:', error);
+                showAlert('Erreur lors du changement d\'état des inscriptions', 'error');
+            }
+        }
+
+        async function allocuerPlanning() {
+            if (!confirm('⚠️ Lancer l\'allocation automatique du planning ?\n\nCela placera tous les ateliers validés dans le planning.')) return;
+            try {
+                showAlert('⏳ Allocation en cours...', 'success');
+                const response = await fetch('/api/planning/allouer', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showAlert(`✅ Planning alloué ! ${result.ateliers_places || 0} ateliers placés.`, 'success');
+                } else {
+                    showAlert('❌ ' + result.message, 'error');
+                }
+            } catch (error) {
+                console.error('Erreur allocation:', error);
+                showAlert('❌ Erreur allocation', 'error');
+            }
+        }
+
+        async function resetPlanning() {
+            if (!confirm('ATTENTION : Réinitialiser tout le planning ? Cette action est irréversible.')) return;
+            try {
+                const response = await fetch('/api/planning/reset', {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showAlert('Planning réinitialisé', 'success');
+                } else {
+                    showAlert(result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Erreur réinitialisation', 'error');
+            }
+        }
+
+        function showAlert(message, type) {
+            const alert = document.getElementById('alert');
+            alert.textContent = message;
+            alert.className = `alert alert-${type}`;
+            alert.style.display = 'block';
+            setTimeout(() => alert.style.display = 'none', 5000);
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = 'login.html';
+        }
+
+        // Charger au démarrage
+        loadStats();
+        loadAteliers();
+    </script>
+    <!-- Script auto-boutons modifier -->
+    <script src="auto-boutons-modifier.js"></script>
+</body>
+</html>

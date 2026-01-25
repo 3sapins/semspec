@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inscriptions par Classe | Admin</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container { max-width: 1000px; margin: 0 auto; }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        h1 { color: #667eea; font-size: 24px; }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-decoration: none;
+        }
+
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5a67d8; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-success:hover { background: #059669; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-secondary { background: #6b7280; color: white; }
+
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-body { padding: 20px; }
+
+        .action-bar {
+            background: #f3f4f6;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .action-bar p { color: #374151; }
+
+        .class-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+        }
+
+        .class-card {
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .class-card:hover {
+            background: #f3f4f6;
+        }
+
+        .class-card.open {
+            border-color: #10b981;
+            background: #ecfdf5;
+        }
+
+        .class-card.closed {
+            border-color: #ef4444;
+            background: #fef2f2;
+        }
+
+        .class-info h3 {
+            color: #1f2937;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+
+        .class-info p {
+            color: #6b7280;
+            font-size: 13px;
+        }
+
+        .class-stats {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .class-stat {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .class-stat strong {
+            color: #667eea;
+        }
+
+        .toggle-btn {
+            width: 60px;
+            height: 32px;
+            border-radius: 16px;
+            border: none;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .toggle-btn.on {
+            background: #10b981;
+        }
+
+        .toggle-btn.off {
+            background: #ef4444;
+        }
+
+        .toggle-btn::after {
+            content: '';
+            position: absolute;
+            width: 26px;
+            height: 26px;
+            background: white;
+            border-radius: 50%;
+            top: 3px;
+            transition: all 0.3s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .toggle-btn.on::after {
+            left: 31px;
+        }
+
+        .toggle-btn.off::after {
+            left: 3px;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-open {
+            background: #d1fae5;
+            color: #059669;
+        }
+
+        .status-closed {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .alert-info {
+            background: #dbeafe;
+            color: #1e40af;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        .summary-stats {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+
+        .summary-stat {
+            text-align: center;
+        }
+
+        .summary-stat .value {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .summary-stat .value.open { color: #10b981; }
+        .summary-stat .value.closed { color: #ef4444; }
+
+        .summary-stat .label {
+            font-size: 12px;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Inscriptions par Classe</h1>
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="location.reload()">↻ Actualiser</button>
+                <a href="index.html" class="btn btn-secondary">← Retour</a>
+            </div>
+        </div>
+
+        <div class="alert alert-info">
+            💡 <strong>Conseil :</strong> Ouvrez les inscriptions progressivement par classe pour éviter la surcharge. 
+            Commencez par les classes les plus grandes, puis continuez avec les autres.
+        </div>
+
+        <!-- Actions globales -->
+        <div class="card">
+            <div class="card-header">
+                ⚡ Actions Rapides
+            </div>
+            <div class="card-body">
+                <div class="action-bar">
+                    <div class="summary-stats" id="summaryStats">
+                        <div class="summary-stat">
+                            <div class="value open" id="statOuvertes">-</div>
+                            <div class="label">Classes ouvertes</div>
+                        </div>
+                        <div class="summary-stat">
+                            <div class="value closed" id="statFermees">-</div>
+                            <div class="label">Classes fermées</div>
+                        </div>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-success" onclick="ouvrirToutes()">
+                            🔓 Ouvrir TOUTES
+                        </button>
+                        <button class="btn btn-danger" onclick="fermerToutes()">
+                            🔒 Fermer TOUTES
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Liste des classes -->
+        <div class="card">
+            <div class="card-header">
+                📚 Classes
+                <span id="classCount" style="font-weight: normal; font-size: 14px;"></span>
+            </div>
+            <div class="card-body">
+                <div id="classesGrid" class="class-grid loading">
+                    Chargement des classes...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = 'login.html';
+
+        let classesData = [];
+
+        document.addEventListener('DOMContentLoaded', loadClasses);
+
+        async function loadClasses() {
+            try {
+                const response = await fetch('/api/admin/inscriptions/classes', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+
+                if (!result.success) {
+                    alert('Erreur: ' + result.message);
+                    return;
+                }
+
+                classesData = result.data;
+                displayClasses(classesData);
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                document.getElementById('classesGrid').innerHTML = 
+                    '<p style="color: #ef4444;">Erreur de chargement</p>';
+            }
+        }
+
+        function displayClasses(classes) {
+            const container = document.getElementById('classesGrid');
+            container.classList.remove('loading');
+
+            if (classes.length === 0) {
+                container.innerHTML = '<p style="color: #6b7280;">Aucune classe trouvée</p>';
+                return;
+            }
+
+            // Stats
+            const ouvertes = classes.filter(c => c.inscriptions_ouvertes).length;
+            const fermees = classes.length - ouvertes;
+            document.getElementById('statOuvertes').textContent = ouvertes;
+            document.getElementById('statFermees').textContent = fermees;
+            document.getElementById('classCount').textContent = `(${classes.length} classes)`;
+
+            // Grid
+            let html = '';
+            classes.forEach(c => {
+                const isOpen = c.inscriptions_ouvertes;
+                const statusClass = isOpen ? 'open' : 'closed';
+                const toggleClass = isOpen ? 'on' : 'off';
+                const statusBadge = isOpen 
+                    ? '<span class="status-badge status-open">🔓 Ouvert</span>'
+                    : '<span class="status-badge status-closed">🔒 Fermé</span>';
+
+                html += `
+                    <div class="class-card ${statusClass}" id="class_${c.id}">
+                        <div class="class-info">
+                            <h3>${c.nom}</h3>
+                            <p>${c.niveau || ''}</p>
+                            <div class="class-stats">
+                                <span class="class-stat">👥 <strong>${c.nb_eleves}</strong> élèves</span>
+                                <span class="class-stat">📝 <strong>${c.nb_inscriptions}</strong> inscriptions</span>
+                            </div>
+                        </div>
+                        <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+                            ${statusBadge}
+                            <button class="toggle-btn ${toggleClass}" 
+                                onclick="toggleClasse(${c.id}, ${isOpen ? 'false' : 'true'})"
+                                title="${isOpen ? 'Fermer' : 'Ouvrir'} les inscriptions">
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        async function toggleClasse(classeId, ouvrir) {
+            try {
+                const response = await fetch(`/api/admin/inscriptions/classe/${classeId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ ouvert: ouvrir })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Recharger
+                    loadClasses();
+                } else {
+                    alert('Erreur: ' + result.message);
+                }
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Erreur lors de la modification');
+            }
+        }
+
+        async function ouvrirToutes() {
+            if (!confirm('Ouvrir les inscriptions pour TOUTES les classes ?')) return;
+            
+            try {
+                const response = await fetch('/api/admin/inscriptions/classes/toutes', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ ouvert: true })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('✅ ' + result.message);
+                    loadClasses();
+                } else {
+                    alert('Erreur: ' + result.message);
+                }
+
+            } catch (error) {
+                console.error('Erreur:', error);
+            }
+        }
+
+        async function fermerToutes() {
+            if (!confirm('Fermer les inscriptions pour TOUTES les classes ?')) return;
+            
+            try {
+                const response = await fetch('/api/admin/inscriptions/classes/toutes', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ ouvert: false })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('✅ ' + result.message);
+                    loadClasses();
+                } else {
+                    alert('Erreur: ' + result.message);
+                }
+
+            } catch (error) {
+                console.error('Erreur:', error);
+            }
+        }
+    </script>
+</body>
+</html>

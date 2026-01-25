@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suivi Présences & Absences | Admin</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        h1 { color: #667eea; font-size: 24px; }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5a67d8; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-warning { background: #f59e0b; color: white; }
+        .btn-secondary { background: #6b7280; color: white; }
+        .btn-secondary:hover { background: #4b5563; }
+
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
+
+        .tabs {
+            display: flex;
+            gap: 5px;
+            background: white;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 12px 25px;
+            border: none;
+            background: #f3f4f6;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .tab:hover { background: #e5e7eb; }
+        .tab.active { background: #667eea; color: white; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-body { padding: 20px; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .stat-value.danger { color: #ef4444; }
+        .stat-value.success { color: #10b981; }
+        .stat-value.warning { color: #f59e0b; }
+
+        .stat-label {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 5px;
+        }
+
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filters select, .filters input {
+            padding: 10px 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .filters select:focus, .filters input:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        th {
+            background: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        tr:hover { background: #f9fafb; }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-valide { background: #d1fae5; color: #059669; }
+        .status-en-cours { background: #fef3c7; color: #d97706; }
+        .status-non-commence { background: #fee2e2; color: #dc2626; }
+
+        .absent-row { background: #fef2f2; }
+        .absent-name { color: #dc2626; font-weight: 600; }
+
+        .atelier-item {
+            background: #f9fafb;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .atelier-item.valide { border-left: 4px solid #10b981; }
+        .atelier-item.en-cours { border-left: 4px solid #f59e0b; }
+        .atelier-item.non-commence { border-left: 4px solid #ef4444; }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .alert-danger {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+
+        .creneau-section {
+            margin-bottom: 25px;
+        }
+
+        .creneau-header {
+            background: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px 8px 0 0;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .creneau-body {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            padding: 15px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        .empty-state.success { color: #10b981; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Suivi Présences & Absences</h1>
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="location.reload()">↻ Actualiser</button>
+                <a href="impressions.html" class="btn btn-warning">🖨️ Centre d'Impression</a>
+                <a href="index.html" class="btn btn-secondary">← Retour</a>
+            </div>
+        </div>
+
+        <!-- Stats globales -->
+        <div class="stats-grid" id="statsGlobal">
+            <div class="stat-card">
+                <div class="stat-value" id="statAteliersValides">-</div>
+                <div class="stat-label">Ateliers Pointés</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value warning" id="statAteliersNonPointes">-</div>
+                <div class="stat-label">Non Pointés</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value success" id="statPresents">-</div>
+                <div class="stat-label">Présents</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value danger" id="statAbsents">-</div>
+                <div class="stat-label">Absents</div>
+            </div>
+        </div>
+
+        <!-- Onglets -->
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('absences')">🔴 Absences</button>
+            <button class="tab" onclick="showTab('pointages')">📋 Statut Pointages</button>
+            <button class="tab" onclick="showTab('parCreneau')">📅 Par Créneau</button>
+        </div>
+
+        <!-- Onglet Absences -->
+        <div id="tab-absences" class="tab-content active">
+            <div class="card">
+                <div class="card-header">
+                    <h3>🔴 Liste des Absences</h3>
+                    <button class="btn btn-danger" onclick="printAbsences()">🖨️ Imprimer</button>
+                </div>
+                <div class="card-body">
+                    <div class="filters">
+                        <select id="filterJour" onchange="loadAbsences()">
+                            <option value="">Tous les jours</option>
+                            <option value="lundi">Lundi</option>
+                            <option value="mardi">Mardi</option>
+                            <option value="mercredi">Mercredi</option>
+                            <option value="jeudi">Jeudi</option>
+                            <option value="vendredi">Vendredi</option>
+                        </select>
+                        <select id="filterCreneau" onchange="loadAbsences()">
+                            <option value="">Tous les créneaux</option>
+                        </select>
+                        <select id="filterClasse" onchange="loadAbsences()">
+                            <option value="">Toutes les classes</option>
+                        </select>
+                    </div>
+                    <div id="absencesListe" class="loading">Chargement...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Onglet Statut Pointages -->
+        <div id="tab-pointages" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h3>📋 Statut des Pointages par Atelier</h3>
+                </div>
+                <div class="card-body">
+                    <div id="alertesNonPointes"></div>
+                    <div id="pointagesListe" class="loading">Chargement...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Onglet Par Créneau -->
+        <div id="tab-parCreneau" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h3>📅 Absences par Créneau</h3>
+                </div>
+                <div class="card-body">
+                    <div id="creneauxListe" class="loading">Chargement...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = 'login.html';
+
+        let creneauxData = [];
+        let classesData = [];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadFilters();
+            await loadStats();
+            await loadAbsences();
+            await loadPointages();
+        });
+
+        function showTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById('tab-' + tabName).classList.add('active');
+
+            if (tabName === 'parCreneau') loadAbsencesParCreneau();
+        }
+
+        async function loadFilters() {
+            try {
+                // Créneaux
+                const creneauxResp = await fetch('/api/planning/creneaux', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const creneauxResult = await creneauxResp.json();
+                creneauxData = creneauxResult.data || [];
+
+                const selectCreneau = document.getElementById('filterCreneau');
+                creneauxData.forEach(c => {
+                    const jourCap = c.jour.charAt(0).toUpperCase() + c.jour.slice(1);
+                    selectCreneau.innerHTML += `<option value="${c.id}">${jourCap} ${c.periode}</option>`;
+                });
+
+                // Classes
+                const classesResp = await fetch('/api/gestion/classes', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const classesResult = await classesResp.json();
+                classesData = classesResult.data || [];
+
+                const selectClasse = document.getElementById('filterClasse');
+                classesData.forEach(c => {
+                    selectClasse.innerHTML += `<option value="${c.nom}">${c.nom}</option>`;
+                });
+
+            } catch (error) {
+                console.error('Erreur chargement filtres:', error);
+            }
+        }
+
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/presence/admin/stats', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    const { global, totalNonPointes } = result.data;
+                    
+                    document.getElementById('statPresents').textContent = global.total_presents || 0;
+                    document.getElementById('statAbsents').textContent = global.total_absents || 0;
+                    document.getElementById('statAteliersValides').textContent = global.ateliers_valides || 0;
+                    document.getElementById('statAteliersNonPointes').textContent = totalNonPointes || 0;
+                }
+            } catch (error) {
+                console.error('Erreur stats:', error);
+            }
+        }
+
+        async function loadAbsences() {
+            const jour = document.getElementById('filterJour').value;
+            const creneau = document.getElementById('filterCreneau').value;
+            const classe = document.getElementById('filterClasse').value;
+
+            let url = '/api/presence/admin/absences?';
+            if (jour) url += `jour=${jour}&`;
+            if (creneau) url += `creneau_id=${creneau}&`;
+            if (classe) url += `classe=${classe}&`;
+
+            try {
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+
+                const container = document.getElementById('absencesListe');
+
+                if (!result.data || result.data.length === 0) {
+                    container.innerHTML = '<div class="empty-state success">✅ Aucune absence signalée</div>';
+                    return;
+                }
+
+                let html = `
+                    <p style="margin-bottom: 15px;"><strong>${result.total} absence(s)</strong></p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Créneau</th>
+                                <th>Atelier</th>
+                                <th>Élève</th>
+                                <th>Classe</th>
+                                <th>Remarque</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                result.data.forEach(a => {
+                    const jourCap = a.jour.charAt(0).toUpperCase() + a.jour.slice(1);
+                    html += `
+                        <tr class="absent-row">
+                            <td>${jourCap} ${a.periode}</td>
+                            <td>${a.atelier_nom}</td>
+                            <td class="absent-name">${a.eleve_nom} ${a.eleve_prenom}</td>
+                            <td>${a.classe_nom}</td>
+                            <td>${a.commentaire || '-'}</td>
+                        </tr>
+                    `;
+                });
+
+                html += '</tbody></table>';
+                container.innerHTML = html;
+
+            } catch (error) {
+                console.error('Erreur absences:', error);
+                document.getElementById('absencesListe').innerHTML = '<div class="empty-state">Erreur de chargement</div>';
+            }
+        }
+
+        async function loadPointages() {
+            try {
+                const response = await fetch('/api/presence/admin/ateliers', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+
+                const container = document.getElementById('pointagesListe');
+                const alertes = document.getElementById('alertesNonPointes');
+
+                if (!result.data || result.data.length === 0) {
+                    container.innerHTML = '<div class="empty-state">Aucun atelier planifié</div>';
+                    return;
+                }
+
+                // Alertes non pointés
+                const nonPointes = result.data.filter(a => !a.valide_le);
+                if (nonPointes.length > 0) {
+                    alertes.innerHTML = `
+                        <div class="alert alert-warning">
+                            ⚠️ <strong>${nonPointes.length} atelier(s)</strong> n'ont pas encore été pointés
+                        </div>
+                    `;
+                } else {
+                    alertes.innerHTML = `
+                        <div class="alert" style="background: #d1fae5; color: #065f46; border-left: 4px solid #10b981;">
+                            ✅ Tous les ateliers ont été pointés
+                        </div>
+                    `;
+                }
+
+                // Liste
+                let html = '';
+                result.data.forEach(a => {
+                    const jourCap = a.jour.charAt(0).toUpperCase() + a.jour.slice(1);
+                    const isValide = a.valide_le !== null;
+                    const statusClass = isValide ? 'valide' : 'non-commence';
+                    const statusBadge = isValide 
+                        ? `<span class="status-badge status-valide">✅ Validé</span>`
+                        : `<span class="status-badge status-non-commence">⏳ Non pointé</span>`;
+
+                    html += `
+                        <div class="atelier-item ${statusClass}">
+                            <div>
+                                <strong>${a.atelier_nom}</strong><br>
+                                <small style="color: #6b7280;">
+                                    ${jourCap} ${a.periode} | ${a.salle_nom} | ${a.enseignant_acronyme}
+                                </small>
+                            </div>
+                            <div style="display: flex; gap: 15px; align-items: center;">
+                                <span>👥 ${a.total_inscrits} inscrits</span>
+                                ${isValide ? `<span style="color: #10b981;">✓${a.presents} / ✗${a.absents}</span>` : ''}
+                                ${statusBadge}
+                                <button class="btn btn-secondary" style="padding: 5px 10px;" 
+                                    onclick="window.open('/api/print/presence/${a.atelier_id}/${a.creneau_id}', '_blank')">
+                                    🖨️
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+
+            } catch (error) {
+                console.error('Erreur pointages:', error);
+                document.getElementById('pointagesListe').innerHTML = '<div class="empty-state">Erreur de chargement</div>';
+            }
+        }
+
+        async function loadAbsencesParCreneau() {
+            try {
+                const response = await fetch('/api/presence/admin/absences', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+
+                const container = document.getElementById('creneauxListe');
+
+                if (!result.stats || result.stats.length === 0) {
+                    container.innerHTML = '<div class="empty-state success">✅ Aucune absence</div>';
+                    return;
+                }
+
+                // Grouper par créneau
+                const parCreneau = {};
+                result.data.forEach(a => {
+                    const key = `${a.jour}_${a.periode}`;
+                    if (!parCreneau[key]) {
+                        parCreneau[key] = {
+                            jour: a.jour,
+                            periode: a.periode,
+                            ordre: a.ordre,
+                            creneau_id: a.creneau_id,
+                            absences: []
+                        };
+                    }
+                    parCreneau[key].absences.push(a);
+                });
+
+                // Trier par ordre
+                const creneaux = Object.values(parCreneau).sort((a, b) => a.ordre - b.ordre);
+
+                let html = '';
+                creneaux.forEach(c => {
+                    const jourCap = c.jour.charAt(0).toUpperCase() + c.jour.slice(1);
+                    
+                    html += `
+                        <div class="creneau-section">
+                            <div class="creneau-header">
+                                <span>${jourCap} ${c.periode}</span>
+                                <div>
+                                    <span style="margin-right: 15px;">${c.absences.length} absent(s)</span>
+                                    <button class="btn" style="background: white; color: #667eea; padding: 5px 10px;"
+                                        onclick="window.open('/api/print/absences?creneau_id=${c.creneau_id}', '_blank')">
+                                        🖨️ Imprimer
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="creneau-body">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Atelier</th>
+                                            <th>Élève</th>
+                                            <th>Classe</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                    `;
+
+                    c.absences.forEach(a => {
+                        html += `
+                            <tr>
+                                <td>${a.atelier_nom}</td>
+                                <td class="absent-name">${a.eleve_nom} ${a.eleve_prenom}</td>
+                                <td>${a.classe_nom}</td>
+                            </tr>
+                        `;
+                    });
+
+                    html += `
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html || '<div class="empty-state success">✅ Aucune absence signalée</div>';
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                document.getElementById('creneauxListe').innerHTML = '<div class="empty-state">Erreur de chargement</div>';
+            }
+        }
+
+        function printAbsences() {
+            const jour = document.getElementById('filterJour').value;
+            const creneau = document.getElementById('filterCreneau').value;
+            
+            let url = '/api/print/absences?';
+            if (jour) url += `jour=${jour}&`;
+            if (creneau) url += `creneau_id=${creneau}&`;
+            
+            window.open(url, '_blank');
+        }
+    </script>
+</body>
+</html>

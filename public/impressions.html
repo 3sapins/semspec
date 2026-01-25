@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Centre d'Impression | Admin</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        h1 { color: #667eea; font-size: 24px; }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5a67d8; transform: translateY(-2px); }
+        .btn-success { background: #10b981; color: white; }
+        .btn-success:hover { background: #059669; transform: translateY(-2px); }
+        .btn-warning { background: #f59e0b; color: white; }
+        .btn-warning:hover { background: #d97706; transform: translateY(-2px); }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-secondary { background: #6b7280; color: white; }
+        .btn-secondary:hover { background: #4b5563; }
+
+        .btn-large {
+            padding: 20px 30px;
+            font-size: 16px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .section {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .section-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .section-header.orange {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .section-header.green {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .section-header.red {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .section-body {
+            padding: 25px;
+        }
+
+        .print-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .print-card {
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .print-card:hover {
+            border-color: #667eea;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.2);
+        }
+
+        .print-card-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .print-card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .print-card-desc {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #374151;
+            font-size: 13px;
+        }
+
+        .form-group select, .form-group input {
+            width: 100%;
+            padding: 10px 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .form-group select:focus, .form-group input:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+
+        .divider {
+            height: 1px;
+            background: #e5e7eb;
+            margin: 25px 0;
+        }
+
+        .info-box {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 20px;
+        }
+
+        .info-box p {
+            color: #1e40af;
+            font-size: 13px;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🖨️ Centre d'Impression</h1>
+            <div>
+                <a href="presences-admin.html" class="btn btn-secondary">📊 Suivi Présences</a>
+                <a href="index.html" class="btn btn-secondary">← Retour</a>
+            </div>
+        </div>
+
+        <!-- Horaires Élèves -->
+        <div class="section">
+            <div class="section-header green">
+                🎓 Horaires Élèves
+            </div>
+            <div class="section-body">
+                <div class="print-grid">
+                    <div class="print-card">
+                        <div class="print-card-icon">👤</div>
+                        <div class="print-card-title">Horaire d'un Élève</div>
+                        <div class="print-card-desc">Imprimer le planning d'un élève spécifique</div>
+                        <div class="form-group">
+                            <label>Sélectionner l'élève</label>
+                            <select id="selectEleve">
+                                <option value="">Chargement...</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-success" onclick="printHoraireEleve()">
+                            🖨️ Imprimer
+                        </button>
+                    </div>
+
+                    <div class="print-card">
+                        <div class="print-card-icon">👥</div>
+                        <div class="print-card-title">Horaires par Classe</div>
+                        <div class="print-card-desc">Imprimer les horaires de tous les élèves d'une classe</div>
+                        <div class="form-group">
+                            <label>Sélectionner la classe</label>
+                            <select id="selectClasseEleves">
+                                <option value="">Toutes les classes</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-success" onclick="printHorairesClasse()">
+                            🖨️ Imprimer
+                        </button>
+                    </div>
+
+                    <div class="print-card">
+                        <div class="print-card-icon">📚</div>
+                        <div class="print-card-title">Tous les Horaires Élèves</div>
+                        <div class="print-card-desc">Document multi-pages avec tous les élèves</div>
+                        <button class="btn btn-success btn-large" onclick="printAllHorairesEleves()">
+                            🖨️ Imprimer Tous
+                        </button>
+                        <p style="margin-top: 10px; font-size: 12px; color: #6b7280;">
+                            ⚠️ Document volumineux
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Horaires Enseignants -->
+        <div class="section">
+            <div class="section-header orange">
+                👨‍🏫 Horaires Enseignants
+            </div>
+            <div class="section-body">
+                <div class="print-grid">
+                    <div class="print-card">
+                        <div class="print-card-icon">👤</div>
+                        <div class="print-card-title">Horaire d'un Enseignant</div>
+                        <div class="print-card-desc">Planning avec ateliers et piquets</div>
+                        <div class="form-group">
+                            <label>Sélectionner l'enseignant</label>
+                            <select id="selectEnseignant">
+                                <option value="">Chargement...</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-warning" onclick="printHoraireEnseignant()">
+                            🖨️ Imprimer
+                        </button>
+                    </div>
+
+                    <div class="print-card">
+                        <div class="print-card-icon">👥</div>
+                        <div class="print-card-title">Tous les Horaires Enseignants</div>
+                        <div class="print-card-desc">Document multi-pages avec tous les enseignants</div>
+                        <button class="btn btn-warning btn-large" onclick="printAllHorairesEnseignants()">
+                            🖨️ Imprimer Tous
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Listes de Présence -->
+        <div class="section">
+            <div class="section-header">
+                📋 Listes de Présence
+            </div>
+            <div class="section-body">
+                <div class="print-grid">
+                    <div class="print-card">
+                        <div class="print-card-icon">📝</div>
+                        <div class="print-card-title">Liste d'un Atelier</div>
+                        <div class="print-card-desc">Liste des élèves inscrits avec cases à cocher</div>
+                        <div class="form-group">
+                            <label>Sélectionner l'atelier</label>
+                            <select id="selectAtelier">
+                                <option value="">Chargement...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Créneau</label>
+                            <select id="selectCreneauAtelier">
+                                <option value="">Sélectionner d'abord un atelier</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" onclick="printListePresence()">
+                            🖨️ Imprimer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rapports Absences -->
+        <div class="section">
+            <div class="section-header red">
+                🔴 Rapports d'Absences
+            </div>
+            <div class="section-body">
+                <div class="info-box">
+                    <p>💡 Ces rapports ne contiennent que les absences des ateliers dont le pointage a été validé par les enseignants.</p>
+                </div>
+                <div class="print-grid">
+                    <div class="print-card">
+                        <div class="print-card-icon">📅</div>
+                        <div class="print-card-title">Absences par Jour</div>
+                        <div class="print-card-desc">Liste des absents pour une journée</div>
+                        <div class="form-group">
+                            <label>Sélectionner le jour</label>
+                            <select id="selectJourAbsences">
+                                <option value="">Tous les jours</option>
+                                <option value="lundi">Lundi</option>
+                                <option value="mardi">Mardi</option>
+                                <option value="mercredi">Mercredi</option>
+                                <option value="jeudi">Jeudi</option>
+                                <option value="vendredi">Vendredi</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-danger" onclick="printAbsencesJour()">
+                            🖨️ Imprimer
+                        </button>
+                    </div>
+
+                    <div class="print-card">
+                        <div class="print-card-icon">⏰</div>
+                        <div class="print-card-title">Absences par Créneau</div>
+                        <div class="print-card-desc">Liste des absents pour un créneau précis</div>
+                        <div class="form-group">
+                            <label>Sélectionner le créneau</label>
+                            <select id="selectCreneauAbsences">
+                                <option value="">Chargement...</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-danger" onclick="printAbsencesCreneau()">
+                            🖨️ Imprimer
+                        </button>
+                    </div>
+
+                    <div class="print-card">
+                        <div class="print-card-icon">📊</div>
+                        <div class="print-card-title">Toutes les Absences</div>
+                        <div class="print-card-desc">Rapport complet de toutes les absences</div>
+                        <button class="btn btn-danger btn-large" onclick="printAllAbsences()">
+                            🖨️ Imprimer Tout
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = 'login.html';
+
+        let ateliersData = [];
+        let creneauxData = [];
+
+        document.addEventListener('DOMContentLoaded', loadAllData);
+
+        async function loadAllData() {
+            await Promise.all([
+                loadEleves(),
+                loadEnseignants(),
+                loadAteliers(),
+                loadCreneaux(),
+                loadClasses()
+            ]);
+        }
+
+        async function loadEleves() {
+            try {
+                const response = await fetch('/api/gestion/eleves', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                
+                const select = document.getElementById('selectEleve');
+                select.innerHTML = '<option value="">-- Choisir un élève --</option>';
+                
+                (result.data || []).forEach(e => {
+                    select.innerHTML += `<option value="${e.id}">${e.nom} ${e.prenom} (${e.classe})</option>`;
+                });
+            } catch (error) {
+                console.error('Erreur élèves:', error);
+            }
+        }
+
+        async function loadEnseignants() {
+            try {
+                const response = await fetch('/api/gestion/enseignants', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                
+                const select = document.getElementById('selectEnseignant');
+                select.innerHTML = '<option value="">-- Choisir un enseignant --</option>';
+                
+                (result.data || []).forEach(e => {
+                    select.innerHTML += `<option value="${e.acronyme}">${e.nom} ${e.prenom} (${e.acronyme})</option>`;
+                });
+            } catch (error) {
+                console.error('Erreur enseignants:', error);
+            }
+        }
+
+        async function loadAteliers() {
+            try {
+                const response = await fetch('/api/presence/admin/ateliers', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                ateliersData = result.data || [];
+                
+                const select = document.getElementById('selectAtelier');
+                select.innerHTML = '<option value="">-- Choisir un atelier --</option>';
+                
+                // Grouper par atelier (éviter doublons)
+                const ateliersUniques = {};
+                ateliersData.forEach(a => {
+                    if (!ateliersUniques[a.atelier_id]) {
+                        ateliersUniques[a.atelier_id] = a;
+                    }
+                });
+                
+                Object.values(ateliersUniques).forEach(a => {
+                    select.innerHTML += `<option value="${a.atelier_id}">${a.atelier_nom}</option>`;
+                });
+
+                // Événement changement atelier
+                select.addEventListener('change', updateCreneauxAtelier);
+            } catch (error) {
+                console.error('Erreur ateliers:', error);
+            }
+        }
+
+        function updateCreneauxAtelier() {
+            const atelierId = document.getElementById('selectAtelier').value;
+            const selectCreneau = document.getElementById('selectCreneauAtelier');
+            
+            selectCreneau.innerHTML = '<option value="">-- Choisir un créneau --</option>';
+            
+            if (!atelierId) return;
+            
+            const creneaux = ateliersData.filter(a => a.atelier_id == atelierId);
+            creneaux.forEach(c => {
+                const jourCap = c.jour.charAt(0).toUpperCase() + c.jour.slice(1);
+                selectCreneau.innerHTML += `<option value="${c.creneau_id}">${jourCap} ${c.periode} (${c.salle_nom})</option>`;
+            });
+        }
+
+        async function loadCreneaux() {
+            try {
+                const response = await fetch('/api/planning/creneaux', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                creneauxData = result.data || [];
+                
+                const select = document.getElementById('selectCreneauAbsences');
+                select.innerHTML = '<option value="">-- Choisir un créneau --</option>';
+                
+                creneauxData.forEach(c => {
+                    const jourCap = c.jour.charAt(0).toUpperCase() + c.jour.slice(1);
+                    select.innerHTML += `<option value="${c.id}">${jourCap} ${c.periode}</option>`;
+                });
+            } catch (error) {
+                console.error('Erreur créneaux:', error);
+            }
+        }
+
+        async function loadClasses() {
+            try {
+                const response = await fetch('/api/gestion/classes', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                
+                const select = document.getElementById('selectClasseEleves');
+                (result.data || []).forEach(c => {
+                    select.innerHTML += `<option value="${c.nom}">${c.nom}</option>`;
+                });
+            } catch (error) {
+                console.error('Erreur classes:', error);
+            }
+        }
+
+        // Fonctions d'impression
+        function printHoraireEleve() {
+            const eleveId = document.getElementById('selectEleve').value;
+            if (!eleveId) {
+                alert('Veuillez sélectionner un élève');
+                return;
+            }
+            window.open(`/api/print/horaire/eleve/${eleveId}`, '_blank');
+        }
+
+        function printHorairesClasse() {
+            const classe = document.getElementById('selectClasseEleves').value;
+            let url = '/api/print/horaires/eleves';
+            if (classe) url += `?classe=${encodeURIComponent(classe)}`;
+            window.open(url, '_blank');
+        }
+
+        function printAllHorairesEleves() {
+            if (confirm('Ce document peut être volumineux. Continuer ?')) {
+                window.open('/api/print/horaires/eleves', '_blank');
+            }
+        }
+
+        function printHoraireEnseignant() {
+            const acronyme = document.getElementById('selectEnseignant').value;
+            if (!acronyme) {
+                alert('Veuillez sélectionner un enseignant');
+                return;
+            }
+            window.open(`/api/print/horaire/enseignant/${acronyme}`, '_blank');
+        }
+
+        function printAllHorairesEnseignants() {
+            window.open('/api/print/horaires/enseignants', '_blank');
+        }
+
+        function printListePresence() {
+            const atelierId = document.getElementById('selectAtelier').value;
+            const creneauId = document.getElementById('selectCreneauAtelier').value;
+            
+            if (!atelierId || !creneauId) {
+                alert('Veuillez sélectionner un atelier et un créneau');
+                return;
+            }
+            window.open(`/api/print/presence/${atelierId}/${creneauId}`, '_blank');
+        }
+
+        function printAbsencesJour() {
+            const jour = document.getElementById('selectJourAbsences').value;
+            let url = '/api/print/absences';
+            if (jour) url += `?jour=${jour}`;
+            window.open(url, '_blank');
+        }
+
+        function printAbsencesCreneau() {
+            const creneauId = document.getElementById('selectCreneauAbsences').value;
+            if (!creneauId) {
+                alert('Veuillez sélectionner un créneau');
+                return;
+            }
+            window.open(`/api/print/absences?creneau_id=${creneauId}`, '_blank');
+        }
+
+        function printAllAbsences() {
+            window.open('/api/print/absences', '_blank');
+        }
+    </script>
+</body>
+</html>
