@@ -755,7 +755,8 @@ router.post('/ateliers/:id/obligatoire', async (req, res) => {
 
 /**
  * POST /api/admin/inscriptions-manuelles
- * Inscrire manuellement des élèves (ateliers obligatoires)
+ * Inscrire manuellement des élèves à un atelier
+ * Vérifie les conflits d'horaire
  */
 router.post('/inscriptions-manuelles', async (req, res) => {
     try {
@@ -768,17 +769,35 @@ router.post('/inscriptions-manuelles', async (req, res) => {
             });
         }
         
-        // Vérifier que l'atelier existe
-        const ateliers = await query('SELECT id FROM ateliers WHERE id = ?', [atelier_id]);
-        if (ateliers.length === 0) {
+        // Vérifier que l'atelier existe et récupérer ses créneaux
+        const atelierInfo = await query(`
+            SELECT a.id, a.nom, p.creneau_id, p.nombre_creneaux, c.jour, c.periode, c.ordre
+            FROM ateliers a
+            LEFT JOIN planning p ON a.id = p.atelier_id
+            LEFT JOIN creneaux c ON p.creneau_id = c.id
+            WHERE a.id = ?
+        `, [atelier_id]);
+        
+        if (atelierInfo.length === 0) {
             return res.status(404).json({
                 success: false,
                 message: 'Atelier non trouvé'
             });
         }
         
+        const atelier = atelierInfo[0];
+        
+        // Collecter les créneaux occupés par cet atelier
+        const creneauxAtelier = [];
+        if (atelier.creneau_id) {
+            for (let i = 0; i < (atelier.nombre_creneaux || 1); i++) {
+                creneauxAtelier.push(atelier.creneau_id + i);
+            }
+        }
+        
         let inscrit = 0;
         let dejaInscrits = 0;
+        let conflits = [];
         let errors = [];
         
         // Collecter tous les élèves à inscrire
@@ -787,53 +806,94 @@ router.post('/inscriptions-manuelles', async (req, res) => {
         // Par classe
         if (classe_ids && Array.isArray(classe_ids)) {
             for (const classeId of classe_ids) {
-                const eleves = await query('SELECT id FROM eleves WHERE classe_id = ?', [classeId]);
-                elevesAInscrire = elevesAInscrire.concat(eleves.map(e => e.id));
+                const eleves = await query('SELECT id, nom, prenom FROM eleves WHERE classe_id = ?', [classeId]);
+                elevesAInscrire = elevesAInscrire.concat(eleves);
             }
         }
         
         // Par élève individuel
         if (eleve_ids && Array.isArray(eleve_ids)) {
-            elevesAInscrire = elevesAInscrire.concat(eleve_ids);
+            for (const eleveId of eleve_ids) {
+                const eleve = await query('SELECT id, nom, prenom FROM eleves WHERE id = ?', [eleveId]);
+                if (eleve.length > 0) {
+                    elevesAInscrire.push(eleve[0]);
+                }
+            }
         }
         
-        // Dédupliquer
-        elevesAInscrire = [...new Set(elevesAInscrire)];
+        // Dédupliquer par ID
+        const elevesUniques = [];
+        const idsVus = new Set();
+        for (const e of elevesAInscrire) {
+            if (!idsVus.has(e.id)) {
+                idsVus.add(e.id);
+                elevesUniques.push(e);
+            }
+        }
         
         // Inscrire chaque élève
-        for (const eleveId of elevesAInscrire) {
+        for (const eleve of elevesUniques) {
             try {
-                // Vérifier si pas déjà inscrit
+                // Vérifier si pas déjà inscrit à cet atelier
                 const existing = await query(
                     'SELECT id FROM inscriptions WHERE eleve_id = ? AND atelier_id = ?',
-                    [eleveId, atelier_id]
+                    [eleve.id, atelier_id]
                 );
                 
-                if (existing.length === 0) {
-                    await query(
-                        `INSERT INTO inscriptions (eleve_id, atelier_id, statut, inscription_manuelle)
-                         VALUES (?, ?, 'confirmee', TRUE)`,
-                        [eleveId, atelier_id]
-                    );
-                    inscrit++;
-                } else {
+                if (existing.length > 0) {
                     dejaInscrits++;
+                    continue;
                 }
+                
+                // Vérifier les conflits d'horaire (si l'atelier est placé)
+                if (creneauxAtelier.length > 0) {
+                    const conflitHoraire = await query(`
+                        SELECT a.nom as atelier_conflit
+                        FROM inscriptions i
+                        JOIN ateliers a ON i.atelier_id = a.id
+                        JOIN planning p ON a.id = p.atelier_id
+                        JOIN creneaux c ON p.creneau_id = c.id
+                        WHERE i.eleve_id = ?
+                        AND c.id IN (?)
+                    `, [eleve.id, creneauxAtelier]);
+                    
+                    if (conflitHoraire.length > 0) {
+                        conflits.push({
+                            eleve: `${eleve.prenom} ${eleve.nom}`,
+                            conflit: conflitHoraire[0].atelier_conflit
+                        });
+                        continue;
+                    }
+                }
+                
+                // Inscrire
+                await query(
+                    `INSERT INTO inscriptions (eleve_id, atelier_id, statut, inscription_manuelle)
+                     VALUES (?, ?, 'confirmee', TRUE)`,
+                    [eleve.id, atelier_id]
+                );
+                inscrit++;
+                
             } catch (error) {
-                errors.push({ eleve_id: eleveId, error: error.message });
+                errors.push({ eleve: `${eleve.prenom} ${eleve.nom}`, error: error.message });
             }
         }
         
         // Log
         await query(
             'INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
-            [req.user.id, 'INSCRIPTIONS_MANUELLES', `${inscrit} élèves inscrits manuellement à l'atelier ${atelier_id}`]
+            [req.user.id, 'INSCRIPTIONS_MANUELLES', `${inscrit} élèves inscrits à "${atelier.nom}"`]
         );
+        
+        // Construire le message
+        let message = `${inscrit} élève(s) inscrit(s)`;
+        if (dejaInscrits > 0) message += `, ${dejaInscrits} déjà inscrit(s)`;
+        if (conflits.length > 0) message += `, ${conflits.length} conflit(s) d'horaire`;
         
         res.json({
             success: true,
-            message: `${inscrit} élèves inscrits` + (dejaInscrits > 0 ? ` (${dejaInscrits} déjà inscrits)` : ''),
-            data: { inscrit, dejaInscrits, errors }
+            message,
+            data: { inscrit, dejaInscrits, conflits, errors }
         });
         
     } catch (error) {
