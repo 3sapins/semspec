@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catalogue des Ateliers - Semaine Spéciale</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: rgba(255,255,255,0.95);
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .header h1 {
+            color: #667eea;
+            font-size: 1.8em;
+        }
+        
+        .header h1 span {
+            font-weight: normal;
+            color: #666;
+            font-size: 0.6em;
+        }
+        
+        .filters {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .search-box {
+            padding: 10px 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 25px;
+            font-size: 14px;
+            width: 250px;
+            transition: all 0.3s;
+        }
+        
+        .search-box:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+        }
+        
+        .filter-select {
+            padding: 10px 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 25px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+        }
+        
+        .back-link {
+            color: #667eea;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+        
+        .stats-bar {
+            background: rgba(255,255,255,0.9);
+            padding: 15px 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .theme-section {
+            margin-bottom: 40px;
+        }
+        
+        .theme-header {
+            background: rgba(255,255,255,0.95);
+            padding: 20px 25px;
+            border-radius: 15px 15px 0 0;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .theme-header:hover {
+            background: white;
+        }
+        
+        .theme-icon {
+            font-size: 2em;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+        }
+        
+        .theme-info {
+            flex: 1;
+        }
+        
+        .theme-name {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .theme-description {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .theme-count {
+            background: #667eea;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        
+        .theme-toggle {
+            font-size: 1.5em;
+            color: #999;
+            transition: transform 0.3s;
+        }
+        
+        .theme-toggle.open {
+            transform: rotate(180deg);
+        }
+        
+        .ateliers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            padding: 20px;
+            background: rgba(255,255,255,0.85);
+            border-radius: 0 0 15px 15px;
+        }
+        
+        .atelier-card {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+        
+        .atelier-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .atelier-header {
+            padding: 20px;
+            color: white;
+        }
+        
+        .atelier-nom {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .atelier-duree {
+            font-size: 0.85em;
+            opacity: 0.9;
+        }
+        
+        .atelier-body {
+            padding: 20px;
+        }
+        
+        .atelier-description {
+            color: #555;
+            font-size: 0.95em;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            max-height: 100px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .atelier-description.expanded {
+            max-height: none;
+        }
+        
+        .atelier-description::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 30px;
+            background: linear-gradient(transparent, white);
+        }
+        
+        .atelier-description.expanded::after {
+            display: none;
+        }
+        
+        .read-more {
+            color: #667eea;
+            cursor: pointer;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+            display: inline-block;
+        }
+        
+        .atelier-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .atelier-info-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+        }
+        
+        .atelier-info-content {
+            color: #555;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        
+        .atelier-creneaux {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .creneau-badge {
+            background: #e5e7eb;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            color: #333;
+        }
+        
+        .creneau-badge .salle {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .atelier-places {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        
+        .places-info {
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .places-bar {
+            width: 100px;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .places-fill {
+            height: 100%;
+            background: #22c55e;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+        
+        .places-fill.warning {
+            background: #f59e0b;
+        }
+        
+        .places-fill.full {
+            background: #ef4444;
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: white;
+        }
+        
+        .no-results h2 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        /* Vue admin */
+        .admin-badge {
+            background: #ef4444;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 0.7em;
+            margin-left: 10px;
+        }
+        
+        .admin-info {
+            background: #fef3c7;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 0.85em;
+        }
+        
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .filters {
+                flex-direction: column;
+            }
+            
+            .search-box {
+                width: 100%;
+            }
+            
+            .ateliers-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-bar {
+                flex-direction: column;
+            }
+        }
+        
+        @media print {
+            .header { position: relative; }
+            .filters, .back-link { display: none; }
+            .theme-section { break-inside: avoid; }
+            .atelier-card { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div>
+                <h1>📚 Catalogue des Ateliers <span id="titleSuffix"></span></h1>
+            </div>
+            <div class="filters">
+                <input type="text" class="search-box" id="searchBox" placeholder="🔍 Rechercher un atelier...">
+                <select class="filter-select" id="filterTheme">
+                    <option value="">Tous les thèmes</option>
+                </select>
+                <select class="filter-select" id="filterDuree">
+                    <option value="">Toutes durées</option>
+                    <option value="2">2 périodes</option>
+                    <option value="4">4 périodes (demi-journée)</option>
+                    <option value="6">6 périodes (journée)</option>
+                </select>
+            </div>
+            <a href="index.html" class="back-link" id="backLink">← Retour</a>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="stats-bar" id="statsBar">
+            <div class="stat-item">
+                <div class="stat-value" id="statAteliers">0</div>
+                <div class="stat-label">Ateliers</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="statThemes">0</div>
+                <div class="stat-label">Thèmes</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="statPlaces">0</div>
+                <div class="stat-label">Places totales</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="statCreneaux">0</div>
+                <div class="stat-label">Créneaux</div>
+            </div>
+        </div>
+        
+        <div id="catalogueContainer"></div>
+        
+        <div class="no-results hidden" id="noResults">
+            <h2>😕 Aucun atelier trouvé</h2>
+            <p>Essayez de modifier vos critères de recherche</p>
+        </div>
+    </div>
+    
+    <script>
+        const token = localStorage.getItem('token');
+        let allData = { themes: [], ateliers: [] };
+        let isAdmin = false;
+        
+        // Vérifier le rôle
+        if (token) {
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                isAdmin = payload.role === 'admin';
+                if (isAdmin) {
+                    document.getElementById('titleSuffix').innerHTML = '<span class="admin-badge">Vue Admin</span>';
+                }
+            } catch (e) {}
+        }
+        
+        // Charger les données
+        async function loadCatalogue() {
+            try {
+                const response = await fetch('/api/catalogue', {
+                    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    allData = result.data;
+                    populateFilters();
+                    renderCatalogue();
+                    updateStats();
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+            }
+        }
+        
+        function populateFilters() {
+            const select = document.getElementById('filterTheme');
+            select.innerHTML = '<option value="">Tous les thèmes</option>';
+            allData.themes.forEach(t => {
+                select.innerHTML += `<option value="${t.id}">${t.icone} ${t.nom}</option>`;
+            });
+        }
+        
+        function renderCatalogue() {
+            const container = document.getElementById('catalogueContainer');
+            const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+            const filterTheme = document.getElementById('filterTheme').value;
+            const filterDuree = document.getElementById('filterDuree').value;
+            
+            // Filtrer les ateliers
+            let ateliersFiltres = allData.ateliers.filter(a => {
+                if (searchTerm && !a.nom.toLowerCase().includes(searchTerm) && 
+                    !(a.description || '').toLowerCase().includes(searchTerm)) {
+                    return false;
+                }
+                if (filterTheme && a.theme_id != filterTheme) return false;
+                if (filterDuree && a.duree != filterDuree) return false;
+                return true;
+            });
+            
+            if (ateliersFiltres.length === 0) {
+                container.innerHTML = '';
+                document.getElementById('noResults').classList.remove('hidden');
+                return;
+            }
+            
+            document.getElementById('noResults').classList.add('hidden');
+            
+            // Grouper par thème
+            const parTheme = {};
+            const sansTheme = [];
+            
+            ateliersFiltres.forEach(a => {
+                if (a.theme_id) {
+                    if (!parTheme[a.theme_id]) parTheme[a.theme_id] = [];
+                    parTheme[a.theme_id].push(a);
+                } else {
+                    sansTheme.push(a);
+                }
+            });
+            
+            let html = '';
+            
+            // Afficher par thème
+            allData.themes.forEach(theme => {
+                const ateliers = parTheme[theme.id];
+                if (!ateliers || ateliers.length === 0) return;
+                
+                html += `
+                <div class="theme-section" data-theme="${theme.id}">
+                    <div class="theme-header" onclick="toggleTheme(${theme.id})" style="border-left: 5px solid ${theme.couleur};">
+                        <div class="theme-icon" style="background: ${theme.couleur}20; color: ${theme.couleur};">${theme.icone}</div>
+                        <div class="theme-info">
+                            <div class="theme-name">${theme.nom}</div>
+                            <div class="theme-description">${theme.description || ''}</div>
+                        </div>
+                        <div class="theme-count">${ateliers.length} atelier${ateliers.length > 1 ? 's' : ''}</div>
+                        <div class="theme-toggle" id="toggle-${theme.id}">▼</div>
+                    </div>
+                    <div class="ateliers-grid" id="grid-${theme.id}">
+                        ${ateliers.map(a => renderAtelierCard(a, theme.couleur)).join('')}
+                    </div>
+                </div>
+                `;
+            });
+            
+            // Ateliers sans thème
+            if (sansTheme.length > 0) {
+                html += `
+                <div class="theme-section">
+                    <div class="theme-header" onclick="toggleTheme(0)" style="border-left: 5px solid #9ca3af;">
+                        <div class="theme-icon" style="background: #f3f4f6;">📦</div>
+                        <div class="theme-info">
+                            <div class="theme-name">Autres ateliers</div>
+                            <div class="theme-description">Ateliers sans thème attribué</div>
+                        </div>
+                        <div class="theme-count">${sansTheme.length}</div>
+                        <div class="theme-toggle" id="toggle-0">▼</div>
+                    </div>
+                    <div class="ateliers-grid" id="grid-0">
+                        ${sansTheme.map(a => renderAtelierCard(a, '#9ca3af')).join('')}
+                    </div>
+                </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        function renderAtelierCard(atelier, couleur) {
+            const dureeText = atelier.duree === 2 ? '2 périodes' : 
+                              atelier.duree === 4 ? '4 périodes (demi-journée)' : 
+                              '6 périodes (journée)';
+            
+            // Calculer le remplissage
+            const inscrits = atelier.nb_inscrits || 0;
+            const places = atelier.nombre_places_max;
+            const pourcent = Math.min(100, Math.round((inscrits / places) * 100));
+            const fillClass = pourcent >= 100 ? 'full' : pourcent >= 80 ? 'warning' : '';
+            
+            // Créneaux
+            let creneauxHtml = '';
+            if (atelier.creneaux && atelier.creneaux.length > 0) {
+                creneauxHtml = atelier.creneaux.map(c => {
+                    const jourCourt = c.jour.substring(0, 3);
+                    return `<span class="creneau-badge">${jourCourt} ${c.periode} <span class="salle">· ${c.salle}</span></span>`;
+                }).join('');
+            } else {
+                creneauxHtml = '<span class="creneau-badge">Horaire à définir</span>';
+            }
+            
+            // Info admin
+            let adminHtml = '';
+            if (isAdmin) {
+                adminHtml = `
+                <div class="admin-info">
+                    <strong>👨‍🏫</strong> ${atelier.enseignant_acronyme}
+                    ${atelier.enseignant2_acronyme ? ', ' + atelier.enseignant2_acronyme : ''}
+                    ${atelier.enseignant3_acronyme ? ', ' + atelier.enseignant3_acronyme : ''}
+                    | <strong>Budget:</strong> ${atelier.budget_max || 0} CHF
+                </div>
+                `;
+            }
+            
+            return `
+            <div class="atelier-card">
+                <div class="atelier-header" style="background: ${couleur};">
+                    <div class="atelier-nom">${atelier.nom}</div>
+                    <div class="atelier-duree">⏱️ ${dureeText}</div>
+                </div>
+                <div class="atelier-body">
+                    ${atelier.description ? `
+                    <div class="atelier-description" id="desc-${atelier.id}">
+                        ${atelier.description}
+                    </div>
+                    <span class="read-more" onclick="toggleDescription(${atelier.id})">Lire plus...</span>
+                    ` : ''}
+                    
+                    ${atelier.informations_eleves ? `
+                    <div class="atelier-info">
+                        <div class="atelier-info-title">ℹ️ Informations importantes</div>
+                        <div class="atelier-info-content">${atelier.informations_eleves}</div>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="atelier-info">
+                        <div class="atelier-info-title">📅 Créneaux disponibles</div>
+                        <div class="atelier-creneaux">
+                            ${creneauxHtml}
+                        </div>
+                    </div>
+                    
+                    <div class="atelier-places">
+                        <div class="places-info">
+                            <strong>${places - inscrits}</strong> places disponibles sur ${places}
+                        </div>
+                        <div class="places-bar">
+                            <div class="places-fill ${fillClass}" style="width: ${pourcent}%;"></div>
+                        </div>
+                    </div>
+                    
+                    ${adminHtml}
+                </div>
+            </div>
+            `;
+        }
+        
+        function toggleTheme(themeId) {
+            const grid = document.getElementById(`grid-${themeId}`);
+            const toggle = document.getElementById(`toggle-${themeId}`);
+            
+            if (grid.classList.contains('hidden')) {
+                grid.classList.remove('hidden');
+                toggle.classList.add('open');
+            } else {
+                grid.classList.add('hidden');
+                toggle.classList.remove('open');
+            }
+        }
+        
+        function toggleDescription(atelierId) {
+            const desc = document.getElementById(`desc-${atelierId}`);
+            desc.classList.toggle('expanded');
+        }
+        
+        function updateStats() {
+            document.getElementById('statAteliers').textContent = allData.ateliers.length;
+            document.getElementById('statThemes').textContent = allData.themes.filter(t => 
+                allData.ateliers.some(a => a.theme_id === t.id)
+            ).length;
+            document.getElementById('statPlaces').textContent = allData.ateliers.reduce((sum, a) => sum + a.nombre_places_max, 0);
+            document.getElementById('statCreneaux').textContent = allData.ateliers.reduce((sum, a) => 
+                sum + (a.creneaux ? a.creneaux.length : 0), 0);
+        }
+        
+        // Event listeners
+        document.getElementById('searchBox').addEventListener('input', renderCatalogue);
+        document.getElementById('filterTheme').addEventListener('change', renderCatalogue);
+        document.getElementById('filterDuree').addEventListener('change', renderCatalogue);
+        
+        // Charger au démarrage
+        loadCatalogue();
+    </script>
+</body>
+</html>
