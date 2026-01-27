@@ -369,6 +369,8 @@ router.get('/horaire/eleve/:eleveId', async (req, res) => {
                 cr.periode,
                 cr.ordre,
                 a.nom as atelier_nom,
+                a.duree,
+                pl.nombre_creneaux,
                 s.nom as salle_nom,
                 GROUP_CONCAT(DISTINCT 
                     CASE 
@@ -385,7 +387,7 @@ router.get('/horaire/eleve/:eleveId', async (req, res) => {
             JOIN salles s ON pl.salle_id = s.id
             LEFT JOIN utilisateurs u ON u.acronyme IN (a.enseignant_acronyme, a.enseignant2_acronyme, a.enseignant3_acronyme)
             WHERE i.eleve_id = ? AND a.statut = 'valide'
-            GROUP BY cr.id, a.id, s.id
+            GROUP BY cr.id, a.id, s.id, a.duree, pl.nombre_creneaux
             ORDER BY cr.ordre
         `, [eleveId]);
         
@@ -405,15 +407,34 @@ router.get('/horaire/eleve/:eleveId', async (req, res) => {
             <tbody>
         `;
         
+        // Fonction pour formater le créneau avec durée
+        function formatCreneau(jour, periode, duree) {
+            const jourCap = jour.charAt(0).toUpperCase() + jour.slice(1);
+            if (duree === 4) {
+                // 4 périodes = P1-4 ou P3-6
+                if (periode === 'P1-2') return `<strong>${jourCap}</strong><br>P1-4`;
+                if (periode === 'P3-4') return `<strong>${jourCap}</strong><br>P3-6`;
+            } else if (duree === 6) {
+                // 6 périodes = toute la journée
+                return `<strong>${jourCap}</strong><br>P1-6`;
+            }
+            return `<strong>${jourCap}</strong><br>${periode}`;
+        }
+        
         if (planning.length === 0) {
             html += `<tr><td colspan="4" style="text-align: center; color: #666;">Aucune inscription</td></tr>`;
         } else {
+            // Grouper par atelier pour éviter les doublons (ateliers multi-créneaux)
+            const ateliersVus = new Set();
             planning.forEach(p => {
-                const jourCap = p.jour.charAt(0).toUpperCase() + p.jour.slice(1);
+                const key = `${p.jour}-${p.atelier_nom}`;
+                if (ateliersVus.has(key) && p.duree > 2) return; // Skip les créneaux suivants des ateliers longs
+                ateliersVus.add(key);
+                
                 html += `
                     <tr>
-                        <td><strong>${jourCap}</strong><br>${p.periode}</td>
-                        <td>${p.atelier_nom}</td>
+                        <td>${formatCreneau(p.jour, p.periode, p.duree)}</td>
+                        <td>${p.atelier_nom}${p.duree > 2 ? ` <small>(${p.duree}p)</small>` : ''}</td>
                         <td>${p.salle_nom}</td>
                         <td>${p.enseignants || '-'}</td>
                     </tr>
@@ -582,9 +603,10 @@ router.get('/horaire/enseignant/:acronyme', async (req, res) => {
                 cr.periode,
                 cr.ordre,
                 a.nom as atelier_nom,
+                a.duree,
                 s.nom as salle_nom,
                 (SELECT COUNT(*) FROM inscriptions WHERE atelier_id = a.id) as nb_inscrits,
-                'atelier' as type
+                'atelier' as category
             FROM ateliers a
             JOIN planning pl ON a.id = pl.atelier_id
             JOIN creneaux cr ON pl.creneau_id = cr.id
@@ -614,8 +636,21 @@ router.get('/horaire/enseignant/:acronyme', async (req, res) => {
             ...p,
             atelier_nom: p.type === 'piquet' ? '🟡 PIQUET' : '🟢 DÉGAGEMENT',
             salle_nom: '-',
-            nb_inscrits: '-'
+            nb_inscrits: '-',
+            duree: 2
         }))].sort((a, b) => a.ordre - b.ordre);
+        
+        // Fonction pour formater le créneau avec durée
+        function formatCreneauEns(jour, periode, duree) {
+            const jourCap = jour.charAt(0).toUpperCase() + jour.slice(1);
+            if (duree === 4) {
+                if (periode === 'P1-2') return `<strong>${jourCap}</strong><br>P1-4`;
+                if (periode === 'P3-4') return `<strong>${jourCap}</strong><br>P3-6`;
+            } else if (duree === 6) {
+                return `<strong>${jourCap}</strong><br>P1-6`;
+            }
+            return `<strong>${jourCap}</strong><br>${periode}`;
+        }
         
         // Générer HTML
         let html = generateHtmlHeader('📅 Horaire Semaine Spéciale', `${ens.prenom} ${ens.nom} (${ens.acronyme})`);
@@ -636,14 +671,19 @@ router.get('/horaire/enseignant/:acronyme', async (req, res) => {
         if (planning.length === 0) {
             html += `<tr><td colspan="4" style="text-align: center; color: #666;">Aucun atelier ou piquet assigné</td></tr>`;
         } else {
+            // Grouper par atelier pour éviter les doublons
+            const ateliersVus = new Set();
             planning.forEach(p => {
-                const jourCap = p.jour.charAt(0).toUpperCase() + p.jour.slice(1);
+                const key = `${p.jour}-${p.atelier_nom}`;
+                if (ateliersVus.has(key) && p.duree > 2 && p.category === 'atelier') return;
+                ateliersVus.add(key);
+                
                 const isPiquet = p.atelier_nom.includes('PIQUET') || p.atelier_nom.includes('DÉGAGEMENT');
                 const style = isPiquet ? 'background: #fef3c7;' : '';
                 html += `
                     <tr style="${style}">
-                        <td><strong>${jourCap}</strong><br>${p.periode}</td>
-                        <td>${p.atelier_nom}</td>
+                        <td>${formatCreneauEns(p.jour, p.periode, p.duree)}</td>
+                        <td>${p.atelier_nom}${p.duree > 2 && !isPiquet ? ` <small>(${p.duree}p)</small>` : ''}</td>
                         <td>${p.salle_nom}</td>
                         <td style="text-align: center;">${p.nb_inscrits}</td>
                     </tr>
@@ -682,6 +722,18 @@ router.get('/horaires/enseignants', async (req, res) => {
         
         html += `<p style="margin-bottom: 20px;">Total : ${enseignants.length} enseignants</p>`;
         
+        // Fonction pour formater le créneau avec durée
+        function formatCreneauMulti(jour, periode, duree) {
+            const jourCap = jour.charAt(0).toUpperCase() + jour.slice(1);
+            if (duree === 4) {
+                if (periode === 'P1-2') return `<strong>${jourCap}</strong><br>P1-4`;
+                if (periode === 'P3-4') return `<strong>${jourCap}</strong><br>P3-6`;
+            } else if (duree === 6) {
+                return `<strong>${jourCap}</strong><br>P1-6`;
+            }
+            return `<strong>${jourCap}</strong><br>${periode}`;
+        }
+        
         for (let i = 0; i < enseignants.length; i++) {
             const ens = enseignants[i];
             
@@ -696,8 +748,10 @@ router.get('/horaires/enseignants', async (req, res) => {
                     cr.periode,
                     cr.ordre,
                     a.nom as atelier_nom,
+                    a.duree,
                     s.nom as salle_nom,
-                    (SELECT COUNT(*) FROM inscriptions WHERE atelier_id = a.id) as nb_inscrits
+                    (SELECT COUNT(*) FROM inscriptions WHERE atelier_id = a.id) as nb_inscrits,
+                    'atelier' as category
                 FROM ateliers a
                 JOIN planning pl ON a.id = pl.atelier_id
                 JOIN creneaux cr ON pl.creneau_id = cr.id
@@ -740,20 +794,26 @@ router.get('/horaires/enseignants', async (req, res) => {
                 ...p,
                 atelier_nom: p.type === 'piquet' ? '🟡 PIQUET' : '🟢 DÉGAGEMENT',
                 salle_nom: '-',
-                nb_inscrits: '-'
+                nb_inscrits: '-',
+                duree: 2,
+                category: 'piquet'
             }))].sort((a, b) => a.ordre - b.ordre);
             
             if (planning.length === 0) {
                 html += `<tr><td colspan="4" style="text-align: center; color: #666;">Aucune activité</td></tr>`;
             } else {
+                const ateliersVus = new Set();
                 planning.forEach(p => {
-                    const jourCap = p.jour.charAt(0).toUpperCase() + p.jour.slice(1);
+                    const key = `${p.jour}-${p.atelier_nom}`;
+                    if (ateliersVus.has(key) && p.duree > 2 && p.category === 'atelier') return;
+                    ateliersVus.add(key);
+                    
                     const isPiquet = p.atelier_nom.includes('PIQUET') || p.atelier_nom.includes('DÉGAGEMENT');
                     const style = isPiquet ? 'background: #fef3c7;' : '';
                     html += `
                         <tr style="${style}">
-                            <td><strong>${jourCap}</strong><br>${p.periode}</td>
-                            <td>${p.atelier_nom}</td>
+                            <td>${formatCreneauMulti(p.jour, p.periode, p.duree)}</td>
+                            <td>${p.atelier_nom}${p.duree > 2 && !isPiquet ? ` <small>(${p.duree}p)</small>` : ''}</td>
                             <td>${p.salle_nom}</td>
                             <td style="text-align: center;">${p.nb_inscrits}</td>
                         </tr>
