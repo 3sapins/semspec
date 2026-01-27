@@ -213,6 +213,13 @@
                     <textarea id="description"></textarea>
                 </div>
 
+                <div class="form-group">
+                    <label>Thème</label>
+                    <select id="theme">
+                        <option value="">-- Aucun thème --</option>
+                    </select>
+                </div>
+
                 <!-- Enseignants -->
                 <div class="enseignants-group">
                     <h3>👥 Enseignants</h3>
@@ -314,8 +321,29 @@
             }
 
             await loadEnseignants();
+            await loadThemes();
             await loadAtelier();
         });
+
+        // Charger la liste des thèmes
+        async function loadThemes() {
+            try {
+                const response = await fetch('/api/catalogue/themes');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const select = document.getElementById('theme');
+                    result.data.forEach(theme => {
+                        const option = document.createElement('option');
+                        option.value = theme.id;
+                        option.textContent = `${theme.icone} ${theme.nom}`;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Erreur chargement thèmes:', error);
+            }
+        }
 
         // Charger la liste des enseignants
         async function loadEnseignants() {
@@ -373,6 +401,7 @@
                 document.getElementById('atelierId').value = atelier.id;
                 document.getElementById('nom').value = atelier.nom;
                 document.getElementById('description').value = atelier.description || '';
+                document.getElementById('theme').value = atelier.theme_id || '';
                 document.getElementById('enseignant1').value = atelier.enseignant_acronyme;
                 document.getElementById('enseignant2').value = atelier.enseignant2_acronyme || '';
                 document.getElementById('enseignant3').value = atelier.enseignant3_acronyme || '';
@@ -407,6 +436,7 @@
             const data = {
                 nom: document.getElementById('nom').value,
                 description: document.getElementById('description').value || null,
+                theme_id: document.getElementById('theme').value || null,
                 enseignant_acronyme: document.getElementById('enseignant1').value,
                 enseignant2_acronyme: document.getElementById('enseignant2').value || null,
                 enseignant3_acronyme: document.getElementById('enseignant3').value || null,

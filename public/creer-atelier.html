@@ -191,6 +191,14 @@
                 <textarea id="description" placeholder="Décrivez l'atelier..."></textarea>
             </div>
 
+            <div class="form-group">
+                <label>Thème</label>
+                <select id="theme">
+                    <option value="">-- Aucun thème --</option>
+                </select>
+                <p class="helper-text">💡 Le thème permet de classer l'atelier dans le catalogue</p>
+            </div>
+
             <!-- Enseignants -->
             <div class="enseignants-group">
                 <h3>👥 Enseignants</h3>
@@ -279,10 +287,31 @@
     </div>
 
     <script>
-        // Charger les enseignants au chargement de la page
+        // Charger les enseignants et thèmes au chargement de la page
         document.addEventListener('DOMContentLoaded', async () => {
             await loadEnseignants();
+            await loadThemes();
         });
+
+        // Charger la liste des thèmes
+        async function loadThemes() {
+            try {
+                const response = await fetch('/api/catalogue/themes');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const select = document.getElementById('theme');
+                    result.data.forEach(theme => {
+                        const option = document.createElement('option');
+                        option.value = theme.id;
+                        option.textContent = `${theme.icone} ${theme.nom}`;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Erreur chargement thèmes:', error);
+            }
+        }
 
         // Charger la liste des enseignants
         async function loadEnseignants() {
@@ -330,6 +359,7 @@
             const data = {
                 nom: document.getElementById('nom').value,
                 description: document.getElementById('description').value || null,
+                theme_id: document.getElementById('theme').value || null,
                 enseignant_acronyme: document.getElementById('enseignant1').value,
                 enseignant2_acronyme: document.getElementById('enseignant2').value || null,
                 enseignant3_acronyme: document.getElementById('enseignant3').value || null,
