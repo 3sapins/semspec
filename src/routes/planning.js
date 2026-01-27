@@ -182,86 +182,156 @@ router.post('/allouer', async (req, res) => {
             console.log('✅ Atelier "' + atelier.nom + '" placé: ' + creneauDebut.jour + ' ' + creneauDebut.periode + ', salle ' + salle.nom);
         }
         
-        // Boucle principale
-        let ateliersPlacables = true;
-        let iterations = 0;
-        const maxIterations = ateliers.length * creneaux.length * salles.length;
-        
-        while (ateliersPlacables && iterations < maxIterations) {
-            iterations++;
-            ateliersPlacables = false;
+        // Fonction pour tenter de placer un atelier sur un créneau
+        async function tryPlaceAtelier(atelier, creneauDebut) {
+            const nombreCreneaux = Math.ceil(atelier.duree / 2);
+            const creneauIndex = creneaux.findIndex(c => c.id === creneauDebut.id);
             
-            const creneauxOrdonnes = getCreneauxOrdonnes();
+            if (creneauIndex + nombreCreneaux > creneaux.length) return false;
             
-            for (const creneauDebut of creneauxOrdonnes) {
-                for (const atelier of ateliers) {
-                    const nombreCreneaux = Math.ceil(atelier.duree / 2);
-                    const creneauIndex = creneaux.findIndex(c => c.id === creneauDebut.id);
-                    
-                    if (creneauIndex + nombreCreneaux > creneaux.length) continue;
-                    
-                    const creneauxNecessaires = [];
-                    let creneauxValides = true;
-                    
-                    for (let j = 0; j < nombreCreneaux; j++) {
-                        const creneau = creneaux[creneauIndex + j];
-                        if (!creneau) { creneauxValides = false; break; }
-                        creneauxNecessaires.push(creneau);
-                        if (creneau.jour === 'mercredi' && creneau.periode === 'P6-7') {
-                            creneauxValides = false; break;
-                        }
-                    }
-                    
-                    // Règle spéciale : ateliers de 4 périodes (2 créneaux) doivent être le matin
-                    // Doivent commencer sur P1-2 (pour finir sur P3-4 du même jour)
-                    if (nombreCreneaux === 2 && creneauxValides) {
-                        const premierePeride = creneauxNecessaires[0].periode;
-                        // Un atelier de 4 périodes doit commencer sur P1-2 uniquement
-                        if (premierePeride !== 'P1-2') {
-                            creneauxValides = false;
-                        }
-                    }
-                    
-                    if (!creneauxValides) continue;
-                    if (!tousEnseignantsDisponibles(atelier, creneauxNecessaires)) continue;
-                    
-                    let salleChoisie = null;
-                    for (const salle of salles) {
-                        if (salle.capacite < atelier.nombre_places_max) continue;
-                        if (atelier.type_salle_demande && salle.type_salle !== atelier.type_salle_demande) continue;
-                        
-                        let salleLibre = true;
-                        for (const creneau of creneauxNecessaires) {
-                            if (creneauxOccupes[creneau.id][salle.id]) { salleLibre = false; break; }
-                        }
-                        
-                        if (salleLibre) { salleChoisie = salle; break; }
-                    }
-                    
-                    if (salleChoisie) {
-                        try {
-                            await placerAtelier(atelier, creneauDebut, salleChoisie, nombreCreneaux, creneauxNecessaires);
-                            ateliersPlacables = true;
-                            break;
-                        } catch (error) {
-                            console.error('Erreur placement:', error);
-                        }
-                    }
+            const creneauxNecessaires = [];
+            let creneauxValides = true;
+            
+            for (let j = 0; j < nombreCreneaux; j++) {
+                const creneau = creneaux[creneauIndex + j];
+                if (!creneau) { creneauxValides = false; break; }
+                creneauxNecessaires.push(creneau);
+                if (creneau.jour === 'mercredi' && creneau.periode === 'P6-7') {
+                    creneauxValides = false; break;
+                }
+            }
+            
+            // Règle spéciale : ateliers de 4 périodes doivent commencer sur P1-2
+            if (nombreCreneaux === 2 && creneauxValides) {
+                if (creneauxNecessaires[0].periode !== 'P1-2') {
+                    creneauxValides = false;
+                }
+            }
+            
+            if (!creneauxValides) return false;
+            if (!tousEnseignantsDisponibles(atelier, creneauxNecessaires)) return false;
+            
+            // Chercher une salle disponible
+            let salleChoisie = null;
+            for (const salle of salles) {
+                if (salle.capacite < atelier.nombre_places_max) continue;
+                if (atelier.type_salle_demande && salle.type_salle !== atelier.type_salle_demande) continue;
+                
+                let salleLibre = true;
+                for (const creneau of creneauxNecessaires) {
+                    if (creneauxOccupes[creneau.id][salle.id]) { salleLibre = false; break; }
                 }
                 
-                if (ateliersPlacables) break;
+                if (salleLibre) { salleChoisie = salle; break; }
+            }
+            
+            if (salleChoisie) {
+                try {
+                    await placerAtelier(atelier, creneauDebut, salleChoisie, nombreCreneaux, creneauxNecessaires);
+                    return true;
+                } catch (error) {
+                    console.error('Erreur placement:', error);
+                    return false;
+                }
+            }
+            return false;
+        }
+        
+        // ================================================================
+        // PHASE 1 : Placer chaque atelier au moins une fois
+        // Priorité aux enseignants avec plusieurs ateliers
+        // ================================================================
+        console.log('📍 PHASE 1: Placement initial (chaque atelier au moins 1 fois)');
+        
+        // Compter les ateliers par enseignant
+        const ateliersParEnseignant = {};
+        ateliers.forEach(a => {
+            if (!ateliersParEnseignant[a.enseignant_acronyme]) {
+                ateliersParEnseignant[a.enseignant_acronyme] = [];
+            }
+            ateliersParEnseignant[a.enseignant_acronyme].push(a);
+        });
+        
+        // Trier les enseignants par nombre d'ateliers (décroissant)
+        const enseignantsOrdonnes = Object.keys(ateliersParEnseignant)
+            .sort((a, b) => ateliersParEnseignant[b].length - ateliersParEnseignant[a].length);
+        
+        // Set pour suivre les ateliers déjà placés au moins une fois
+        const ateliersPlaces = new Set();
+        
+        // Pour chaque enseignant (en commençant par ceux qui ont le plus d'ateliers)
+        for (const enseignant of enseignantsOrdonnes) {
+            const ateliersEns = ateliersParEnseignant[enseignant];
+            
+            // Trier les ateliers de cet enseignant : 6p d'abord (plus contraignants)
+            ateliersEns.sort((a, b) => b.duree - a.duree);
+            
+            for (const atelier of ateliersEns) {
+                if (ateliersPlaces.has(atelier.id)) continue;
+                
+                // Essayer de placer cet atelier
+                const creneauxOrdonnes = getCreneauxOrdonnes();
+                
+                for (const creneau of creneauxOrdonnes) {
+                    if (await tryPlaceAtelier(atelier, creneau)) {
+                        ateliersPlaces.add(atelier.id);
+                        console.log(`   ✓ ${atelier.nom} (${enseignant}) - 1ère occurrence`);
+                        break;
+                    }
+                }
             }
         }
         
+        console.log(`📊 Phase 1 terminée: ${ateliersPlaces.size}/${ateliers.length} ateliers placés au moins une fois`);
+        
+        // ================================================================
+        // PHASE 2 : Multiplier les ateliers (2p > 4p > 6p)
+        // ================================================================
+        console.log('📍 PHASE 2: Multiplication des ateliers (priorité 2p > 4p > 6p)');
+        
+        // Trier les ateliers : 2 périodes d'abord, puis 4, puis 6
+        const ateliersTriesParDuree = [...ateliers].sort((a, b) => a.duree - b.duree);
+        
+        let placementsPhase2 = 0;
+        let continuer = true;
+        let iterationsPhase2 = 0;
+        const maxIterationsPhase2 = ateliers.length * creneaux.length;
+        
+        while (continuer && iterationsPhase2 < maxIterationsPhase2) {
+            iterationsPhase2++;
+            continuer = false;
+            
+            const creneauxOrdonnes = getCreneauxOrdonnes();
+            
+            for (const creneau of creneauxOrdonnes) {
+                for (const atelier of ateliersTriesParDuree) {
+                    if (await tryPlaceAtelier(atelier, creneau)) {
+                        placementsPhase2++;
+                        continuer = true;
+                        console.log(`   + ${atelier.nom} (${atelier.duree}p) - occurrence supplémentaire`);
+                        break;
+                    }
+                }
+                if (continuer) break;
+            }
+        }
+        
+        console.log(`📊 Phase 2 terminée: ${placementsPhase2} placements supplémentaires`);
+        
         await query(
             'INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
-            [req.user.id, 'AUTO_ALLOCATION', resultat.placed + ' placements effectués']
+            [req.user.id, 'AUTO_ALLOCATION', `${resultat.placed} placements (${ateliersPlaces.size} ateliers uniques + ${placementsPhase2} duplications)`]
         );
         
         res.json({
             success: true,
-            message: 'Allocation terminée: ' + resultat.placed + ' placements effectués',
-            data: resultat
+            message: `Allocation terminée: ${resultat.placed} placements (${ateliersPlaces.size} ateliers uniques, ${placementsPhase2} duplications)`,
+            data: {
+                ...resultat,
+                phase1: ateliersPlaces.size,
+                phase2: placementsPhase2,
+                ateliersNonPlaces: ateliers.filter(a => !ateliersPlaces.has(a.id)).map(a => a.nom)
+            }
         });
         
     } catch (error) {
