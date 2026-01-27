@@ -946,6 +946,49 @@ router.get('/listes/:atelierId', async (req, res) => {
 });
 
 /**
+ * GET /api/admin/ateliers/faible-inscription
+ * Ateliers avec moins de N inscrits (défaut: 3)
+ * IMPORTANT: Cette route doit être AVANT /ateliers/:id
+ */
+router.get('/ateliers/faible-inscription', async (req, res) => {
+    try {
+        const seuil = parseInt(req.query.seuil) || 3;
+        
+        const ateliers = await query(`
+            SELECT 
+                a.id as atelier_id,
+                a.nom as atelier_nom,
+                a.nombre_places_max,
+                a.enseignant_acronyme,
+                CONCAT(u.prenom, ' ', u.nom) as enseignant_nom,
+                COUNT(i.id) as nb_inscrits,
+                a.nombre_places_max - COUNT(i.id) as places_restantes,
+                GROUP_CONCAT(DISTINCT CONCAT(cr.jour, ' ', cr.periode) ORDER BY cr.ordre SEPARATOR ', ') as creneaux
+            FROM ateliers a
+            LEFT JOIN inscriptions i ON a.id = i.atelier_id
+            LEFT JOIN utilisateurs u ON a.enseignant_acronyme = u.acronyme
+            LEFT JOIN planning pl ON a.id = pl.atelier_id
+            LEFT JOIN creneaux cr ON pl.creneau_id = cr.id
+            WHERE a.statut = 'valide'
+            GROUP BY a.id
+            HAVING COUNT(i.id) < ?
+            ORDER BY nb_inscrits ASC, a.nom
+        `, [seuil]);
+        
+        res.json({ 
+            success: true, 
+            data: ateliers,
+            seuil: seuil,
+            total: ateliers.length
+        });
+        
+    } catch (error) {
+        console.error('Erreur ateliers faible inscription:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
  * GET /api/admin/ateliers/:id
  * Récupérer un atelier spécifique pour modification
  */
@@ -1371,49 +1414,6 @@ router.get('/stats/creneaux', async (req, res) => {
         
     } catch (error) {
         console.error('Erreur stats créneaux:', error);
-        res.status(500).json({ success: false, message: 'Erreur serveur' });
-    }
-});
-
-/**
- * GET /api/admin/ateliers/faible-inscription
- * Ateliers avec moins de N inscrits (défaut: 3)
- */
-router.get('/ateliers/faible-inscription', async (req, res) => {
-    try {
-        const seuil = parseInt(req.query.seuil) || 3;
-        
-        const ateliers = await query(`
-            SELECT 
-                a.id as atelier_id,
-                a.nom as atelier_nom,
-                a.places_min,
-                a.places_max,
-                a.enseignant_acronyme,
-                CONCAT(u.prenom, ' ', u.nom) as enseignant_nom,
-                COUNT(i.id) as nb_inscrits,
-                GREATEST(0, a.places_min - COUNT(i.id)) as manque_pour_minimum,
-                GROUP_CONCAT(DISTINCT CONCAT(cr.jour, ' ', cr.periode) ORDER BY cr.ordre SEPARATOR ', ') as creneaux
-            FROM ateliers a
-            LEFT JOIN inscriptions i ON a.id = i.atelier_id
-            LEFT JOIN utilisateurs u ON a.enseignant_acronyme = u.acronyme
-            LEFT JOIN planning pl ON a.id = pl.atelier_id
-            LEFT JOIN creneaux cr ON pl.creneau_id = cr.id
-            WHERE a.statut = 'valide'
-            GROUP BY a.id
-            HAVING COUNT(i.id) < ?
-            ORDER BY nb_inscrits ASC, a.nom
-        `, [seuil]);
-        
-        res.json({ 
-            success: true, 
-            data: ateliers,
-            seuil: seuil,
-            total: ateliers.length
-        });
-        
-    } catch (error) {
-        console.error('Erreur ateliers faible inscription:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });

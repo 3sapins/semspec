@@ -67,16 +67,32 @@ router.post('/allouer', async (req, res) => {
             });
         }
         
-        // 4. Récupérer les INdisponibilités des enseignants (par défaut = disponible partout)
-        const indisponibilites = await query('SELECT * FROM disponibilites_enseignants WHERE disponible = FALSE');
+        // 4. Récupérer les disponibilités des enseignants
+        // Si un enseignant a déclaré ses disponibilités, on vérifie qu'il est disponible
+        // Si un enseignant n'a rien déclaré, on le considère disponible partout (comportement par défaut)
+        const disponibilites = await query('SELECT * FROM disponibilites_enseignants');
         
-        const indispoMap = {};
-        indisponibilites.forEach(d => {
-            if (!indispoMap[d.enseignant_acronyme]) {
-                indispoMap[d.enseignant_acronyme] = new Set();
+        // Créer une map des enseignants qui ont déclaré leurs disponibilités
+        const enseignantsAvecDeclaration = new Set();
+        const dispoMap = {}; // { acronyme: { creneau_id: disponible } }
+        
+        disponibilites.forEach(d => {
+            enseignantsAvecDeclaration.add(d.enseignant_acronyme);
+            if (!dispoMap[d.enseignant_acronyme]) {
+                dispoMap[d.enseignant_acronyme] = {};
             }
-            indispoMap[d.enseignant_acronyme].add(d.creneau_id);
+            dispoMap[d.enseignant_acronyme][d.creneau_id] = d.disponible;
         });
+        
+        // Fonction pour vérifier la disponibilité d'un enseignant
+        function enseignantDeclareDispo(acronyme, creneauId) {
+            // Si l'enseignant n'a pas déclaré de disponibilités, il est considéré disponible partout
+            if (!enseignantsAvecDeclaration.has(acronyme)) return true;
+            // Sinon, vérifier sa déclaration
+            const dispo = dispoMap[acronyme];
+            if (!dispo || dispo[creneauId] === undefined) return false; // Non déclaré = indisponible
+            return dispo[creneauId] === true || dispo[creneauId] === 1;
+        }
         
         // 5. Initialiser les structures de suivi
         const creneauxOccupes = {}; // { creneau_id: { salle_id: true } }
@@ -117,7 +133,9 @@ router.post('/allouer', async (req, res) => {
         }
         
         function enseignantDisponible(acronyme, creneauId) {
-            if (indispoMap[acronyme] && indispoMap[acronyme].has(creneauId)) return false;
+            // Vérifier la disponibilité déclarée
+            if (!enseignantDeclareDispo(acronyme, creneauId)) return false;
+            // Vérifier qu'il n'est pas déjà occupé
             if (enseignantsOccupes[creneauId].has(acronyme)) return false;
             return true;
         }
