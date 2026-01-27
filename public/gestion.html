@@ -340,35 +340,60 @@
             <h2 style="margin-bottom: 20px;">✍️ Inscriptions Manuelles</h2>
             
             <div class="grid">
-                <!-- Inscrire une classe -->
+                <!-- Inscrire une classe entière -->
                 <div>
-                    <h3 style="margin-bottom: 15px;">🏫 Inscrire une Classe</h3>
+                    <h3 style="margin-bottom: 15px;">🏫 Inscrire une Classe Entière</h3>
                     <form id="formInscrireClasse">
-                        <div class="form-group">
-                            <label>Classe *</label>
-                            <select id="inscr_classe" required></select>
-                        </div>
                         <div class="form-group">
                             <label>Atelier *</label>
                             <select id="inscr_atelier_classe" required></select>
                         </div>
+                        <div class="form-group">
+                            <label>Classe *</label>
+                            <select id="inscr_classe" required></select>
+                        </div>
                         <button type="submit" class="btn btn-primary" style="width: 100%;">
-                            Inscrire toute la classe
+                            📥 Inscrire toute la classe
                         </button>
                     </form>
+                    <div id="resultatInscrClasse" style="margin-top: 15px;"></div>
                 </div>
 
-                <!-- Inscrire des élèves -->
+                <!-- Inscrire des élèves individuels -->
                 <div>
-                    <h3 style="margin-bottom: 15px;">🎓 Inscrire des Élèves</h3>
-                    <div class="form-group">
-                        <label>Classe</label>
-                        <select id="select_classe_eleves" onchange="loadElevesClasse()">
-                            <option value="">-- Sélectionner --</option>
-                        </select>
-                    </div>
-                    <div id="elevesContainer"></div>
+                    <h3 style="margin-bottom: 15px;">🎓 Inscrire des Élèves Individuels</h3>
+                    <form id="formInscrireEleves">
+                        <div class="form-group">
+                            <label>Atelier *</label>
+                            <select id="inscr_atelier_eleves" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Rechercher un élève</label>
+                            <input type="text" id="rechercheEleve" placeholder="Nom ou prénom..." oninput="rechercherEleves()" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;">
+                        </div>
+                        <div id="resultatsRecherche" style="max-height:200px;overflow-y:auto;border:1px solid #eee;border-radius:8px;margin-bottom:15px;"></div>
+                        <div class="form-group">
+                            <label>Élèves sélectionnés</label>
+                            <div id="elevesSelectionnes" style="min-height:50px;padding:10px;background:#f8f9fa;border-radius:8px;"></div>
+                        </div>
+                        <button type="submit" class="btn btn-success" style="width: 100%;">
+                            📥 Inscrire les élèves sélectionnés
+                        </button>
+                    </form>
+                    <div id="resultatInscrEleves" style="margin-top: 15px;"></div>
                 </div>
+            </div>
+            
+            <!-- Ou par classe avec sélection -->
+            <div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 10px;">
+                <h3 style="margin-bottom: 15px;">📋 Sélectionner dans une classe</h3>
+                <div class="form-group">
+                    <label>Classe</label>
+                    <select id="select_classe_eleves" onchange="loadElevesClasse()" style="width:100%;max-width:300px;padding:10px;border:1px solid #ddd;border-radius:8px;">
+                        <option value="">-- Choisir une classe --</option>
+                    </select>
+                </div>
+                <div id="elevesClasseContainer" style="margin-top: 15px;"></div>
             </div>
         </div>
 
@@ -642,8 +667,98 @@
         });
 
         // === INSCRIRE ===
+        let tousLesEleves = [];
+        let elevesSelectionnesIds = new Set();
+        
+        // Charger tous les élèves au démarrage
+        async function chargerTousEleves() {
+            try {
+                const response = await fetch(`${API_BASE}/eleves`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                tousLesEleves = result.data || [];
+            } catch (error) {
+                console.error('Erreur chargement élèves:', error);
+            }
+        }
+        chargerTousEleves();
+        
+        // Recherche d'élèves
+        function rechercherEleves() {
+            const terme = document.getElementById('rechercheEleve').value.toLowerCase().trim();
+            const container = document.getElementById('resultatsRecherche');
+            
+            if (terme.length < 2) {
+                container.innerHTML = '<p style="padding:10px;color:#666;">Tapez au moins 2 caractères...</p>';
+                return;
+            }
+            
+            const resultats = tousLesEleves.filter(e => 
+                e.nom.toLowerCase().includes(terme) || 
+                e.prenom.toLowerCase().includes(terme)
+            ).slice(0, 20);
+            
+            if (resultats.length === 0) {
+                container.innerHTML = '<p style="padding:10px;color:#666;">Aucun élève trouvé</p>';
+                return;
+            }
+            
+            let html = '';
+            resultats.forEach(e => {
+                const selected = elevesSelectionnesIds.has(e.id);
+                html += `<div style="padding:8px 12px;border-bottom:1px solid #eee;cursor:pointer;${selected ? 'background:#d1fae5;' : ''}" 
+                    onclick="toggleEleve(${e.id}, '${e.prenom}', '${e.nom}', '${e.classe_nom || ''}')">
+                    ${selected ? '✅' : '⬜'} <strong>${e.nom}</strong> ${e.prenom} <small style="color:#666;">(${e.classe_nom || 'Classe ?'})</small>
+                </div>`;
+            });
+            container.innerHTML = html;
+        }
+        
+        // Sélectionner/désélectionner un élève
+        function toggleEleve(id, prenom, nom, classe) {
+            if (elevesSelectionnesIds.has(id)) {
+                elevesSelectionnesIds.delete(id);
+            } else {
+                elevesSelectionnesIds.add(id);
+            }
+            rechercherEleves();
+            afficherElevesSelectionnes();
+        }
+        
+        // Afficher les élèves sélectionnés
+        function afficherElevesSelectionnes() {
+            const container = document.getElementById('elevesSelectionnes');
+            if (elevesSelectionnesIds.size === 0) {
+                container.innerHTML = '<p style="color:#666;">Aucun élève sélectionné</p>';
+                return;
+            }
+            
+            let html = '';
+            elevesSelectionnesIds.forEach(id => {
+                const e = tousLesEleves.find(el => el.id === id);
+                if (e) {
+                    html += `<span style="display:inline-block;background:#667eea;color:white;padding:4px 10px;border-radius:15px;margin:3px;font-size:12px;">
+                        ${e.prenom} ${e.nom} 
+                        <span onclick="retirerEleve(${id})" style="cursor:pointer;margin-left:5px;">×</span>
+                    </span>`;
+                }
+            });
+            container.innerHTML = html;
+        }
+        
+        function retirerEleve(id) {
+            elevesSelectionnesIds.delete(id);
+            rechercherEleves();
+            afficherElevesSelectionnes();
+        }
+        
+        // Soumettre inscription classe
         document.getElementById('formInscrireClasse').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const resultDiv = document.getElementById('resultatInscrClasse');
+            resultDiv.innerHTML = '<p>⏳ Inscription en cours...</p>';
+            
             try {
                 const data = {
                     classe_ids: [parseInt(document.getElementById('inscr_classe').value)],
@@ -661,14 +776,113 @@
                 
                 const result = await response.json();
                 if (result.success) {
-                    showAlert(`✅ ${result.message}`, 'success');
+                    let html = `<div style="padding:10px;background:#d1fae5;border-radius:8px;">✅ ${result.message}</div>`;
+                    if (result.data.conflits && result.data.conflits.length > 0) {
+                        html += `<div style="margin-top:10px;padding:10px;background:#fef3c7;border-radius:8px;">
+                            <strong>⚠️ Conflits d'horaire :</strong><ul style="margin:5px 0 0 20px;">`;
+                        result.data.conflits.forEach(c => {
+                            html += `<li>${c.eleve} → déjà inscrit à "${c.conflit}"</li>`;
+                        });
+                        html += '</ul></div>';
+                    }
+                    resultDiv.innerHTML = html;
                 } else {
-                    showAlert('❌ ' + result.message, 'error');
+                    resultDiv.innerHTML = `<div style="padding:10px;background:#fee2e2;border-radius:8px;">❌ ${result.message}</div>`;
                 }
             } catch (error) {
-                showAlert('❌ Erreur', 'error');
+                resultDiv.innerHTML = `<div style="padding:10px;background:#fee2e2;border-radius:8px;">❌ Erreur</div>`;
             }
         });
+        
+        // Soumettre inscription élèves individuels
+        document.getElementById('formInscrireEleves').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const resultDiv = document.getElementById('resultatInscrEleves');
+            
+            if (elevesSelectionnesIds.size === 0) {
+                resultDiv.innerHTML = `<div style="padding:10px;background:#fef3c7;border-radius:8px;">⚠️ Sélectionnez au moins un élève</div>`;
+                return;
+            }
+            
+            resultDiv.innerHTML = '<p>⏳ Inscription en cours...</p>';
+            
+            try {
+                const data = {
+                    eleve_ids: Array.from(elevesSelectionnesIds),
+                    atelier_id: parseInt(document.getElementById('inscr_atelier_eleves').value)
+                };
+                
+                const response = await fetch('/api/admin/inscriptions-manuelles', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    let html = `<div style="padding:10px;background:#d1fae5;border-radius:8px;">✅ ${result.message}</div>`;
+                    if (result.data.conflits && result.data.conflits.length > 0) {
+                        html += `<div style="margin-top:10px;padding:10px;background:#fef3c7;border-radius:8px;">
+                            <strong>⚠️ Conflits d'horaire :</strong><ul style="margin:5px 0 0 20px;">`;
+                        result.data.conflits.forEach(c => {
+                            html += `<li>${c.eleve} → déjà inscrit à "${c.conflit}"</li>`;
+                        });
+                        html += '</ul></div>';
+                    }
+                    resultDiv.innerHTML = html;
+                    // Vider la sélection
+                    elevesSelectionnesIds.clear();
+                    afficherElevesSelectionnes();
+                    document.getElementById('rechercheEleve').value = '';
+                    document.getElementById('resultatsRecherche').innerHTML = '';
+                } else {
+                    resultDiv.innerHTML = `<div style="padding:10px;background:#fee2e2;border-radius:8px;">❌ ${result.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div style="padding:10px;background:#fee2e2;border-radius:8px;">❌ Erreur</div>`;
+            }
+        });
+        
+        // Charger élèves d'une classe pour sélection
+        async function loadElevesClasse() {
+            const classeId = document.getElementById('select_classe_eleves').value;
+            const container = document.getElementById('elevesClasseContainer');
+            
+            if (!classeId) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/eleves?classe_id=${classeId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                
+                if (result.data.length === 0) {
+                    container.innerHTML = '<p style="color:#666;">Aucun élève dans cette classe</p>';
+                    return;
+                }
+                
+                let html = `<p style="margin-bottom:10px;"><strong>${result.data.length} élèves</strong> - Cliquez pour ajouter à la sélection</p>`;
+                html += '<div style="display:flex;flex-wrap:wrap;gap:5px;">';
+                result.data.forEach(e => {
+                    const selected = elevesSelectionnesIds.has(e.id);
+                    html += `<span onclick="toggleEleve(${e.id}, '${e.prenom}', '${e.nom}', '')" 
+                        style="cursor:pointer;padding:5px 10px;border-radius:15px;font-size:12px;
+                        ${selected ? 'background:#667eea;color:white;' : 'background:#e5e7eb;'}">
+                        ${e.prenom} ${e.nom}
+                    </span>`;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            } catch (error) {
+                container.innerHTML = '<p style="color:red;">Erreur de chargement</p>';
+            }
+        }
 
         // === PIQUET ===
         document.getElementById('formPiquet').addEventListener('submit', async (e) => {
@@ -803,7 +1017,7 @@
                 });
                 const result = await response.json();
                 
-                const selects = ['inscr_atelier_classe', 'place_atelier'];
+                const selects = ['inscr_atelier_classe', 'inscr_atelier_eleves', 'place_atelier'];
                 selects.forEach(id => {
                     const select = document.getElementById(id);
                     if (select) {
