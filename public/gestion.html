@@ -638,11 +638,11 @@
             e.preventDefault();
             try {
                 const data = {
-                    classe_id: parseInt(document.getElementById('inscr_classe').value),
+                    classe_ids: [parseInt(document.getElementById('inscr_classe').value)],
                     atelier_id: parseInt(document.getElementById('inscr_atelier_classe').value)
                 };
                 
-                const response = await fetch(`${API_BASE}/inscriptions-classe`, {
+                const response = await fetch('/api/admin/inscriptions-manuelles', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -653,7 +653,7 @@
                 
                 const result = await response.json();
                 if (result.success) {
-                    showAlert(`✅ ${result.count} élèves inscrits !`, 'success');
+                    showAlert(`✅ ${result.message}`, 'success');
                 } else {
                     showAlert('❌ ' + result.message, 'error');
                 }
