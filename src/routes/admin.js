@@ -987,6 +987,7 @@ router.post('/ateliers/creer', async (req, res) => {
         const {
             nom,
             description,
+            theme_id,
             enseignant_acronyme,
             enseignant2_acronyme,
             enseignant3_acronyme,
@@ -1015,13 +1016,14 @@ router.post('/ateliers/creer', async (req, res) => {
         
         const result = await query(`
             INSERT INTO ateliers (
-                nom, description, enseignant_acronyme, enseignant2_acronyme, enseignant3_acronyme,
+                nom, description, theme_id, enseignant_acronyme, enseignant2_acronyme, enseignant3_acronyme,
                 duree, nombre_places_max, budget_max, type_salle_demande, 
                 remarques, informations_eleves, statut
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'valide')
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'valide')
         `, [
             nom,
             description || null,
+            theme_id || null,
             enseignant_acronyme,
             enseignant2_acronyme || null,
             enseignant3_acronyme || null,
@@ -1066,6 +1068,7 @@ router.put('/ateliers/:id/modifier', async (req, res) => {
         const {
             nom,
             description,
+            theme_id,
             enseignant_acronyme,
             enseignant2_acronyme,
             enseignant3_acronyme,
@@ -1093,6 +1096,7 @@ router.put('/ateliers/:id/modifier', async (req, res) => {
             UPDATE ateliers SET
                 nom = ?,
                 description = ?,
+                theme_id = ?,
                 enseignant_acronyme = ?,
                 enseignant2_acronyme = ?,
                 enseignant3_acronyme = ?,
@@ -1106,6 +1110,7 @@ router.put('/ateliers/:id/modifier', async (req, res) => {
         `, [
             nom || atelier.nom,
             description !== undefined ? description : atelier.description,
+            theme_id !== undefined ? (theme_id || null) : atelier.theme_id,
             enseignant_acronyme || atelier.enseignant_acronyme,
             enseignant2_acronyme !== undefined ? enseignant2_acronyme : atelier.enseignant2_acronyme,
             enseignant3_acronyme !== undefined ? enseignant3_acronyme : atelier.enseignant3_acronyme,
