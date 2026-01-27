@@ -87,6 +87,28 @@ CREATE TABLE IF NOT EXISTS creneaux (
 -- ============================================
 
 -- Table des ateliers
+-- Table des thèmes d'ateliers
+CREATE TABLE IF NOT EXISTS themes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nom VARCHAR(100) NOT NULL,
+    description TEXT,
+    couleur VARCHAR(7) DEFAULT '#667eea' COMMENT 'Code couleur hex',
+    icone VARCHAR(10) DEFAULT '📚' COMMENT 'Emoji',
+    ordre INT DEFAULT 0,
+    actif BOOLEAN DEFAULT TRUE,
+    UNIQUE KEY unique_nom (nom)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Insérer quelques thèmes par défaut
+INSERT IGNORE INTO themes (nom, description, couleur, icone, ordre) VALUES
+('Sport & Mouvement', 'Activités sportives et physiques', '#ef4444', '⚽', 1),
+('Arts & Créativité', 'Arts visuels, musique, théâtre', '#8b5cf6', '🎨', 2),
+('Sciences & Technologie', 'Expériences, informatique, robotique', '#3b82f6', '🔬', 3),
+('Culture & Société', 'Histoire, langues, citoyenneté', '#f59e0b', '🌍', 4),
+('Nature & Environnement', 'Écologie, jardinage, animaux', '#22c55e', '🌿', 5),
+('Bien-être & Développement', 'Relaxation, cuisine, compétences de vie', '#ec4899', '🧘', 6),
+('Jeux & Loisirs', 'Jeux de société, escape games', '#06b6d4', '🎲', 7);
+
 CREATE TABLE IF NOT EXISTS ateliers (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nom VARCHAR(200) NOT NULL,
@@ -94,6 +116,7 @@ CREATE TABLE IF NOT EXISTS ateliers (
     enseignant_acronyme VARCHAR(20) NOT NULL,
     enseignant2_acronyme VARCHAR(20) DEFAULT NULL,
     enseignant3_acronyme VARCHAR(20) DEFAULT NULL,
+    theme_id INT DEFAULT NULL,
     duree INT NOT NULL DEFAULT 2 COMMENT 'En périodes: 2, 4 ou 6',
     nombre_places_max INT NOT NULL DEFAULT 20,
     budget_max DECIMAL(10,2) DEFAULT 0,
@@ -105,7 +128,9 @@ CREATE TABLE IF NOT EXISTS ateliers (
     date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     date_modification TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_enseignant (enseignant_acronyme),
-    INDEX idx_statut (statut)
+    INDEX idx_statut (statut),
+    INDEX idx_theme (theme_id),
+    FOREIGN KEY (theme_id) REFERENCES themes(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table des ateliers obligatoires par classe
