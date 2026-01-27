@@ -133,6 +133,8 @@
             <button class="tab" onclick="switchTab('inscrire')">✍️ Inscrire</button>
             <button class="tab" onclick="switchTab('piquet')">👮 Piquet</button>
             <button class="tab" onclick="switchTab('placement')">📍 Placement Manuel</button>
+            <button class="tab" onclick="switchTab('themes')">🎨 Thèmes</button>
+            <button class="tab" onclick="switchTab('typesalles')">🏠 Types Salles</button>
         </div>
 
         <!-- ONGLET LISTES -->
@@ -467,6 +469,81 @@
                 <strong>💡 Astuce :</strong> Assurez-vous que la salle et l'enseignant sont disponibles sur le créneau choisi.
             </div>
         </div>
+
+        <!-- ONGLET THÈMES -->
+        <div id="themes" class="tab-content">
+            <h2 style="margin-bottom: 20px;">🎨 Gestion des Thèmes</h2>
+            
+            <div class="grid">
+                <!-- Formulaire ajout/modification -->
+                <div>
+                    <h3 style="margin-bottom: 15px;" id="themesFormTitle">Ajouter un Thème</h3>
+                    <form id="formTheme">
+                        <input type="hidden" id="theme_edit_id">
+                        <div class="form-group">
+                            <label>Nom *</label>
+                            <input type="text" id="theme_nom" required placeholder="Ex: Sport & Mouvement">
+                        </div>
+                        <div class="form-group">
+                            <label>Description</label>
+                            <input type="text" id="theme_description" placeholder="Ex: Activités sportives">
+                        </div>
+                        <div class="form-group">
+                            <label>Icône (emoji)</label>
+                            <input type="text" id="theme_icone" placeholder="⚽" maxlength="5" style="width:80px;">
+                        </div>
+                        <div class="form-group">
+                            <label>Couleur</label>
+                            <input type="color" id="theme_couleur" value="#667eea" style="width:80px;height:40px;">
+                        </div>
+                        <div class="form-group">
+                            <label>Ordre d'affichage</label>
+                            <input type="number" id="theme_ordre" value="0" min="0" style="width:80px;">
+                        </div>
+                        <div style="display:flex;gap:10px;">
+                            <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+                            <button type="button" class="btn btn-secondary" onclick="resetThemeForm()">🔄 Nouveau</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Liste des thèmes -->
+                <div>
+                    <h3 style="margin-bottom: 15px;">Thèmes existants</h3>
+                    <div id="themesListe" style="max-height:400px;overflow-y:auto;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ONGLET TYPES DE SALLES -->
+        <div id="typesalles" class="tab-content">
+            <h2 style="margin-bottom: 20px;">🏠 Types de Salles</h2>
+            
+            <div class="grid">
+                <!-- Formulaire ajout -->
+                <div>
+                    <h3 style="margin-bottom: 15px;">Ajouter un Type de Salle</h3>
+                    <form id="formTypeSalle">
+                        <div class="form-group">
+                            <label>Nom du type *</label>
+                            <input type="text" id="type_salle_nom" required placeholder="Ex: Informatique">
+                        </div>
+                        <button type="submit" class="btn btn-primary">➕ Ajouter</button>
+                    </form>
+                    
+                    <div style="margin-top:20px;">
+                        <h4>Types existants</h4>
+                        <div id="typesSallesListe" style="margin-top:10px;"></div>
+                    </div>
+                </div>
+
+                <!-- Liste des salles avec leur type -->
+                <div>
+                    <h3 style="margin-bottom: 15px;">Salles et leurs types</h3>
+                    <div id="sallesTypesListe" style="max-height:500px;overflow-y:auto;"></div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -494,6 +571,8 @@
             document.getElementById(tabName).classList.add('active');
 
             if (tabName === 'piquet') loadPiquetListe();
+            if (tabName === 'themes') loadThemesListe();
+            if (tabName === 'typesalles') { loadTypesSallesListe(); loadSallesAvecTypes(); }
         }
 
         function showAlert(message, type) {
@@ -1430,6 +1509,250 @@
             } catch (error) {
                 showAlert('❌ Erreur', 'error');
             }
+        });
+
+        // ============================================================
+        // GESTION DES THÈMES
+        // ============================================================
+        
+        async function loadThemesListe() {
+            try {
+                const response = await fetch('/api/catalogue/admin/themes', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                
+                if (!result.success) throw new Error(result.message);
+                
+                let html = '<table style="width:100%;"><thead><tr>';
+                html += '<th>Icône</th><th>Nom</th><th>Couleur</th><th>Ateliers</th><th>Actions</th>';
+                html += '</tr></thead><tbody>';
+                
+                result.data.forEach(t => {
+                    html += `<tr style="${!t.actif ? 'opacity:0.5;' : ''}">
+                        <td style="font-size:1.5em;">${t.icone || '📚'}</td>
+                        <td><strong>${t.nom}</strong><br><small style="color:#666;">${t.description || ''}</small></td>
+                        <td><span style="display:inline-block;width:25px;height:25px;background:${t.couleur};border-radius:5px;"></span></td>
+                        <td>${t.nb_ateliers || 0}</td>
+                        <td>
+                            <button class="btn btn-primary" style="padding:5px 10px;font-size:12px;margin:2px;" onclick="editTheme(${t.id}, '${t.nom.replace(/'/g, "\\'")}', '${(t.description || '').replace(/'/g, "\\'")}', '${t.icone || ''}', '${t.couleur}', ${t.ordre}, ${t.actif})">✏️</button>
+                            <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px;margin:2px;" onclick="deleteTheme(${t.id}, '${t.nom.replace(/'/g, "\\'")}')">🗑️</button>
+                        </td>
+                    </tr>`;
+                });
+                
+                html += '</tbody></table>';
+                document.getElementById('themesListe').innerHTML = html;
+                
+            } catch (error) {
+                console.error('Erreur:', error);
+                document.getElementById('themesListe').innerHTML = '<p style="color:red;">Erreur de chargement</p>';
+            }
+        }
+        
+        function editTheme(id, nom, description, icone, couleur, ordre, actif) {
+            document.getElementById('theme_edit_id').value = id;
+            document.getElementById('theme_nom').value = nom;
+            document.getElementById('theme_description').value = description;
+            document.getElementById('theme_icone').value = icone;
+            document.getElementById('theme_couleur').value = couleur;
+            document.getElementById('theme_ordre').value = ordre;
+            document.getElementById('themesFormTitle').textContent = '✏️ Modifier le Thème';
+        }
+        
+        function resetThemeForm() {
+            document.getElementById('theme_edit_id').value = '';
+            document.getElementById('formTheme').reset();
+            document.getElementById('theme_couleur').value = '#667eea';
+            document.getElementById('themesFormTitle').textContent = 'Ajouter un Thème';
+        }
+        
+        document.getElementById('formTheme').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                const editId = document.getElementById('theme_edit_id').value;
+                const data = {
+                    nom: document.getElementById('theme_nom').value,
+                    description: document.getElementById('theme_description').value || null,
+                    icone: document.getElementById('theme_icone').value || '📚',
+                    couleur: document.getElementById('theme_couleur').value,
+                    ordre: parseInt(document.getElementById('theme_ordre').value) || 0,
+                    actif: true
+                };
+                
+                const url = editId ? `/api/catalogue/admin/themes/${editId}` : '/api/catalogue/admin/themes';
+                const method = editId ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showAlert(`✅ Thème ${editId ? 'modifié' : 'ajouté'} !`, 'success');
+                    resetThemeForm();
+                    loadThemesListe();
+                } else {
+                    showAlert('❌ ' + result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('❌ Erreur', 'error');
+            }
+        });
+        
+        async function deleteTheme(id, nom) {
+            if (!confirm(`Supprimer le thème "${nom}" ?\n\nLes ateliers associés n'auront plus de thème.`)) return;
+            
+            try {
+                const response = await fetch(`/api/catalogue/admin/themes/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showAlert('✅ Thème supprimé', 'success');
+                    loadThemesListe();
+                } else {
+                    showAlert('❌ ' + result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('❌ Erreur', 'error');
+            }
+        }
+
+        // ============================================================
+        // GESTION DES TYPES DE SALLES
+        // ============================================================
+        
+        // Liste des types de salles prédéfinis
+        const typesSallesPredefinies = [
+            'standard', 'informatique', 'sport', 'sciences', 
+            'musique', 'arts', 'cuisine', 'conference', 'exterieur'
+        ];
+        
+        async function loadTypesSallesListe() {
+            // Récupérer les types utilisés dans les salles
+            try {
+                const response = await fetch(`${API_BASE}/salles`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                
+                // Extraire les types uniques
+                const typesUtilises = new Set();
+                result.data.forEach(s => {
+                    if (s.type_salle) typesUtilises.add(s.type_salle);
+                });
+                
+                // Fusionner avec les prédéfinis
+                const tousTypes = new Set([...typesSallesPredefinies, ...typesUtilises]);
+                
+                let html = '<div style="display:flex;flex-wrap:wrap;gap:10px;">';
+                Array.from(tousTypes).sort().forEach(type => {
+                    const count = result.data.filter(s => s.type_salle === type).length;
+                    html += `<span style="background:#e5e7eb;padding:8px 15px;border-radius:20px;">
+                        ${type} <small>(${count})</small>
+                        ${!typesSallesPredefinies.includes(type) ? `<span onclick="deleteTypeSalle('${type}')" style="cursor:pointer;color:red;margin-left:5px;">×</span>` : ''}
+                    </span>`;
+                });
+                html += '</div>';
+                
+                document.getElementById('typesSallesListe').innerHTML = html;
+                
+            } catch (error) {
+                console.error('Erreur:', error);
+            }
+        }
+        
+        async function loadSallesAvecTypes() {
+            try {
+                const response = await fetch(`${API_BASE}/salles`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                
+                let html = '<table style="width:100%;"><thead><tr>';
+                html += '<th>Salle</th><th>Type actuel</th><th>Changer</th>';
+                html += '</tr></thead><tbody>';
+                
+                // Options de types
+                const typesOptions = typesSallesPredefinies.map(t => 
+                    `<option value="${t}">${t}</option>`
+                ).join('');
+                
+                result.data.forEach(s => {
+                    html += `<tr>
+                        <td><strong>${s.nom}</strong></td>
+                        <td>${s.type_salle || '<em style="color:#999;">Aucun</em>'}</td>
+                        <td>
+                            <select onchange="changerTypeSalle(${s.id}, this.value)" style="padding:5px;border-radius:5px;border:1px solid #ddd;">
+                                <option value="">-- Aucun --</option>
+                                ${typesOptions}
+                            </select>
+                        </td>
+                    </tr>`;
+                });
+                
+                html += '</tbody></table>';
+                document.getElementById('sallesTypesListe').innerHTML = html;
+                
+                // Sélectionner la valeur actuelle
+                result.data.forEach(s => {
+                    const select = document.querySelector(`select[onchange*="changerTypeSalle(${s.id}"]`);
+                    if (select && s.type_salle) {
+                        select.value = s.type_salle;
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Erreur:', error);
+            }
+        }
+        
+        async function changerTypeSalle(salleId, type) {
+            try {
+                const response = await fetch(`${API_BASE}/salles/${salleId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ type_salle: type || null, capacite: 30, disponible: true })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showAlert('✅ Type de salle modifié', 'success');
+                    loadTypesSallesListe();
+                } else {
+                    showAlert('❌ ' + result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('❌ Erreur', 'error');
+            }
+        }
+        
+        document.getElementById('formTypeSalle').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nouveauType = document.getElementById('type_salle_nom').value.toLowerCase().trim();
+            
+            if (typesSallesPredefinies.includes(nouveauType)) {
+                showAlert('⚠️ Ce type existe déjà', 'error');
+                return;
+            }
+            
+            // Ajouter aux types (il sera visible une fois assigné à une salle)
+            typesSallesPredefinies.push(nouveauType);
+            showAlert('✅ Type ajouté ! Vous pouvez maintenant l\'assigner à des salles.', 'success');
+            document.getElementById('type_salle_nom').value = '';
+            loadTypesSallesListe();
+            loadSallesAvecTypes();
         });
     </script>
 </body>
