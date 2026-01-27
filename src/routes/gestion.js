@@ -505,6 +505,27 @@ router.post('/inscriptions-eleves', async (req, res) => {
     }
 });
 
+/**
+ * PUT /api/gestion/salles/:id
+ * Modifier une salle
+ */
+router.put('/salles/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { type_salle, capacite, disponible } = req.body;
+        
+        await query(
+            'UPDATE salles SET type_salle = ?, capacite = ?, disponible = ? WHERE id = ?',
+            [type_salle, capacite, disponible ? 1 : 0, id]
+        );
+        
+        res.json({ success: true, message: 'Salle modifiée' });
+    } catch (error) {
+        console.error('Erreur modification salle:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
 module.exports = router;
 
 /**
