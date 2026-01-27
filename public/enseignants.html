@@ -437,6 +437,7 @@
                 </div>
                 <div style="text-align: right;">
                     <p><strong id="userName"></strong></p>
+                    <a href="catalogue.html" class="btn btn-primary" style="margin-right: 10px;">📚 Catalogue</a>
                     <button class="btn btn-secondary" onclick="showChangePassword()" style="margin-right: 10px;">🔑 Mot de passe</button>
                     <button class="btn btn-danger" onclick="logout()">Déconnexion</button>
                 </div>
@@ -463,7 +464,8 @@
                         <button class="btn btn-primary" onclick="openCreateAtelierModal()">➕ Créer un atelier</button>
                         <button class="btn btn-success" onclick="showTab('disponibilites')">📅 Déclarer mes disponibilités</button>
                         <button class="btn" style="background: #10b981; color: white;" onclick="window.location.href='presence.html'">📋 Pointer les présences</button>
-                        <button class="btn btn-secondary" onclick="window.open('/api/print/horaire/enseignant/' + currentUser.acronyme, '_blank')">🖨️ Mon horaire</button>
+                        <button class="btn btn-secondary" onclick="window.open('/api/print/horaire/enseignant/' + currentUser.acronyme + '?token=' + token, '_blank')">🖨️ Mon horaire</button>
+                        <button class="btn" style="background: #8b5cf6; color: white;" onclick="window.location.href='catalogue.html'">📚 Catalogue des ateliers</button>
                     </div>
                 </div>
             </div>
@@ -521,6 +523,13 @@
                 <div class="form-group">
                     <label for="atelierDescription">Description</label>
                     <textarea id="atelierDescription"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="atelierTheme">Thème</label>
+                    <select id="atelierTheme">
+                        <option value="">-- Aucun thème --</option>
+                    </select>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
@@ -611,6 +620,7 @@
             loadAteliers();
             loadDisponibilites();
             loadTypesSalles();
+            loadThemes();
         }
 
         // Connexion
@@ -780,6 +790,12 @@
                                 <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="deleteAtelier(${a.id})">🗑️</button>
                             ` : a.statut === 'refuse' ? `
                                 <button class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;" onclick="editAtelier(${a.id})">✏️ Modifier</button>
+                                <button class="btn btn-success" style="padding: 5px 10px; font-size: 12px;" onclick="submitAtelier(${a.id})">✅ Resoumettre</button>
+                            ` : a.statut === 'valide' ? `
+                                <button class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;" onclick="editAtelier(${a.id})">✏️ Modifier</button>
+                                <span style="font-size:11px;color:#666;">Modifications soumises à validation</span>
+                            ` : a.statut === 'soumis' ? `
+                                <span style="font-size:11px;color:#666;">En attente de validation</span>
                             ` : ''}
                         </td>
                     </tr>
@@ -814,6 +830,27 @@
             }
         }
 
+        // Charger les thèmes
+        async function loadThemes() {
+            try {
+                const response = await fetch('/api/catalogue/themes');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const select = document.getElementById('atelierTheme');
+                    select.innerHTML = '<option value="">-- Aucun thème --</option>';
+                    data.data.forEach(theme => {
+                        const option = document.createElement('option');
+                        option.value = theme.id;
+                        option.textContent = `${theme.icone} ${theme.nom}`;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Erreur thèmes:', error);
+            }
+        }
+
         // Modal atelier
         function openCreateAtelierModal() {
             document.getElementById('modalAtelierTitle').textContent = 'Créer un atelier';
@@ -840,6 +877,7 @@
                     document.getElementById('atelierIdEdit').value = a.id;
                     document.getElementById('atelierNom').value = a.nom;
                     document.getElementById('atelierDescription').value = a.description || '';
+                    document.getElementById('atelierTheme').value = a.theme_id || '';
                     document.getElementById('atelierDuree').value = a.duree;
                     document.getElementById('atelierPlaces').value = a.nombre_places_max;
                     document.getElementById('atelierBudget').value = a.budget_max;
@@ -864,6 +902,7 @@
             const atelierData = {
                 nom: document.getElementById('atelierNom').value,
                 description: document.getElementById('atelierDescription').value,
+                theme_id: document.getElementById('atelierTheme').value || null,
                 duree: parseInt(document.getElementById('atelierDuree').value),
                 nombre_places_max: parseInt(document.getElementById('atelierPlaces').value),
                 budget_max: parseFloat(document.getElementById('atelierBudget').value),

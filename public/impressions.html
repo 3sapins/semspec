@@ -400,7 +400,8 @@
                 select.innerHTML = '<option value="">-- Choisir un élève --</option>';
                 
                 (result.data || []).forEach(e => {
-                    select.innerHTML += `<option value="${e.id}">${e.nom} ${e.prenom} (${e.classe})</option>`;
+                    const eleveId = e.eleve_id || e.id;
+                    select.innerHTML += `<option value="${eleveId}">${e.nom} ${e.prenom} (${e.classe_nom || 'Sans classe'})</option>`;
                 });
             } catch (error) {
                 console.error('Erreur élèves:', error);
