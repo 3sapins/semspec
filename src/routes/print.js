@@ -600,7 +600,7 @@ router.get('/horaire/enseignant/:acronyme', async (req, res) => {
                 cr.jour,
                 cr.periode,
                 cr.ordre,
-                ep.type,
+                COALESCE(ep.type, 'piquet') as type,
                 'piquet' as category
             FROM enseignants_piquet ep
             JOIN creneaux cr ON ep.creneau_id = cr.id
@@ -712,7 +712,7 @@ router.get('/horaires/enseignants', async (req, res) => {
                     cr.jour,
                     cr.periode,
                     cr.ordre,
-                    ep.type
+                    COALESCE(ep.type, 'piquet') as type
                 FROM enseignants_piquet ep
                 JOIN creneaux cr ON ep.creneau_id = cr.id
                 JOIN utilisateurs u ON ep.utilisateur_id = u.id
