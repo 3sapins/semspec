@@ -536,6 +536,34 @@ router.put('/:id', async (req, res) => {
 });
 
 /**
+ * DELETE /api/planning/reset
+ * Réinitialiser tout le planning
+ */
+router.delete('/reset', async (req, res) => {
+    try {
+        await query('DELETE FROM planning');
+        
+        // Log
+        await query(
+            'INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
+            [req.user.id, 'RESET_PLANNING', 'Réinitialisation complète du planning']
+        );
+        
+        res.json({
+            success: true,
+            message: 'Planning réinitialisé'
+        });
+        
+    } catch (error) {
+        console.error('Erreur reset planning:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur lors de la réinitialisation'
+        });
+    }
+});
+
+/**
  * DELETE /api/planning/:id
  * Suppression d'un placement
  */
@@ -561,34 +589,6 @@ router.delete('/:id', async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Erreur lors de la suppression'
-        });
-    }
-});
-
-/**
- * DELETE /api/planning/reset
- * Réinitialiser tout le planning
- */
-router.delete('/reset', async (req, res) => {
-    try {
-        await query('DELETE FROM planning');
-        
-        // Log
-        await query(
-            'INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
-            [req.user.id, 'RESET_PLANNING', 'Réinitialisation complète du planning']
-        );
-        
-        res.json({
-            success: true,
-            message: 'Planning réinitialisé'
-        });
-        
-    } catch (error) {
-        console.error('Erreur reset planning:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Erreur lors de la réinitialisation'
         });
     }
 });

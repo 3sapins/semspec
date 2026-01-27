@@ -385,8 +385,78 @@ router.get('/configuration', async (req, res) => {
 });
 
 /**
+ * PUT /api/admin/configuration/inscriptions
+ * Ouvrir/Fermer les inscriptions
+ */
+router.put('/configuration/inscriptions', async (req, res) => {
+    try {
+        const { ouvert } = req.body;
+        
+        await query(`
+            UPDATE configuration 
+            SET valeur = ? 
+            WHERE cle = 'inscriptions_ouvertes'
+        `, [ouvert ? 'true' : 'false']);
+        
+        await query(
+            'INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
+            [req.user.id, 'UPDATE_CONFIG', `Inscriptions ${ouvert ? 'ouvertes' : 'fermées'}`]
+        );
+        
+        res.json({
+            success: true,
+            message: `Inscriptions ${ouvert ? 'ouvertes' : 'fermées'}`
+        });
+        
+    } catch (error) {
+        console.error('Erreur toggle inscriptions:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * PUT /api/admin/configuration/quota
+ * Mettre à jour le quota de places disponibles
+ */
+router.put('/configuration/quota', async (req, res) => {
+    try {
+        const { quota } = req.body;
+        
+        if (quota === undefined || quota < 0 || quota > 100) {
+            return res.status(400).json({
+                success: false,
+                message: 'Le quota doit être entre 0 et 100'
+            });
+        }
+        
+        await query(`
+            UPDATE configuration 
+            SET valeur = ? 
+            WHERE cle = 'quota_places_pourcent'
+        `, [quota.toString()]);
+        
+        await query(
+            'INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
+            [req.user.id, 'UPDATE_CONFIG', `Quota places modifié: ${quota}%`]
+        );
+        
+        res.json({
+            success: true,
+            message: `Quota mis à jour: ${quota}%`
+        });
+        
+    } catch (error) {
+        console.error('Erreur mise à jour quota:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur lors de la mise à jour du quota'
+        });
+    }
+});
+
+/**
  * PUT /api/admin/configuration/:key
- * Modification d'une valeur de configuration
+ * Modification d'une valeur de configuration (route générique - doit être après les routes spécifiques)
  */
 router.put('/configuration/:key', async (req, res) => {
     try {
@@ -1024,76 +1094,6 @@ router.get('/enseignants/liste', async (req, res) => {
     } catch (error) {
         console.error('Erreur liste enseignants:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
-    }
-});
-
-/**
- * PUT /api/admin/configuration/inscriptions
- * Ouvrir/Fermer les inscriptions
- */
-router.put('/configuration/inscriptions', async (req, res) => {
-    try {
-        const { ouvert } = req.body;
-        
-        await query(`
-            UPDATE configuration 
-            SET valeur = ? 
-            WHERE cle = 'inscriptions_ouvertes'
-        `, [ouvert ? 'true' : 'false']);
-        
-        await query(
-            'INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
-            [req.user.id, 'UPDATE_CONFIG', `Inscriptions ${ouvert ? 'ouvertes' : 'fermées'}`]
-        );
-        
-        res.json({
-            success: true,
-            message: `Inscriptions ${ouvert ? 'ouvertes' : 'fermées'}`
-        });
-        
-    } catch (error) {
-        console.error('Erreur toggle inscriptions:', error);
-        res.status(500).json({ success: false, message: 'Erreur serveur' });
-    }
-});
-
-/**
- * PUT /api/admin/configuration/quota
- * Mettre à jour le quota de places disponibles
- */
-router.put('/configuration/quota', async (req, res) => {
-    try {
-        const { quota } = req.body;
-        
-        if (quota === undefined || quota < 0 || quota > 100) {
-            return res.status(400).json({
-                success: false,
-                message: 'Le quota doit être entre 0 et 100'
-            });
-        }
-        
-        await query(`
-            UPDATE configuration 
-            SET valeur = ? 
-            WHERE cle = 'quota_places_pourcent'
-        `, [quota.toString()]);
-        
-        await query(
-            'INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
-            [req.user.id, 'UPDATE_CONFIG', `Quota places modifié: ${quota}%`]
-        );
-        
-        res.json({
-            success: true,
-            message: `Quota mis à jour: ${quota}%`
-        });
-        
-    } catch (error) {
-        console.error('Erreur mise à jour quota:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Erreur lors de la mise à jour du quota'
-        });
     }
 });
 
