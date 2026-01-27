@@ -1658,7 +1658,7 @@
                     const count = result.data.filter(s => s.type_salle === type).length;
                     html += `<span style="background:#e5e7eb;padding:8px 15px;border-radius:20px;">
                         ${type} <small>(${count})</small>
-                        ${!typesSallesPredefinies.includes(type) ? `<span onclick="deleteTypeSalle('${type}')" style="cursor:pointer;color:red;margin-left:5px;">×</span>` : ''}
+                        <span onclick="deleteTypeSalle('${type}')" style="cursor:pointer;color:red;margin-left:5px;" title="Supprimer ce type">×</span>
                     </span>`;
                 });
                 html += '</div>';
