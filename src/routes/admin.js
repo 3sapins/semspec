@@ -847,6 +847,7 @@ router.post('/inscriptions-manuelles', async (req, res) => {
                 
                 // Vérifier les conflits d'horaire (si l'atelier est placé)
                 if (creneauxAtelier.length > 0) {
+                    const placeholders = creneauxAtelier.map(() => '?').join(',');
                     const conflitHoraire = await query(`
                         SELECT a.nom as atelier_conflit
                         FROM inscriptions i
@@ -854,8 +855,8 @@ router.post('/inscriptions-manuelles', async (req, res) => {
                         JOIN planning p ON a.id = p.atelier_id
                         JOIN creneaux c ON p.creneau_id = c.id
                         WHERE i.eleve_id = ?
-                        AND c.id IN (?)
-                    `, [eleve.id, creneauxAtelier]);
+                        AND c.id IN (${placeholders})
+                    `, [eleve.id, ...creneauxAtelier]);
                     
                     if (conflitHoraire.length > 0) {
                         conflits.push({
