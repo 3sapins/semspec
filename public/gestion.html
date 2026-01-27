@@ -1754,6 +1754,50 @@
             loadTypesSallesListe();
             loadSallesAvecTypes();
         });
+        
+        async function deleteTypeSalle(type) {
+            if (!confirm(`Supprimer le type "${type}" ?\n\nToutes les salles de ce type seront remises à "Aucun".`)) return;
+            
+            try {
+                // Récupérer toutes les salles avec ce type
+                const response = await fetch(`${API_BASE}/salles`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                
+                const sallesAvecType = result.data.filter(s => s.type_salle === type);
+                
+                // Mettre à jour chaque salle pour enlever le type
+                for (const salle of sallesAvecType) {
+                    await fetch(`${API_BASE}/salles/${salle.id}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ 
+                            type_salle: null, 
+                            capacite: salle.capacite, 
+                            disponible: salle.disponible 
+                        })
+                    });
+                }
+                
+                // Retirer des types prédéfinis si c'était un type ajouté
+                const index = typesSallesPredefinies.indexOf(type);
+                if (index > -1) {
+                    typesSallesPredefinies.splice(index, 1);
+                }
+                
+                showAlert(`✅ Type "${type}" supprimé (${sallesAvecType.length} salle(s) mise(s) à jour)`, 'success');
+                loadTypesSallesListe();
+                loadSallesAvecTypes();
+                
+            } catch (error) {
+                console.error('Erreur:', error);
+                showAlert('❌ Erreur lors de la suppression', 'error');
+            }
+        }
     </script>
 </body>
 </html>
