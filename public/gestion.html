@@ -523,10 +523,18 @@
                         html += `<tr><td>${item.nom}</td><td>${item.niveau}</td><td>${item.voie}</td><td>${item.nombre_eleves}</td></tr>`;
                     });
                 } else if (type === 'salles') {
-                    html += '<th>Nom</th><th>Type</th><th>Capacité</th><th>Disponible</th>';
+                    html += '<th>Nom</th><th>Type</th><th>Capacité</th><th>Disponible</th><th>Actions</th>';
                     html += '</tr></thead><tbody>';
                     result.data.forEach(item => {
-                        html += `<tr><td>${item.nom}</td><td>${item.type_salle || '-'}</td><td>${item.capacite}</td><td>${item.disponible ? '✅' : '❌'}</td></tr>`;
+                        html += `<tr>
+                            <td>${item.nom}</td>
+                            <td>${item.type_salle || '-'}</td>
+                            <td>${item.capacite}</td>
+                            <td>${item.disponible ? '✅' : '❌'}</td>
+                            <td>
+                                <button class="btn btn-primary" style="padding:5px 10px;font-size:12px;" onclick="openModifierSalle(${item.id}, '${item.nom}', '${item.type_salle || ''}', ${item.capacite}, ${item.disponible})">✏️ Modifier</button>
+                            </td>
+                        </tr>`;
                     });
                 }
                 
@@ -1120,5 +1128,95 @@
             </div>
         </div>
     </div>
+
+    <!-- Modale Modifier Salle -->
+    <div id="modalSalle" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;justify-content:center;align-items:center;">
+        <div style="background:white;padding:30px;border-radius:15px;max-width:500px;width:90%;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                <h2>✏️ Modifier Salle</h2>
+                <button onclick="closeModalSalle()" style="background:none;border:none;font-size:24px;cursor:pointer;">×</button>
+            </div>
+            <p style="margin-bottom:15px;"><strong>Salle :</strong> <span id="modalSalleNom"></span></p>
+            <form id="formModifierSalle">
+                <input type="hidden" id="modalSalleId">
+                <div class="form-group" style="margin-bottom:15px;">
+                    <label>Type de salle</label>
+                    <select id="modalSalleType" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;">
+                        <option value="">-- Aucun type --</option>
+                        <option value="standard">Standard</option>
+                        <option value="informatique">Informatique</option>
+                        <option value="sport">Sport</option>
+                        <option value="sciences">Sciences / Labo</option>
+                        <option value="musique">Musique</option>
+                        <option value="arts">Arts visuels</option>
+                        <option value="cuisine">Cuisine</option>
+                        <option value="conference">Conférence / Aula</option>
+                        <option value="exterieur">Extérieur</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom:15px;">
+                    <label>Capacité</label>
+                    <input type="number" id="modalSalleCapacite" min="1" max="500" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;">
+                </div>
+                <div class="form-group" style="margin-bottom:15px;">
+                    <label>
+                        <input type="checkbox" id="modalSalleDisponible"> Disponible
+                    </label>
+                </div>
+                <div style="display:flex;gap:10px;justify-content:flex-end;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModalSalle()">Annuler</button>
+                    <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // === MODIFIER SALLE ===
+        function openModifierSalle(id, nom, type, capacite, disponible) {
+            document.getElementById('modalSalleId').value = id;
+            document.getElementById('modalSalleNom').textContent = nom;
+            document.getElementById('modalSalleType').value = type || '';
+            document.getElementById('modalSalleCapacite').value = capacite;
+            document.getElementById('modalSalleDisponible').checked = disponible;
+            document.getElementById('modalSalle').style.display = 'flex';
+        }
+
+        function closeModalSalle() {
+            document.getElementById('modalSalle').style.display = 'none';
+        }
+
+        document.getElementById('formModifierSalle').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                const id = document.getElementById('modalSalleId').value;
+                const data = {
+                    type_salle: document.getElementById('modalSalleType').value || null,
+                    capacite: parseInt(document.getElementById('modalSalleCapacite').value),
+                    disponible: document.getElementById('modalSalleDisponible').checked
+                };
+                
+                const response = await fetch(`/api/gestion/salles/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showAlert('✅ Salle modifiée !', 'success');
+                    closeModalSalle();
+                    loadListe('salles');
+                } else {
+                    showAlert('❌ ' + result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('❌ Erreur', 'error');
+            }
+        });
+    </script>
 </body>
 </html>
