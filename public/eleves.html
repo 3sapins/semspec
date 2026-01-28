@@ -527,6 +527,12 @@
             document.getElementById('loginPage').style.display = 'none';
             document.getElementById('dashboardPage').style.display = 'block';
             document.getElementById('userName').textContent = currentUser.prenom + ' ' + currentUser.nom;
+            
+            // DEBUG token
+            console.log('=== DEBUG TOKEN ===');
+            console.log('Token présent:', !!currentToken);
+            console.log('Token (début):', currentToken ? currentToken.substring(0, 50) + '...' : 'AUCUN');
+            
             loadData();
         }
 
@@ -574,17 +580,34 @@
 
         // Charger toutes les données
         async function loadData() {
+            console.log('=== LOAD DATA ===');
+            console.log('Token pour requête:', currentToken ? 'OUI' : 'NON');
+            
             try {
                 // Charger ateliers disponibles
-                const respAteliers = await fetch(`${API_URL}/eleves/ateliers-disponibles`, {
+                const url = `${API_URL}/eleves/ateliers-disponibles`;
+                console.log('Appel API:', url);
+                
+                const respAteliers = await fetch(url, {
                     headers: { 'Authorization': `Bearer ${currentToken}` }
                 });
+                
+                console.log('Status réponse:', respAteliers.status);
+                
                 const dataAteliers = await respAteliers.json();
+                console.log('Données reçues:', dataAteliers);
                 
                 if (dataAteliers.success) {
                     ateliersData = dataAteliers.data || [];
                     inscriptionsOuvertes = dataAteliers.inscriptions_ouvertes;
                     document.getElementById('userClasse').textContent = dataAteliers.eleve_info?.classe || '-';
+                    
+                    // DEBUG
+                    console.log('=== DEBUG ELEVES ===');
+                    console.log('Réponse API:', dataAteliers);
+                    console.log('Ateliers reçus:', ateliersData.length);
+                    console.log('Premier atelier:', ateliersData[0]);
+                    console.log('Inscriptions ouvertes:', inscriptionsOuvertes);
                     
                     if (!inscriptionsOuvertes) {
                         document.getElementById('alertsBanner').innerHTML = `
@@ -596,7 +619,7 @@
                         document.getElementById('alertsBanner').innerHTML = '';
                     }
                 } else {
-                    console.error('Erreur chargement ateliers:', dataAteliers.message);
+                    console.error('Erreur API ateliers:', dataAteliers);
                 }
 
                 // Charger mes inscriptions
@@ -785,12 +808,20 @@
             const ateliersList = Object.values(ateliersGroupes);
             
             if (ateliersList.length === 0) {
+                let message = '';
+                if (currentFilter === 'tous') {
+                    if (ateliersData.length === 0) {
+                        message = `<strong>Aucun atelier disponible.</strong><br>
+                            <small style="color:#6b7280;">Les ateliers doivent être validés ET placés dans le planning pour apparaître ici.</small>`;
+                    } else {
+                        message = `Aucun atelier disponible pour ce filtre.`;
+                    }
+                } else {
+                    message = `Aucun atelier prévu le ${currentFilter}.`;
+                }
+                
                 document.getElementById('catalogueContainer').innerHTML = `
-                    <div class="alert alert-warning">
-                        ${currentFilter === 'tous' 
-                            ? 'Aucun atelier disponible pour le moment.' 
-                            : `Aucun atelier prévu le ${currentFilter}.`}
-                    </div>
+                    <div class="alert alert-warning">${message}</div>
                 `;
                 return;
             }
