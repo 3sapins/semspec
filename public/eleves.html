@@ -511,12 +511,18 @@
                     eleveId = dataAteliers.eleve_info?.id;
                     document.getElementById('userClasse').textContent = dataAteliers.eleve_info?.classe || '-';
                     
+                    console.log('Inscriptions ouvertes:', inscriptionsOuvertes);
+                    console.log('Ateliers chargés:', ateliersData.length);
+                    console.log('Premier atelier:', ateliersData[0]);
+                    
                     if (!inscriptionsOuvertes) {
                         document.getElementById('alertsBanner').innerHTML = `
                             <div class="alert alert-warning">
-                                <strong>⚠️ Inscriptions fermées</strong> - Tu peux consulter les ateliers mais pas encore t'inscrire.
+                                <strong>⚠️ Inscriptions fermées</strong> - Les inscriptions ne sont pas encore ouvertes pour ta classe.
                             </div>
                         `;
+                    } else {
+                        document.getElementById('alertsBanner').innerHTML = '';
                     }
                 }
 
@@ -703,7 +709,10 @@
                 `${jour.charAt(0).toUpperCase() + jour.slice(1)} - ${periode}`;
             
             // Filtrer les ateliers disponibles pour ce créneau
-            const ateliersDispos = ateliersData.filter(a => a.creneau_id === creneauId);
+            // Convertir en nombre pour la comparaison
+            const ateliersDispos = ateliersData.filter(a => parseInt(a.creneau_id) === parseInt(creneauId));
+            
+            console.log('Créneau:', creneauId, 'Ateliers trouvés:', ateliersDispos.length, 'Total ateliers:', ateliersData.length);
             
             let html = '';
             
