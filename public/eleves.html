@@ -5,40 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inscriptions - Semaine Spéciale | Collège des Trois-Sapins</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+        .container { max-width: 1400px; margin: 0 auto; }
 
         .header {
             background: white;
             padding: 25px 30px;
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
         }
 
-        .header h1 {
-            color: #667eea;
-            font-size: 28px;
-            font-weight: 700;
-        }
+        .header h1 { color: #667eea; font-size: 24px; }
 
         .btn {
             padding: 10px 20px;
@@ -47,51 +38,239 @@
             cursor: pointer;
             font-size: 14px;
             font-weight: 600;
-            transition: all 0.3s ease;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
         }
 
-        .btn-primary {
-            background: #667eea;
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5568d3; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-success:hover { background: #059669; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-secondary { background: #6b7280; color: white; }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
+            padding: 15px 20px;
+            font-weight: 600;
         }
 
-        .btn-primary:hover {
-            background: #5568d3;
-            transform: translateY(-2px);
+        .card-body { padding: 20px; }
+
+        /* Tableau horaire */
+        .horaire-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
         }
 
-        .btn-danger {
+        .horaire-table th {
+            background: #f3f4f6;
+            padding: 12px;
+            text-align: center;
+            font-weight: 600;
+            border: 1px solid #e5e7eb;
+        }
+
+        .horaire-table td {
+            padding: 10px;
+            border: 1px solid #e5e7eb;
+            vertical-align: top;
+            min-width: 150px;
+            height: 80px;
+        }
+
+        .horaire-table .periode-label {
+            background: #f9fafb;
+            font-weight: 600;
+            text-align: center;
+            min-width: 80px;
+        }
+
+        .creneau-vide {
+            background: #fef2f2;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .creneau-vide:hover {
+            background: #fee2e2;
+        }
+
+        .creneau-rempli {
+            background: #d1fae5;
+        }
+
+        .creneau-multi {
+            background: #dbeafe;
+        }
+
+        .creneau-mercredi-pm {
+            background: #f3f4f6;
+            color: #9ca3af;
+        }
+
+        .atelier-mini {
+            background: white;
+            padding: 8px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            font-size: 13px;
+        }
+
+        .atelier-mini .nom {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 4px;
+        }
+
+        .atelier-mini .salle {
+            font-size: 11px;
+            color: #6b7280;
+        }
+
+        .atelier-mini .btn-remove {
             background: #ef4444;
             color: white;
+            border: none;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            margin-top: 5px;
         }
 
-        .btn-danger:hover {
-            background: #dc2626;
-        }
-
-        .btn-success {
-            background: #10b981;
-            color: white;
-        }
-
-        #loginPage, #dashboardPage {
+        /* Modal */
+        .modal {
             display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
         }
+
+        .modal.show { display: flex; }
+
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 { color: #667eea; }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6b7280;
+        }
+
+        /* Liste ateliers dans modal */
+        .atelier-option {
+            padding: 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .atelier-option:hover {
+            border-color: #667eea;
+            background: #f5f3ff;
+        }
+
+        .atelier-option.complet {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .atelier-option .nom {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .atelier-option .details {
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .atelier-option .places {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .atelier-option .places.dispo { background: #d1fae5; color: #065f46; }
+        .atelier-option .places.peu { background: #fef3c7; color: #92400e; }
+        .atelier-option .places.complet { background: #fee2e2; color: #991b1b; }
+
+        /* Validation */
+        .validation-box {
+            background: #f0fdf4;
+            border: 2px solid #22c55e;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .validation-box.error {
+            background: #fef2f2;
+            border-color: #ef4444;
+        }
+
+        .validation-box h3 {
+            margin-bottom: 10px;
+        }
+
+        /* Login */
+        #loginPage, #dashboardPage { display: none; }
 
         .login-box {
-            background: white;
-            max-width: 450px;
+            max-width: 400px;
             margin: 100px auto;
+            background: white;
             padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
 
         .login-box h2 {
-            text-align: center;
             color: #667eea;
-            margin-bottom: 30px;
-            font-size: 32px;
+            text-align: center;
+            margin-bottom: 10px;
         }
 
         .form-group {
@@ -101,16 +280,16 @@
         .form-group label {
             display: block;
             margin-bottom: 8px;
-            color: #333;
             font-weight: 600;
+            color: #374151;
         }
 
         .form-group input {
             width: 100%;
-            padding: 12px 15px;
+            padding: 12px;
             border: 2px solid #e5e7eb;
             border-radius: 8px;
-            font-size: 15px;
+            font-size: 14px;
         }
 
         .form-group input:focus {
@@ -118,213 +297,39 @@
             border-color: #667eea;
         }
 
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 30px;
-        }
-
-        .tab {
-            padding: 12px 25px;
-            background: white;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: 600;
-            color: #666;
-            transition: all 0.3s ease;
-        }
-
-        .tab.active {
-            background: #667eea;
-            color: white;
-        }
-
-        .tab-content {
-            display: none;
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
         .alert {
-            padding: 15px 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            font-weight: 500;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            color: #92400e;
         }
 
         .alert-success {
             background: #d1fae5;
+            border-left: 4px solid #10b981;
             color: #065f46;
         }
 
         .alert-error {
             background: #fee2e2;
+            border-left: 4px solid #ef4444;
             color: #991b1b;
-        }
-
-        .alert-info {
-            background: #dbeafe;
-            color: #1e40af;
-        }
-
-        .alert-warning {
-            background: #fef3c7;
-            color: #92400e;
-        }
-
-        .ateliers-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-
-        .atelier-card {
-            background: white;
-            border: 2px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 20px;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-
-        .atelier-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
-            border-color: #667eea;
-        }
-
-        .atelier-card.complet {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        .atelier-card.inscrit {
-            border-color: #10b981;
-            background: #f0fdf4;
-        }
-
-        .atelier-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: start;
-            margin-bottom: 15px;
-        }
-
-        .atelier-nom {
-            font-size: 18px;
-            font-weight: 700;
-            color: #111827;
-        }
-
-        .atelier-tag {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .tag-disponible {
-            background: #d1fae5;
-            color: #065f46;
-        }
-
-        .tag-complet {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .tag-inscrit {
-            background: #dbeafe;
-            color: #1e40af;
-        }
-
-        .atelier-info {
-            margin: 8px 0;
-            color: #6b7280;
-            font-size: 14px;
-        }
-
-        .atelier-info strong {
-            color: #374151;
-        }
-
-        .atelier-description {
-            color: #6b7280;
-            font-size: 13px;
-            margin: 12px 0;
-            line-height: 1.5;
-        }
-
-        .atelier-actions {
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid #e5e7eb;
         }
 
         .loading {
             text-align: center;
             padding: 40px;
-            color: #667eea;
-            font-size: 18px;
+            color: #6b7280;
         }
 
-        .mes-inscriptions-liste {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .inscription-card {
-            background: #f9fafb;
-            border-left: 4px solid #667eea;
-            padding: 20px;
-            border-radius: 8px;
-        }
-
-        .inscription-card.obligatoire {
-            border-left-color: #f59e0b;
-            background: #fffbeb;
-        }
-
-        .inscription-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-
-        .inscription-nom {
-            font-size: 18px;
-            font-weight: 700;
-            color: #111827;
-        }
-
-        .badge-obligatoire {
-            background: #f59e0b;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        @media (max-width: 768px) {
-            .ateliers-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .header {
-                flex-direction: column;
-                text-align: center;
-            }
+        @media (max-width: 900px) {
+            .horaire-table { font-size: 12px; }
+            .horaire-table td { min-width: 100px; padding: 5px; }
         }
     </style>
 </head>
@@ -336,16 +341,16 @@
             <p style="text-align: center; color: #666; margin-bottom: 30px;">Semaine Spéciale - Collège des Trois-Sapins</p>
             <form id="loginForm">
                 <div class="form-group">
-                    <label for="acronyme">Identifiant</label>
+                    <label>Identifiant</label>
                     <input type="text" id="acronyme" placeholder="Ton identifiant" required>
                 </div>
                 <div class="form-group">
-                    <label for="password">Mot de passe</label>
+                    <label>Mot de passe</label>
                     <input type="password" id="password" placeholder="••••••••" required>
                 </div>
                 <button type="submit" class="btn btn-primary" style="width: 100%;">Se connecter</button>
             </form>
-            <div id="loginError" style="display: none; margin-top: 15px;"></div>
+            <div id="loginError" style="display: none; margin-top: 15px;" class="alert alert-error"></div>
         </div>
     </div>
 
@@ -354,43 +359,50 @@
         <div class="container">
             <div class="header">
                 <div>
-                    <h1>🎓 Semaine Spéciale - Inscriptions</h1>
-                    <p style="color: #666; margin-top: 5px;">Collège des Trois-Sapins, Echallens</p>
+                    <h1>🎓 Semaine Spéciale</h1>
+                    <p style="color: #666; margin-top: 5px;">Inscriptions aux ateliers</p>
                 </div>
                 <div style="text-align: right;">
-                    <p><strong id="userName"></strong></p>
-                    <p style="color: #666; font-size: 14px;">Classe: <strong id="userClasse"></strong></p>
-                    <button class="btn btn-secondary" onclick="showChangePassword()" style="margin-top: 10px; margin-right: 10px;">🔑 Mot de passe</button>
-                    <button class="btn btn-danger" onclick="logout()" style="margin-top: 10px;">Déconnexion</button>
+                    <p><strong id="userName"></strong> - Classe: <strong id="userClasse"></strong></p>
+                    <div style="margin-top: 10px;">
+                        <a href="catalogue.html" class="btn btn-secondary">📚 Catalogue</a>
+                        <button class="btn btn-secondary" onclick="showChangePassword()">🔑</button>
+                        <button class="btn btn-danger" onclick="logout()">Déconnexion</button>
+                    </div>
                 </div>
             </div>
 
-            <!-- ONGLETS -->
-            <div class="tabs">
-                <button class="tab active" onclick="showTab('ateliers')">🎨 Ateliers Disponibles</button>
-                <button class="tab" onclick="showTab('inscriptions')">📋 Mes Inscriptions</button>
-            </div>
+            <div id="alertsBanner"></div>
 
-            <!-- TAB: ATELIERS DISPONIBLES -->
-            <div id="tabAteliers" class="tab-content active">
-                <h2 style="margin-bottom: 20px; color: #374151;">Ateliers Disponibles</h2>
-                
-                <div id="alertsAteliers"></div>
+            <!-- MON HORAIRE (VUE TABLEAU) -->
+            <div class="card">
+                <div class="card-header">📅 Mon Horaire de la Semaine Spéciale</div>
+                <div class="card-body">
+                    <p style="margin-bottom: 15px; color: #6b7280;">
+                        Clique sur une case <span style="background:#fef2f2;padding:2px 8px;border-radius:4px;">rouge</span> pour choisir un atelier. 
+                        Les cases <span style="background:#d1fae5;padding:2px 8px;border-radius:4px;">vertes</span> sont déjà remplies.
+                    </p>
+                    
+                    <div id="horaireContainer">
+                        <div class="loading">Chargement de ton horaire...</div>
+                    </div>
 
-                <div id="ateliersGrid">
-                    <div class="loading">Chargement des ateliers...</div>
+                    <div id="validationBox"></div>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <!-- TAB: MES INSCRIPTIONS -->
-            <div id="tabInscriptions" class="tab-content">
-                <h2 style="margin-bottom: 20px; color: #374151;">Mes Inscriptions</h2>
-                
-                <div id="alertsInscriptions"></div>
-
-                <div id="inscriptionsListe">
-                    <div class="loading">Chargement...</div>
-                </div>
+    <!-- MODAL CHOIX ATELIER -->
+    <div id="modalChoixAtelier" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🎨 Choisir un atelier</h2>
+                <button class="close-modal" onclick="closeModal()">×</button>
+            </div>
+            <p id="modalCreneauInfo" style="margin-bottom: 15px; color: #6b7280;"></p>
+            <div id="ateliersDisponibles">
+                <div class="loading">Chargement...</div>
             </div>
         </div>
     </div>
@@ -399,20 +411,30 @@
         const API_URL = '/api';
         let currentToken = null;
         let currentUser = null;
-        let userClasse = '';
+        let eleveId = null;
+        let ateliersData = [];
+        let inscriptionsData = [];
+        let creneauxData = [];
+        let inscriptionsOuvertes = false;
 
-        // Au chargement
+        // Structure des créneaux
+        const JOURS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
+        const PERIODES = ['P1-2', 'P3-4', 'P6-7'];
+
+        // Initialisation
         document.addEventListener('DOMContentLoaded', () => {
             const token = localStorage.getItem('token');
-            const user = localStorage.getItem('user');
-            
-            if (token && user) {
+            if (token) {
                 currentToken = token;
-                currentUser = JSON.parse(user);
-                
-                if (currentUser.role === 'eleve' || currentUser.role === 'admin') {
-                    showDashboard();
-                } else {
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    if (payload.role === 'eleve') {
+                        currentUser = payload;
+                        showDashboard();
+                    } else {
+                        showLogin();
+                    }
+                } catch (e) {
                     showLogin();
                 }
             } else {
@@ -428,293 +450,331 @@
         function showDashboard() {
             document.getElementById('loginPage').style.display = 'none';
             document.getElementById('dashboardPage').style.display = 'block';
-            document.getElementById('userName').textContent = `${currentUser.prenom} ${currentUser.nom}`;
-            
-            loadAteliers();
-            loadMesInscriptions();
+            document.getElementById('userName').textContent = currentUser.prenom + ' ' + currentUser.nom;
+            loadData();
         }
 
         // Connexion
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const acronyme = document.getElementById('acronyme').value;
-            const password = document.getElementById('password').value;
-            
             try {
                 const response = await fetch(`${API_URL}/auth/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ acronyme, password })
+                    body: JSON.stringify({
+                        acronyme: document.getElementById('acronyme').value,
+                        password: document.getElementById('password').value
+                    })
                 });
                 
                 const data = await response.json();
                 
-                if (data.success) {
-                    if (data.data.user.role !== 'eleve' && data.data.user.role !== 'admin') {
-                        showAlert('loginError', 'Accès réservé aux élèves', 'error');
-                        return;
-                    }
-                    
-                    currentToken = data.data.token;
-                    currentUser = data.data.user;
-                    
-                    localStorage.setItem('token', currentToken);
-                    localStorage.setItem('user', JSON.stringify(currentUser));
-                    
+                if (data.success && data.user.role === 'eleve') {
+                    localStorage.setItem('token', data.token);
+                    currentToken = data.token;
+                    currentUser = data.user;
                     showDashboard();
+                } else if (data.user?.role !== 'eleve') {
+                    showError('Ce portail est réservé aux élèves.');
                 } else {
-                    showAlert('loginError', data.message, 'error');
+                    showError(data.message || 'Erreur de connexion');
                 }
             } catch (error) {
-                showAlert('loginError', 'Erreur de connexion au serveur', 'error');
+                showError('Erreur de connexion au serveur');
             }
         });
 
+        function showError(msg) {
+            const el = document.getElementById('loginError');
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
+
         function logout() {
             localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            currentToken = null;
-            currentUser = null;
-            showLogin();
+            location.reload();
         }
 
-        function showTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            
-            document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
-            event.target.classList.add('active');
-            
-            if (tabName === 'inscriptions') loadMesInscriptions();
-        }
-
-        // Ateliers disponibles
-        async function loadAteliers() {
+        // Charger les données
+        async function loadData() {
             try {
-                const response = await fetch(`${API_URL}/eleves/ateliers-disponibles`, {
+                // Charger ateliers disponibles
+                const respAteliers = await fetch(`${API_URL}/eleves/ateliers-disponibles`, {
                     headers: { 'Authorization': `Bearer ${currentToken}` }
                 });
+                const dataAteliers = await respAteliers.json();
                 
-                const data = await response.json();
-                
-                if (data.success) {
-                    if (data.eleve_info) {
-                        userClasse = data.eleve_info.classe;
-                        document.getElementById('userClasse').textContent = userClasse;
-                    }
+                if (dataAteliers.success) {
+                    ateliersData = dataAteliers.data || [];
+                    inscriptionsOuvertes = dataAteliers.inscriptions_ouvertes;
+                    eleveId = dataAteliers.eleve_info?.id;
+                    document.getElementById('userClasse').textContent = dataAteliers.eleve_info?.classe || '-';
                     
-                    // Afficher un bandeau si inscriptions fermées, mais quand même montrer les ateliers
-                    if (!data.inscriptions_ouvertes) {
-                        const banner = document.createElement('div');
-                        banner.className = 'alert alert-warning';
-                        banner.style.cssText = `
-                            background: #fef3c7;
-                            border-left: 4px solid #f59e0b;
-                            padding: 15px 20px;
-                            border-radius: 8px;
-                            margin-bottom: 20px;
+                    if (!inscriptionsOuvertes) {
+                        document.getElementById('alertsBanner').innerHTML = `
+                            <div class="alert alert-warning">
+                                <strong>⚠️ Inscriptions fermées</strong> - Tu peux consulter les ateliers mais pas encore t'inscrire.
+                            </div>
                         `;
-                        banner.innerHTML = `
-                            <strong>⚠️ Inscriptions fermées</strong><br>
-                            Vous pouvez consulter les ateliers mais les inscriptions ne sont pas encore ouvertes.
-                            ${data.quota_pourcent && data.quota_pourcent < 100 ? 
-                                `<br><small>Quota actuel : ${data.quota_pourcent}% des places disponibles</small>` : ''}
-                        `;
-                        const container = document.getElementById('ateliersGrid');
-                        container.innerHTML = '';
-                        container.appendChild(banner);
                     }
-                    
-                    // Toujours afficher les ateliers (fermé ou ouvert)
-                    displayAteliers(data.data, !data.inscriptions_ouvertes);
                 }
+
+                // Charger mes inscriptions
+                const respInscr = await fetch(`${API_URL}/eleves/mes-inscriptions`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                const dataInscr = await respInscr.json();
+                
+                if (dataInscr.success) {
+                    inscriptionsData = dataInscr.data || [];
+                }
+
+                // Charger les créneaux
+                const respCreneaux = await fetch(`${API_URL}/planning/creneaux`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                const dataCreneaux = await respCreneaux.json();
+                
+                if (dataCreneaux.success) {
+                    creneauxData = dataCreneaux.data || [];
+                }
+
+                // Afficher l'horaire
+                displayHoraire();
+                
             } catch (error) {
-                console.error('Erreur ateliers:', error);
+                console.error('Erreur chargement:', error);
+                document.getElementById('horaireContainer').innerHTML = 
+                    '<div class="alert alert-error">Erreur de chargement des données</div>';
             }
         }
 
-        function displayAteliers(ateliers, readOnly = false) {
-            const container = document.getElementById('ateliersGrid');
+        // Afficher l'horaire sous forme de tableau
+        function displayHoraire() {
+            // Créer une map des inscriptions par créneau
+            const inscriptionParCreneau = {};
             
-            if (ateliers.length === 0) {
-                const emptyMsg = document.createElement('div');
-                emptyMsg.className = 'alert alert-info';
-                emptyMsg.textContent = 'Aucun atelier disponible pour le moment.';
-                container.appendChild(emptyMsg);
-                return;
-            }
+            inscriptionsData.forEach(insc => {
+                if (insc.creneau_id && insc.nombre_creneaux) {
+                    // Pour chaque créneau couvert par l'atelier
+                    for (let i = 0; i < insc.nombre_creneaux; i++) {
+                        const creneauId = insc.creneau_id + i;
+                        inscriptionParCreneau[creneauId] = {
+                            ...insc,
+                            isStart: i === 0,
+                            span: insc.nombre_creneaux
+                        };
+                    }
+                }
+            });
+
+            // Créer une map des créneaux par jour/période
+            const creneauMap = {};
+            creneauxData.forEach(c => {
+                const key = `${c.jour}-${c.periode}`;
+                creneauMap[key] = c;
+            });
+
+            let html = '<table class="horaire-table"><thead><tr><th></th>';
+            JOURS.forEach(jour => {
+                html += `<th>${jour.charAt(0).toUpperCase() + jour.slice(1)}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+
+            PERIODES.forEach(periode => {
+                html += `<tr><td class="periode-label">${periode}</td>`;
+                
+                JOURS.forEach(jour => {
+                    const key = `${jour}-${periode}`;
+                    const creneau = creneauMap[key];
+                    
+                    // Mercredi après-midi
+                    if (jour === 'mercredi' && periode === 'P6-7') {
+                        html += '<td class="creneau-mercredi-pm">Congé</td>';
+                        return;
+                    }
+                    
+                    if (!creneau) {
+                        html += '<td>-</td>';
+                        return;
+                    }
+                    
+                    const inscription = inscriptionParCreneau[creneau.id];
+                    
+                    if (inscription) {
+                        if (inscription.isStart) {
+                            // Début d'un atelier
+                            const cellClass = inscription.nombre_creneaux > 1 ? 'creneau-multi' : 'creneau-rempli';
+                            html += `<td class="${cellClass}">
+                                <div class="atelier-mini">
+                                    <div class="nom">${inscription.atelier_nom}</div>
+                                    <div class="salle">📍 ${inscription.salle_nom || '-'}</div>
+                                    ${inscription.duree > 2 ? `<div class="salle">⏱️ ${inscription.duree}p</div>` : ''}
+                                    ${inscriptionsOuvertes ? `<button class="btn-remove" onclick="desinscrire(${inscription.id}, '${inscription.atelier_nom.replace(/'/g, "\\'")}')">✕ Retirer</button>` : ''}
+                                </div>
+                            </td>`;
+                        } else {
+                            // Suite d'un atelier multi-créneaux
+                            html += `<td class="creneau-multi">
+                                <div class="atelier-mini" style="opacity:0.7;">
+                                    <div class="nom">↑ Suite</div>
+                                    <div class="salle">${inscription.atelier_nom}</div>
+                                </div>
+                            </td>`;
+                        }
+                    } else {
+                        // Créneau vide
+                        if (inscriptionsOuvertes) {
+                            html += `<td class="creneau-vide" onclick="openChoixAtelier(${creneau.id}, '${jour}', '${periode}')">
+                                <div style="text-align:center;color:#dc2626;">
+                                    <div style="font-size:24px;">+</div>
+                                    <div style="font-size:11px;">Choisir</div>
+                                </div>
+                            </td>`;
+                        } else {
+                            html += `<td class="creneau-vide" style="cursor:default;">
+                                <div style="text-align:center;color:#9ca3af;">
+                                    <div style="font-size:11px;">Vide</div>
+                                </div>
+                            </td>`;
+                        }
+                    }
+                });
+                
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            document.getElementById('horaireContainer').innerHTML = html;
+
+            // Validation
+            checkValidation();
+        }
+
+        // Vérifier si l'horaire est complet
+        function checkValidation() {
+            const creneauxRequis = creneauxData.filter(c => 
+                !(c.jour === 'mercredi' && c.periode === 'P6-7')
+            );
             
-            let html = '<div class="ateliers-grid">';
+            const creneauxRemplis = new Set();
+            inscriptionsData.forEach(insc => {
+                if (insc.creneau_id && insc.nombre_creneaux) {
+                    for (let i = 0; i < insc.nombre_creneaux; i++) {
+                        creneauxRemplis.add(insc.creneau_id + i);
+                    }
+                }
+            });
+
+            const creneauxManquants = creneauxRequis.filter(c => !creneauxRemplis.has(c.id));
             
-            ateliers.forEach(a => {
-                const complet = a.places_restantes <= 0;
-                const inscrit = a.deja_inscrit === 1;
-                
-                const cardClass = complet ? 'atelier-card complet' : inscrit ? 'atelier-card inscrit' : 'atelier-card';
-                const tagClass = complet ? 'tag-complet' : inscrit ? 'tag-inscrit' : 'tag-disponible';
-                const tagText = complet ? 'Complet' : inscrit ? 'Inscrit' : `${a.places_restantes} places`;
-                
-                const jourDisplay = a.jour.charAt(0).toUpperCase() + a.jour.slice(1);
-                
-                html += `
-                    <div class="${cardClass}">
-                        <div class="atelier-header">
-                            <div class="atelier-nom">${a.nom}</div>
-                            <div class="atelier-tag ${tagClass}">${tagText}</div>
-                        </div>
-                        
-                        <div class="atelier-info">
-                            <strong>👨‍🏫</strong> ${a.enseignant_prenom} ${a.enseignant_nom}
-                        </div>
-                        
-                        <div class="atelier-info">
-                            <strong>📅</strong> ${jourDisplay} - ${a.periode} (${a.heure_debut.substring(0, 5)} - ${a.heure_fin.substring(0, 5)})
-                        </div>
-                        
-                        <div class="atelier-info">
-                            <strong>🏫</strong> ${a.salle_nom}
-                        </div>
-                        
-                        <div class="atelier-info">
-                            <strong>⏱️</strong> ${a.duree} périodes
-                        </div>
-                        
-                        ${a.description ? `<div class="atelier-description">${a.description}</div>` : ''}
-                        
-                        ${a.informations_eleves ? `
-                            <div class="alert alert-info" style="margin-top: 12px; padding: 10px; font-size: 13px;">
-                                <strong>ℹ️ Informations :</strong><br>${a.informations_eleves}
-                            </div>
-                        ` : ''}
-                        
-                        <div class="atelier-actions">
-                            ${readOnly ? `
-                                <div style="text-align: center; color: #f59e0b; font-weight: 600; font-size: 13px;">
-                                    🔒 Inscriptions fermées
-                                </div>
-                            ` : !complet && !inscrit ? `
-                                <button class="btn btn-primary" style="width: 100%;" onclick="inscrire(${a.planning_id})">
-                                    ✅ S'inscrire
-                                </button>
-                            ` : inscrit ? `
-                                <div style="text-align: center; color: #10b981; font-weight: 600;">
-                                    ✅ Tu es inscrit(e) à cet atelier
-                                </div>
-                            ` : `
-                                <div style="text-align: center; color: #ef4444; font-weight: 600;">
-                                    ❌ Atelier complet
-                                </div>
-                            `}
-                        </div>
+            let html = '';
+            if (creneauxManquants.length === 0 && creneauxRequis.length > 0) {
+                html = `
+                    <div class="validation-box">
+                        <h3>✅ Horaire complet !</h3>
+                        <p>Tu as un atelier pour chaque créneau de la semaine spéciale.</p>
+                        <button class="btn btn-success" onclick="validerHoraire()" style="margin-top:15px;">
+                            ✔️ Valider mon horaire
+                        </button>
                     </div>
                 `;
-            });
+            } else if (creneauxRequis.length > 0) {
+                const manquantsList = creneauxManquants.map(c => 
+                    `${c.jour.charAt(0).toUpperCase() + c.jour.slice(1)} ${c.periode}`
+                ).join(', ');
+                
+                html = `
+                    <div class="validation-box error">
+                        <h3>⚠️ Horaire incomplet</h3>
+                        <p>Il te manque ${creneauxManquants.length} créneau(x) : <strong>${manquantsList}</strong></p>
+                        <p style="margin-top:10px;font-size:13px;">Clique sur les cases rouges pour choisir des ateliers.</p>
+                    </div>
+                `;
+            }
             
-            html += '</div>';
-            const gridContainer = document.createElement('div');
-            gridContainer.innerHTML = html;
-            container.appendChild(gridContainer);
+            document.getElementById('validationBox').innerHTML = html;
         }
 
-        async function inscrire(planningId) {
-            if (!confirm('Confirmes-tu ton inscription à cet atelier ?')) return;
+        // Ouvrir le modal de choix d'atelier
+        function openChoixAtelier(creneauId, jour, periode) {
+            document.getElementById('modalCreneauInfo').textContent = 
+                `${jour.charAt(0).toUpperCase() + jour.slice(1)} - ${periode}`;
+            
+            // Filtrer les ateliers disponibles pour ce créneau
+            const ateliersDispos = ateliersData.filter(a => a.creneau_id === creneauId);
+            
+            let html = '';
+            
+            if (ateliersDispos.length === 0) {
+                html = '<div class="alert alert-warning">Aucun atelier disponible pour ce créneau.</div>';
+            } else {
+                ateliersDispos.forEach(a => {
+                    const complet = a.places_restantes <= 0;
+                    const dejaInscrit = a.deja_inscrit == 1;
+                    
+                    let placesClass = 'dispo';
+                    if (complet) placesClass = 'complet';
+                    else if (a.places_restantes <= 3) placesClass = 'peu';
+                    
+                    const optionClass = complet ? 'atelier-option complet' : 'atelier-option';
+                    const onclick = complet || dejaInscrit ? '' : `onclick="inscrire(${a.planning_id}, '${a.nom.replace(/'/g, "\\'")}')"`;
+                    
+                    html += `
+                        <div class="${optionClass}" ${onclick}>
+                            <div class="nom">${a.nom}</div>
+                            <div class="details">
+                                👤 ${a.enseignant_prenom} ${a.enseignant_nom}
+                                ${a.duree > 2 ? ` • ⏱️ ${a.duree} périodes` : ''}
+                                • 📍 ${a.salle_nom || '-'}
+                            </div>
+                            ${a.description ? `<div class="details" style="margin-top:5px;">${a.description.substring(0, 100)}${a.description.length > 100 ? '...' : ''}</div>` : ''}
+                            <span class="places ${placesClass}">
+                                ${complet ? 'Complet' : dejaInscrit ? '✓ Déjà inscrit' : `${a.places_restantes} place(s)`}
+                            </span>
+                        </div>
+                    `;
+                });
+            }
+            
+            document.getElementById('ateliersDisponibles').innerHTML = html;
+            document.getElementById('modalChoixAtelier').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('modalChoixAtelier').classList.remove('show');
+        }
+
+        // S'inscrire à un atelier
+        async function inscrire(planningId, nomAtelier) {
+            if (!confirm(`T'inscrire à "${nomAtelier}" ?`)) return;
             
             try {
                 const response = await fetch(`${API_URL}/eleves/inscrire/${planningId}`, {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                    headers: {
+                        'Authorization': `Bearer ${currentToken}`,
+                        'Content-Type': 'application/json'
+                    }
                 });
                 
                 const data = await response.json();
                 
                 if (data.success) {
-                    showAlert('alertsAteliers', '✅ ' + data.message, 'success');
-                    loadAteliers();
-                    loadMesInscriptions();
+                    closeModal();
+                    loadData(); // Recharger
                 } else {
-                    showAlert('alertsAteliers', '❌ ' + data.message, 'error');
+                    alert(data.message || 'Erreur lors de l\'inscription');
                 }
             } catch (error) {
-                showAlert('alertsAteliers', 'Erreur lors de l\'inscription', 'error');
+                alert('Erreur de connexion');
             }
         }
 
-        // Mes inscriptions
-        async function loadMesInscriptions() {
-            try {
-                const response = await fetch(`${API_URL}/eleves/mes-inscriptions`, {
-                    headers: { 'Authorization': `Bearer ${currentToken}` }
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    displayMesInscriptions(data.data);
-                }
-            } catch (error) {
-                console.error('Erreur inscriptions:', error);
-            }
-        }
-
-        function displayMesInscriptions(inscriptions) {
-            const container = document.getElementById('inscriptionsListe');
-            
-            if (inscriptions.length === 0) {
-                container.innerHTML = '<div class="alert alert-info">Tu n\'es inscrit(e) à aucun atelier pour le moment.</div>';
-                return;
-            }
-            
-            let html = '<div class="mes-inscriptions-liste">';
-            
-            inscriptions.forEach(i => {
-                const jourDisplay = i.jour ? i.jour.charAt(0).toUpperCase() + i.jour.slice(1) : 'À placer';
-                const obligatoire = i.inscription_manuelle;
-                
-                html += `
-                    <div class="inscription-card ${obligatoire ? 'obligatoire' : ''}">
-                        <div class="inscription-header">
-                            <div class="inscription-nom">${i.atelier_nom}</div>
-                            ${obligatoire ? '<div class="badge-obligatoire">Obligatoire</div>' : ''}
-                        </div>
-                        
-                        <div class="atelier-info">
-                            <strong>👨‍🏫</strong> ${i.enseignant_prenom} ${i.enseignant_nom}
-                        </div>
-                        
-                        ${i.jour ? `
-                            <div class="atelier-info">
-                                <strong>📅</strong> ${jourDisplay} - ${i.periode} (${i.heure_debut.substring(0, 5)} - ${i.heure_fin.substring(0, 5)})
-                            </div>
-                            
-                            <div class="atelier-info">
-                                <strong>🏫</strong> ${i.salle_nom}
-                            </div>
-                        ` : '<div class="alert alert-warning" style="margin-top: 10px;">⏳ Atelier pas encore placé dans le planning</div>'}
-                        
-                        ${i.informations_eleves ? `
-                            <div class="alert alert-info" style="margin-top: 12px; padding: 10px; font-size: 13px;">
-                                <strong>ℹ️ Informations :</strong><br>${i.informations_eleves}
-                            </div>
-                        ` : ''}
-                        
-                        ${!obligatoire ? `
-                            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
-                                <button class="btn btn-danger" style="width: 100%;" onclick="desinscrire(${i.id})">
-                                    ❌ Se désinscrire
-                                </button>
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
-            });
-            
-            html += '</div>';
-            container.innerHTML = html;
-        }
-
-        async function desinscrire(inscriptionId) {
-            if (!confirm('Es-tu sûr(e) de vouloir te désinscrire de cet atelier ?')) return;
+        // Se désinscrire
+        async function desinscrire(inscriptionId, nomAtelier) {
+            if (!confirm(`Te désinscrire de "${nomAtelier}" ?`)) return;
             
             try {
                 const response = await fetch(`${API_URL}/eleves/desinscrire/${inscriptionId}`, {
@@ -725,106 +785,49 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    showAlert('alertsInscriptions', '✅ ' + data.message, 'success');
-                    loadMesInscriptions();
-                    loadAteliers();
+                    loadData();
                 } else {
-                    showAlert('alertsInscriptions', '❌ ' + data.message, 'error');
+                    alert(data.message || 'Erreur');
                 }
             } catch (error) {
-                showAlert('alertsInscriptions', 'Erreur lors de la désinscription', 'error');
+                alert('Erreur de connexion');
             }
         }
 
-        function showAlert(containerId, message, type) {
-            const container = document.getElementById(containerId);
-			container.style.display='block';
-            const alertClass = type === 'success' ? 'alert-success' : type === 'error' ? 'alert-error' : 'alert-info';
-            
-            container.innerHTML = `<div class="alert ${alertClass}">${message}</div>`;
-            
-            setTimeout(() => {
-                container.innerHTML = '';
-            }, 5000);
+        // Valider l'horaire
+        async function validerHoraire() {
+            alert('✅ Ton horaire a été validé ! Tu recevras une confirmation.');
+            // TODO: Implémenter la validation côté serveur si nécessaire
         }
 
-        // === CHANGEMENT MOT DE PASSE ===
+        // Changer mot de passe
         function showChangePassword() {
-            const modal = document.createElement('div');
-            modal.id = 'passwordModal';
-            modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;';
-            modal.innerHTML = `
-                <div style="background:white;padding:30px;border-radius:15px;max-width:400px;width:90%;">
-                    <h3 style="margin-bottom:20px;color:#667eea;">🔑 Changer mon mot de passe</h3>
-                    <div style="margin-bottom:15px;">
-                        <label style="display:block;margin-bottom:5px;font-weight:600;">Ancien mot de passe</label>
-                        <input type="password" id="oldPassword" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;">
-                    </div>
-                    <div style="margin-bottom:15px;">
-                        <label style="display:block;margin-bottom:5px;font-weight:600;">Nouveau mot de passe</label>
-                        <input type="password" id="newPassword" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;">
-                    </div>
-                    <div style="margin-bottom:20px;">
-                        <label style="display:block;margin-bottom:5px;font-weight:600;">Confirmer le nouveau</label>
-                        <input type="password" id="confirmPassword" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;">
-                    </div>
-                    <div id="passwordError" style="color:#ef4444;margin-bottom:15px;display:none;"></div>
-                    <div style="display:flex;gap:10px;">
-                        <button onclick="changePassword()" class="btn btn-primary" style="flex:1;">Changer</button>
-                        <button onclick="document.getElementById('passwordModal').remove()" class="btn btn-secondary" style="flex:1;">Annuler</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-        }
-
-        async function changePassword() {
-            const oldPassword = document.getElementById('oldPassword').value;
-            const newPassword = document.getElementById('newPassword').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-            const errorDiv = document.getElementById('passwordError');
-
-            if (!oldPassword || !newPassword || !confirmPassword) {
-                errorDiv.textContent = 'Tous les champs sont requis';
-                errorDiv.style.display = 'block';
+            const newPwd = prompt('Nouveau mot de passe :');
+            if (!newPwd) return;
+            
+            const confirmPwd = prompt('Confirmer le mot de passe :');
+            if (newPwd !== confirmPwd) {
+                alert('Les mots de passe ne correspondent pas');
                 return;
             }
-
-            if (newPassword !== confirmPassword) {
-                errorDiv.textContent = 'Les mots de passe ne correspondent pas';
-                errorDiv.style.display = 'block';
-                return;
-            }
-
-            if (newPassword.length < 6) {
-                errorDiv.textContent = 'Le mot de passe doit contenir au moins 6 caractères';
-                errorDiv.style.display = 'block';
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/auth/change-password', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ oldPassword, newPassword })
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    document.getElementById('passwordModal').remove();
-                    showAlert('alertAteliers', '✅ Mot de passe modifié avec succès !', 'success');
+            
+            fetch(`${API_URL}/auth/change-password`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${currentToken}`
+                },
+                body: JSON.stringify({ newPassword: newPwd })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Mot de passe modifié !');
                 } else {
-                    errorDiv.textContent = result.message || 'Erreur lors du changement';
-                    errorDiv.style.display = 'block';
+                    alert(data.message || 'Erreur');
                 }
-            } catch (error) {
-                errorDiv.textContent = 'Erreur de connexion';
-                errorDiv.style.display = 'block';
-            }
+            })
+            .catch(() => alert('Erreur'));
         }
     </script>
 </body>
