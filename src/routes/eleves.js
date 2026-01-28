@@ -31,12 +31,11 @@ router.get('/ateliers-disponibles', async (req, res) => {
         
         const eleve = eleves[0];
         
-        // Vérifier si les inscriptions sont ouvertes
-        const config = await query(`
-            SELECT valeur FROM configuration WHERE cle = 'inscriptions_ouvertes'
-        `);
-        
-        const inscriptionsOuvertes = config[0]?.valeur === 'true' || config[0]?.valeur === '1';
+        // Vérifier si les inscriptions sont ouvertes POUR CETTE CLASSE uniquement
+        const configClasse = await query(`
+            SELECT inscriptions_ouvertes FROM classes WHERE id = ?
+        `, [eleve.classe_id]);
+        const inscriptionsOuvertes = configClasse[0]?.inscriptions_ouvertes === 1 || configClasse[0]?.inscriptions_ouvertes === true;
         
         // Récupérer le pourcentage de places disponibles (quota progressif)
         const quotaConfig = await query(`
@@ -94,7 +93,8 @@ router.get('/ateliers-disponibles', async (req, res) => {
             data: ateliers,
             eleve_info: {
                 id: eleve.id,
-                classe: eleve.classe_nom
+                classe: eleve.classe_nom,
+                classe_id: eleve.classe_id
             }
         });
         
