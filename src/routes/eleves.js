@@ -155,10 +155,14 @@ router.get('/ateliers-disponibles', async (req, res) => {
         });
         
     } catch (error) {
-        console.error('Erreur ateliers disponibles:', error);
+        console.error('=== ERREUR ATELIERS DISPONIBLES ===');
+        console.error('Message:', error.message);
+        console.error('Stack:', error.stack);
+        console.error('SQL Error:', error.sql || 'N/A');
         res.status(500).json({
             success: false,
-            message: 'Erreur lors de la récupération des ateliers'
+            message: 'Erreur lors de la récupération des ateliers',
+            debug: error.message
         });
     }
 });
@@ -196,8 +200,8 @@ router.get('/mes-inscriptions', async (req, res) => {
                 a.description as atelier_description,
                 a.informations_eleves,
                 a.duree,
-                u.nom as enseignant_nom,
-                u.prenom as enseignant_prenom,
+                COALESCE(u.nom, a.enseignant_acronyme) as enseignant_nom,
+                COALESCE(u.prenom, '') as enseignant_prenom,
                 p.id as planning_id,
                 p.creneau_id,
                 p.nombre_creneaux,
@@ -207,10 +211,10 @@ router.get('/mes-inscriptions', async (req, res) => {
                 s.nom as salle_nom
             FROM inscriptions i
             JOIN ateliers a ON i.atelier_id = a.id
-            JOIN planning p ON i.planning_id = p.id
-            JOIN creneaux c ON p.creneau_id = c.id
+            LEFT JOIN planning p ON i.planning_id = p.id
+            LEFT JOIN creneaux c ON p.creneau_id = c.id
             LEFT JOIN salles s ON p.salle_id = s.id
-            JOIN utilisateurs u ON a.enseignant_acronyme = u.acronyme
+            LEFT JOIN utilisateurs u ON a.enseignant_acronyme = u.acronyme
             WHERE i.eleve_id = ? AND i.statut = 'confirmee'
             ORDER BY c.ordre
         `, [eleveId]);
@@ -221,10 +225,13 @@ router.get('/mes-inscriptions', async (req, res) => {
         });
         
     } catch (error) {
-        console.error('Erreur mes inscriptions:', error);
+        console.error('=== ERREUR MES INSCRIPTIONS ===');
+        console.error('Message:', error.message);
+        console.error('Stack:', error.stack);
         res.status(500).json({
             success: false,
-            message: 'Erreur lors de la récupération des inscriptions'
+            message: 'Erreur lors de la récupération des inscriptions',
+            debug: error.message
         });
     }
 });
