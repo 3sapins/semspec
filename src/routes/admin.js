@@ -755,49 +755,57 @@ router.post('/ateliers/:id/obligatoire', async (req, res) => {
 
 /**
  * POST /api/admin/inscriptions-manuelles
- * Inscrire manuellement des élèves à un atelier
+ * Inscrire manuellement des élèves à un créneau d'atelier (planning_id)
  * Vérifie les conflits d'horaire
  */
 router.post('/inscriptions-manuelles', async (req, res) => {
     try {
-        const { atelier_id, classe_ids, eleve_ids } = req.body;
+        const { planning_id, classe_ids, eleve_ids } = req.body;
         
-        if (!atelier_id) {
+        if (!planning_id) {
             return res.status(400).json({
                 success: false,
-                message: 'Atelier ID requis'
+                message: 'Planning ID (créneau) requis'
             });
         }
         
-        // Vérifier que l'atelier existe et récupérer ses créneaux
-        const atelierInfo = await query(`
-            SELECT a.id, a.nom, p.creneau_id, p.nombre_creneaux, c.jour, c.periode, c.ordre
-            FROM ateliers a
-            LEFT JOIN planning p ON a.id = p.atelier_id
-            LEFT JOIN creneaux c ON p.creneau_id = c.id
-            WHERE a.id = ?
-        `, [atelier_id]);
+        // Vérifier que le planning existe et récupérer ses infos
+        const planningInfo = await query(`
+            SELECT p.id, p.atelier_id, p.creneau_id, p.nombre_creneaux, p.salle_id,
+                   a.nom as atelier_nom, a.nombre_places_max,
+                   c.jour, c.periode, c.ordre
+            FROM planning p
+            JOIN ateliers a ON p.atelier_id = a.id
+            JOIN creneaux c ON p.creneau_id = c.id
+            WHERE p.id = ?
+        `, [planning_id]);
         
-        if (atelierInfo.length === 0) {
+        if (planningInfo.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: 'Atelier non trouvé'
+                message: 'Créneau non trouvé dans le planning'
             });
         }
         
-        const atelier = atelierInfo[0];
+        const planning = planningInfo[0];
         
-        // Collecter les créneaux occupés par cet atelier
+        // Collecter les créneaux occupés par cet atelier (pour conflits)
         const creneauxAtelier = [];
-        if (atelier.creneau_id) {
-            for (let i = 0; i < (atelier.nombre_creneaux || 1); i++) {
-                creneauxAtelier.push(atelier.creneau_id + i);
-            }
+        for (let i = 0; i < (planning.nombre_creneaux || 1); i++) {
+            creneauxAtelier.push(planning.creneau_id + i);
         }
+        
+        // Compter les inscrits actuels
+        const inscritsActuels = await query(`
+            SELECT COUNT(*) as count FROM inscriptions 
+            WHERE planning_id = ? AND statut = 'confirmee'
+        `, [planning_id]);
+        const nbInscrits = inscritsActuels[0].count;
         
         let inscrit = 0;
         let dejaInscrits = 0;
         let conflits = [];
+        let complets = 0;
         let errors = [];
         
         // Collecter tous les élèves à inscrire
@@ -831,13 +839,21 @@ router.post('/inscriptions-manuelles', async (req, res) => {
             }
         }
         
+        let placesRestantes = planning.nombre_places_max - nbInscrits;
+        
         // Inscrire chaque élève
         for (const eleve of elevesUniques) {
             try {
-                // Vérifier si pas déjà inscrit à cet atelier
+                // Vérifier s'il reste des places
+                if (placesRestantes <= 0) {
+                    complets++;
+                    continue;
+                }
+                
+                // Vérifier si pas déjà inscrit à ce créneau
                 const existing = await query(
-                    'SELECT id FROM inscriptions WHERE eleve_id = ? AND atelier_id = ?',
-                    [eleve.id, atelier_id]
+                    'SELECT id FROM inscriptions WHERE eleve_id = ? AND planning_id = ? AND statut = "confirmee"',
+                    [eleve.id, planning_id]
                 );
                 
                 if (existing.length > 0) {
@@ -845,35 +861,37 @@ router.post('/inscriptions-manuelles', async (req, res) => {
                     continue;
                 }
                 
-                // Vérifier les conflits d'horaire (si l'atelier est placé)
-                if (creneauxAtelier.length > 0) {
-                    const placeholders = creneauxAtelier.map(() => '?').join(',');
-                    const conflitHoraire = await query(`
-                        SELECT a.nom as atelier_conflit
-                        FROM inscriptions i
-                        JOIN ateliers a ON i.atelier_id = a.id
-                        JOIN planning p ON a.id = p.atelier_id
-                        JOIN creneaux c ON p.creneau_id = c.id
-                        WHERE i.eleve_id = ?
-                        AND c.id IN (${placeholders})
-                    `, [eleve.id, ...creneauxAtelier]);
-                    
-                    if (conflitHoraire.length > 0) {
-                        conflits.push({
-                            eleve: `${eleve.prenom} ${eleve.nom}`,
-                            conflit: conflitHoraire[0].atelier_conflit
-                        });
-                        continue;
-                    }
+                // Vérifier les conflits d'horaire
+                const placeholders = creneauxAtelier.map(() => '?').join(',');
+                const conflitHoraire = await query(`
+                    SELECT a.nom as atelier_conflit
+                    FROM inscriptions i
+                    JOIN planning p ON i.planning_id = p.id
+                    JOIN ateliers a ON p.atelier_id = a.id
+                    WHERE i.eleve_id = ?
+                    AND i.statut = 'confirmee'
+                    AND (
+                        p.creneau_id IN (${placeholders})
+                        OR (p.creneau_id <= ? AND p.creneau_id + p.nombre_creneaux > ?)
+                    )
+                `, [eleve.id, ...creneauxAtelier, creneauxAtelier[0], creneauxAtelier[0]]);
+                
+                if (conflitHoraire.length > 0) {
+                    conflits.push({
+                        eleve: `${eleve.prenom} ${eleve.nom}`,
+                        conflit: conflitHoraire[0].atelier_conflit
+                    });
+                    continue;
                 }
                 
                 // Inscrire
                 await query(
-                    `INSERT INTO inscriptions (eleve_id, atelier_id, statut, inscription_manuelle)
-                     VALUES (?, ?, 'confirmee', TRUE)`,
-                    [eleve.id, atelier_id]
+                    `INSERT INTO inscriptions (eleve_id, atelier_id, planning_id, statut, inscription_manuelle)
+                     VALUES (?, ?, ?, 'confirmee', TRUE)`,
+                    [eleve.id, planning.atelier_id, planning_id]
                 );
                 inscrit++;
+                placesRestantes--;
                 
             } catch (error) {
                 errors.push({ eleve: `${eleve.prenom} ${eleve.nom}`, error: error.message });
@@ -883,18 +901,19 @@ router.post('/inscriptions-manuelles', async (req, res) => {
         // Log
         await query(
             'INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
-            [req.user.id, 'INSCRIPTIONS_MANUELLES', `${inscrit} élèves inscrits à "${atelier.nom}"`]
+            [req.user.id, 'INSCRIPTIONS_MANUELLES', `${inscrit} élèves inscrits à "${planning.atelier_nom}" (${planning.jour} ${planning.periode})`]
         );
         
         // Construire le message
-        let message = `${inscrit} élève(s) inscrit(s)`;
+        let message = `${inscrit} élève(s) inscrit(s) à ${planning.atelier_nom} (${planning.jour} ${planning.periode})`;
         if (dejaInscrits > 0) message += `, ${dejaInscrits} déjà inscrit(s)`;
         if (conflits.length > 0) message += `, ${conflits.length} conflit(s) d'horaire`;
+        if (complets > 0) message += `, ${complets} refusé(s) (complet)`;
         
         res.json({
             success: true,
             message,
-            data: { inscrit, dejaInscrits, conflits, errors }
+            data: { inscrit, dejaInscrits, conflits, complets, errors }
         });
         
     } catch (error) {
@@ -907,8 +926,95 @@ router.post('/inscriptions-manuelles', async (req, res) => {
 });
 
 /**
+ * GET /api/admin/ateliers/:atelierId/creneaux
+ * Liste des créneaux où un atelier est placé (pour inscription manuelle)
+ */
+router.get('/ateliers/:atelierId/creneaux', async (req, res) => {
+    try {
+        const { atelierId } = req.params;
+        
+        const creneaux = await query(`
+            SELECT 
+                p.id as planning_id,
+                p.creneau_id,
+                p.nombre_creneaux,
+                a.nom as atelier_nom,
+                a.nombre_places_max,
+                c.jour,
+                c.periode,
+                c.ordre,
+                s.nom as salle_nom,
+                (SELECT COUNT(*) FROM inscriptions WHERE planning_id = p.id AND statut = 'confirmee') as nb_inscrits
+            FROM planning p
+            JOIN ateliers a ON p.atelier_id = a.id
+            JOIN creneaux c ON p.creneau_id = c.id
+            LEFT JOIN salles s ON p.salle_id = s.id
+            WHERE p.atelier_id = ?
+            ORDER BY c.ordre
+        `, [atelierId]);
+        
+        res.json({
+            success: true,
+            data: creneaux
+        });
+        
+    } catch (error) {
+        console.error('Erreur créneaux atelier:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur lors de la récupération des créneaux'
+        });
+    }
+});
+
+/**
+ * GET /api/admin/planning/creneaux-ateliers
+ * Liste de tous les créneaux avec ateliers pour inscription
+ */
+router.get('/planning/creneaux-ateliers', async (req, res) => {
+    try {
+        const creneaux = await query(`
+            SELECT 
+                p.id as planning_id,
+                p.atelier_id,
+                p.creneau_id,
+                p.nombre_creneaux,
+                a.nom as atelier_nom,
+                a.nombre_places_max,
+                a.duree,
+                c.jour,
+                c.periode,
+                c.ordre,
+                s.nom as salle_nom,
+                u.nom as enseignant_nom,
+                u.prenom as enseignant_prenom,
+                (SELECT COUNT(*) FROM inscriptions WHERE planning_id = p.id AND statut = 'confirmee') as nb_inscrits
+            FROM planning p
+            JOIN ateliers a ON p.atelier_id = a.id
+            JOIN creneaux c ON p.creneau_id = c.id
+            LEFT JOIN salles s ON p.salle_id = s.id
+            LEFT JOIN utilisateurs u ON a.enseignant_acronyme = u.acronyme
+            WHERE a.statut = 'valide'
+            ORDER BY c.ordre, a.nom
+        `);
+        
+        res.json({
+            success: true,
+            data: creneaux
+        });
+        
+    } catch (error) {
+        console.error('Erreur créneaux ateliers:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur serveur'
+        });
+    }
+});
+
+/**
  * GET /api/admin/listes/:atelierId
- * Liste des élèves inscrits à un atelier
+ * Liste des élèves inscrits à un atelier (tous créneaux confondus)
  */
 router.get('/listes/:atelierId', async (req, res) => {
     try {
@@ -919,16 +1025,21 @@ router.get('/listes/:atelierId', async (req, res) => {
                 i.id as inscription_id,
                 i.statut,
                 i.inscription_manuelle,
+                i.planning_id,
                 u.nom as eleve_nom,
                 u.prenom as eleve_prenom,
                 e.numero_eleve,
-                c.nom as classe_nom
+                c.nom as classe_nom,
+                cr.jour,
+                cr.periode
             FROM inscriptions i
             JOIN eleves e ON i.eleve_id = e.id
             JOIN utilisateurs u ON e.utilisateur_id = u.id
             JOIN classes c ON e.classe_id = c.id
+            LEFT JOIN planning p ON i.planning_id = p.id
+            LEFT JOIN creneaux cr ON p.creneau_id = cr.id
             WHERE i.atelier_id = ? AND i.statut = 'confirmee'
-            ORDER BY c.nom, u.nom, u.prenom
+            ORDER BY cr.ordre, c.nom, u.nom, u.prenom
         `, [atelierId]);
         
         res.json({
@@ -941,6 +1052,59 @@ router.get('/listes/:atelierId', async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Erreur lors de la récupération de la liste'
+        });
+    }
+});
+
+/**
+ * GET /api/admin/listes/planning/:planningId
+ * Liste des élèves inscrits à un créneau spécifique
+ */
+router.get('/listes/planning/:planningId', async (req, res) => {
+    try {
+        const { planningId } = req.params;
+        
+        // Info du créneau
+        const planningInfo = await query(`
+            SELECT p.*, a.nom as atelier_nom, a.nombre_places_max,
+                   c.jour, c.periode, s.nom as salle_nom
+            FROM planning p
+            JOIN ateliers a ON p.atelier_id = a.id
+            JOIN creneaux c ON p.creneau_id = c.id
+            LEFT JOIN salles s ON p.salle_id = s.id
+            WHERE p.id = ?
+        `, [planningId]);
+        
+        // Élèves inscrits
+        const eleves = await query(`
+            SELECT 
+                i.id as inscription_id,
+                i.statut,
+                i.inscription_manuelle,
+                e.id as eleve_id,
+                u.nom as eleve_nom,
+                u.prenom as eleve_prenom,
+                e.numero_eleve,
+                c.nom as classe_nom
+            FROM inscriptions i
+            JOIN eleves e ON i.eleve_id = e.id
+            JOIN utilisateurs u ON e.utilisateur_id = u.id
+            JOIN classes c ON e.classe_id = c.id
+            WHERE i.planning_id = ? AND i.statut = 'confirmee'
+            ORDER BY c.nom, u.nom, u.prenom
+        `, [planningId]);
+        
+        res.json({
+            success: true,
+            planning: planningInfo[0] || null,
+            data: eleves
+        });
+        
+    } catch (error) {
+        console.error('Erreur liste planning:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur serveur'
         });
     }
 });

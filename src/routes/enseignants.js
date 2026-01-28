@@ -533,4 +533,116 @@ router.get('/types-salles', async (req, res) => {
     }
 });
 
+/**
+ * GET /api/enseignants/mon-horaire
+ * Horaire de l'enseignant avec ses ateliers et nombre d'inscrits
+ */
+router.get('/mon-horaire', async (req, res) => {
+    try {
+        const acronyme = req.user.acronyme;
+        
+        // Récupérer tous les ateliers de l'enseignant placés dans le planning
+        const ateliers = await query(`
+            SELECT 
+                p.id as planning_id,
+                p.creneau_id,
+                p.nombre_creneaux,
+                a.id as atelier_id,
+                a.nom as atelier_nom,
+                a.duree,
+                a.nombre_places_max,
+                c.jour,
+                c.periode,
+                c.ordre as creneau_ordre,
+                s.nom as salle_nom,
+                (SELECT COUNT(*) FROM inscriptions WHERE planning_id = p.id AND statut = 'confirmee') as nb_inscrits
+            FROM planning p
+            JOIN ateliers a ON p.atelier_id = a.id
+            JOIN creneaux c ON p.creneau_id = c.id
+            LEFT JOIN salles s ON p.salle_id = s.id
+            WHERE (a.enseignant_acronyme = ? OR a.enseignant2_acronyme = ? OR a.enseignant3_acronyme = ?)
+            AND a.statut = 'valide'
+            ORDER BY c.ordre
+        `, [acronyme, acronyme, acronyme]);
+        
+        // Récupérer tous les créneaux
+        const creneaux = await query(`SELECT * FROM creneaux ORDER BY ordre`);
+        
+        res.json({
+            success: true,
+            data: {
+                ateliers: ateliers,
+                creneaux: creneaux
+            }
+        });
+        
+    } catch (error) {
+        console.error('Erreur horaire enseignant:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur lors de la récupération de l\'horaire'
+        });
+    }
+});
+
+/**
+ * GET /api/enseignants/listes/:planningId
+ * Liste des élèves inscrits à un créneau de l'enseignant
+ */
+router.get('/listes/:planningId', async (req, res) => {
+    try {
+        const { planningId } = req.params;
+        const acronyme = req.user.acronyme;
+        
+        // Vérifier que c'est bien un atelier de cet enseignant
+        const verif = await query(`
+            SELECT p.id, a.nom as atelier_nom, c.jour, c.periode, s.nom as salle_nom,
+                   a.nombre_places_max
+            FROM planning p
+            JOIN ateliers a ON p.atelier_id = a.id
+            JOIN creneaux c ON p.creneau_id = c.id
+            LEFT JOIN salles s ON p.salle_id = s.id
+            WHERE p.id = ?
+            AND (a.enseignant_acronyme = ? OR a.enseignant2_acronyme = ? OR a.enseignant3_acronyme = ?)
+        `, [planningId, acronyme, acronyme, acronyme]);
+        
+        if (verif.length === 0) {
+            return res.status(403).json({
+                success: false,
+                message: 'Accès non autorisé'
+            });
+        }
+        
+        // Récupérer les élèves
+        const eleves = await query(`
+            SELECT 
+                i.id as inscription_id,
+                e.id as eleve_id,
+                u.nom as eleve_nom,
+                u.prenom as eleve_prenom,
+                e.numero_eleve,
+                c.nom as classe_nom
+            FROM inscriptions i
+            JOIN eleves e ON i.eleve_id = e.id
+            JOIN utilisateurs u ON e.utilisateur_id = u.id
+            JOIN classes c ON e.classe_id = c.id
+            WHERE i.planning_id = ? AND i.statut = 'confirmee'
+            ORDER BY c.nom, u.nom, u.prenom
+        `, [planningId]);
+        
+        res.json({
+            success: true,
+            planning: verif[0],
+            data: eleves
+        });
+        
+    } catch (error) {
+        console.error('Erreur liste enseignant:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur serveur'
+        });
+    }
+});
+
 module.exports = router;

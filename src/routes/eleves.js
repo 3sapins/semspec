@@ -42,10 +42,12 @@ router.get('/ateliers-disponibles', async (req, res) => {
         const inscriptionsEleve = await query(`
             SELECT 
                 i.id as inscription_id,
+                i.atelier_id,
+                i.planning_id,
                 p.creneau_id,
                 p.nombre_creneaux
             FROM inscriptions i
-            JOIN planning p ON i.planning_id = p.id
+            LEFT JOIN planning p ON i.planning_id = p.id
             WHERE i.eleve_id = ? AND i.statut = 'confirmee'
         `, [eleve.id]);
         
@@ -195,6 +197,7 @@ router.get('/mes-inscriptions', async (req, res) => {
                 i.id,
                 i.statut,
                 i.date_inscription,
+                i.planning_id,
                 a.id as atelier_id,
                 a.nom as atelier_nom,
                 a.description as atelier_description,
@@ -202,7 +205,6 @@ router.get('/mes-inscriptions', async (req, res) => {
                 a.duree,
                 COALESCE(u.nom, a.enseignant_acronyme) as enseignant_nom,
                 COALESCE(u.prenom, '') as enseignant_prenom,
-                p.id as planning_id,
                 p.creneau_id,
                 p.nombre_creneaux,
                 c.jour,
