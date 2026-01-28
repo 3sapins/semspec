@@ -173,14 +173,17 @@ CREATE TABLE IF NOT EXISTS inscriptions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     eleve_id INT NOT NULL,
     atelier_id INT NOT NULL,
+    planning_id INT DEFAULT NULL,
     date_inscription TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     statut ENUM('en_attente', 'confirmee', 'annulee') DEFAULT 'confirmee',
     inscription_manuelle BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (eleve_id) REFERENCES eleves(id) ON DELETE CASCADE,
     FOREIGN KEY (atelier_id) REFERENCES ateliers(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_eleve_atelier (eleve_id, atelier_id),
+    FOREIGN KEY (planning_id) REFERENCES planning(id) ON DELETE SET NULL,
+    UNIQUE KEY unique_eleve_planning (eleve_id, planning_id),
     INDEX idx_eleve (eleve_id),
-    INDEX idx_atelier (atelier_id)
+    INDEX idx_atelier (atelier_id),
+    INDEX idx_planning (planning_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
