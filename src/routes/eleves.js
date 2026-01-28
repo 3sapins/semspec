@@ -8,7 +8,7 @@ router.use(authMiddleware, eleveMiddleware);
 
 /**
  * GET /api/eleves/ateliers-disponibles
- * Liste des ateliers disponibles pour l'élève
+ * Liste des ateliers disponibles pour l'élève avec créneaux et places
  */
 router.get('/ateliers-disponibles', async (req, res) => {
     try {
@@ -16,7 +16,7 @@ router.get('/ateliers-disponibles', async (req, res) => {
         
         // Récupérer les infos de l'élève et sa classe
         const eleves = await query(`
-            SELECT e.*, c.nom as classe_nom
+            SELECT e.*, c.nom as classe_nom, c.inscriptions_ouvertes
             FROM eleves e
             JOIN classes c ON e.classe_id = c.id
             WHERE e.utilisateur_id = ?
@@ -30,12 +30,7 @@ router.get('/ateliers-disponibles', async (req, res) => {
         }
         
         const eleve = eleves[0];
-        
-        // Vérifier si les inscriptions sont ouvertes POUR CETTE CLASSE uniquement
-        const configClasse = await query(`
-            SELECT inscriptions_ouvertes FROM classes WHERE id = ?
-        `, [eleve.classe_id]);
-        const inscriptionsOuvertes = configClasse[0]?.inscriptions_ouvertes === 1 || configClasse[0]?.inscriptions_ouvertes === true;
+        const inscriptionsOuvertes = eleve.inscriptions_ouvertes === 1 || eleve.inscriptions_ouvertes === true;
         
         // Récupérer le pourcentage de places disponibles (quota progressif)
         const quotaConfig = await query(`
@@ -43,58 +38,96 @@ router.get('/ateliers-disponibles', async (req, res) => {
         `);
         const quotaPourcent = parseFloat(quotaConfig[0]?.valeur || 100);
         
-        // Récupérer les ateliers disponibles avec places restantes
+        // Récupérer les créneaux où l'élève est déjà inscrit (pour détecter conflits)
+        const inscriptionsEleve = await query(`
+            SELECT 
+                i.id as inscription_id,
+                p.creneau_id,
+                p.nombre_creneaux
+            FROM inscriptions i
+            JOIN planning p ON i.planning_id = p.id
+            WHERE i.eleve_id = ? AND i.statut = 'confirmee'
+        `, [eleve.id]);
+        
+        // Créer un Set des créneaux occupés par l'élève
+        const creneauxOccupes = new Set();
+        inscriptionsEleve.forEach(insc => {
+            for (let i = 0; i < insc.nombre_creneaux; i++) {
+                creneauxOccupes.add(insc.creneau_id + i);
+            }
+        });
+        
+        // Récupérer tous les ateliers placés dans le planning avec leurs créneaux
         const ateliers = await query(`
             SELECT 
-                a.id,
+                a.id as atelier_id,
                 a.nom,
                 a.description,
                 a.duree,
                 a.nombre_places_max,
                 a.informations_eleves,
+                t.nom as theme_nom,
+                t.couleur as theme_couleur,
+                t.icone as theme_icone,
                 u.nom as enseignant_nom,
                 u.prenom as enseignant_prenom,
-                a.enseignant_acronyme as enseignant1_acronyme,
-                a.enseignant2_acronyme,
-                a.enseignant3_acronyme,
                 p.id as planning_id,
                 p.creneau_id,
                 p.nombre_creneaux,
                 c.jour,
                 c.periode,
                 c.ordre as creneau_ordre,
-                c.heure_debut,
-                c.heure_fin,
                 s.nom as salle_nom,
-                COUNT(DISTINCT i.id) as nombre_inscrits,
-                GREATEST(CEILING(a.nombre_places_max * ? / 100) - COUNT(DISTINCT i.id), 0) as places_restantes,
-                a.nombre_places_max as places_totales,
-                EXISTS(
-                    SELECT 1 FROM inscriptions i2 
-                    WHERE i2.atelier_id = a.id 
-                    AND i2.eleve_id = ?
-                    AND i2.statut != 'annulee'
-                ) as deja_inscrit
+                (SELECT COUNT(*) FROM inscriptions WHERE planning_id = p.id AND statut = 'confirmee') as nb_inscrits
             FROM ateliers a
             JOIN utilisateurs u ON a.enseignant_acronyme = u.acronyme
-            LEFT JOIN planning p ON a.id = p.atelier_id
-            LEFT JOIN creneaux c ON p.creneau_id = c.id
+            JOIN planning p ON a.id = p.atelier_id
+            JOIN creneaux c ON p.creneau_id = c.id
             LEFT JOIN salles s ON p.salle_id = s.id
-            LEFT JOIN inscriptions i ON a.id = i.atelier_id AND i.statut = 'confirmee'
+            LEFT JOIN themes t ON a.theme_id = t.id
             WHERE a.statut = 'valide'
-            GROUP BY a.id, p.id
             ORDER BY c.ordre, a.nom
-        `, [quotaPourcent, eleve.id]);
+        `);
+        
+        // Enrichir chaque atelier avec les infos de disponibilité
+        const ateliersEnrichis = ateliers.map(a => {
+            const placesQuota = Math.ceil(a.nombre_places_max * quotaPourcent / 100);
+            const placesRestantes = Math.max(0, placesQuota - a.nb_inscrits);
+            const complet = placesRestantes <= 0;
+            
+            // Vérifier si conflit horaire pour cet élève
+            let conflit = false;
+            for (let i = 0; i < a.nombre_creneaux; i++) {
+                if (creneauxOccupes.has(a.creneau_id + i)) {
+                    conflit = true;
+                    break;
+                }
+            }
+            
+            // Vérifier si déjà inscrit à cet atelier (sur n'importe quel créneau)
+            const dejaInscrit = inscriptionsEleve.some(insc => {
+                // Chercher si l'élève est inscrit à ce planning_id ou à cet atelier
+                return false; // On vérifiera plus précisément
+            });
+            
+            return {
+                ...a,
+                places_quota: placesQuota,
+                places_restantes: placesRestantes,
+                complet: complet,
+                conflit_horaire: conflit,
+                inscriptible: inscriptionsOuvertes && !complet && !conflit
+            };
+        });
         
         res.json({
             success: true,
             inscriptions_ouvertes: inscriptionsOuvertes,
             quota_pourcent: quotaPourcent,
-            data: ateliers,
+            data: ateliersEnrichis,
             eleve_info: {
                 id: eleve.id,
-                classe: eleve.classe_nom,
-                classe_id: eleve.classe_id
+                classe: eleve.classe_nom
             }
         });
         
@@ -135,7 +168,6 @@ router.get('/mes-inscriptions', async (req, res) => {
                 i.id,
                 i.statut,
                 i.date_inscription,
-                i.inscription_manuelle,
                 a.id as atelier_id,
                 a.nom as atelier_nom,
                 a.description as atelier_description,
@@ -149,16 +181,14 @@ router.get('/mes-inscriptions', async (req, res) => {
                 c.jour,
                 c.periode,
                 c.ordre as creneau_ordre,
-                c.heure_debut,
-                c.heure_fin,
                 s.nom as salle_nom
             FROM inscriptions i
             JOIN ateliers a ON i.atelier_id = a.id
-            LEFT JOIN planning p ON i.planning_id = p.id
-            LEFT JOIN creneaux c ON p.creneau_id = c.id
+            JOIN planning p ON i.planning_id = p.id
+            JOIN creneaux c ON p.creneau_id = c.id
             LEFT JOIN salles s ON p.salle_id = s.id
             JOIN utilisateurs u ON a.enseignant_acronyme = u.acronyme
-            WHERE i.eleve_id = ? AND i.statut != 'annulee'
+            WHERE i.eleve_id = ? AND i.statut = 'confirmee'
             ORDER BY c.ordre
         `, [eleveId]);
         
@@ -178,219 +208,124 @@ router.get('/mes-inscriptions', async (req, res) => {
 
 /**
  * POST /api/eleves/inscrire/:planningId
- * S'inscrire à un atelier
+ * S'inscrire à un atelier (avec verrouillage transactionnel)
  */
 router.post('/inscrire/:planningId', async (req, res) => {
     try {
         const { planningId } = req.params;
         const eleveUserId = req.user.id;
         
-        // Récupérer l'élève
-        const eleves = await query(`
-            SELECT e.*, c.nom as classe_nom
-            FROM eleves e
-            JOIN classes c ON e.classe_id = c.id
-            WHERE e.utilisateur_id = ?
-        `, [eleveUserId]);
-        
-        if (eleves.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Élève non trouvé'
-            });
-        }
-        
-        const eleve = eleves[0];
-        
-        // Vérifier que les inscriptions sont ouvertes
-        const config = await query(`
-            SELECT valeur FROM configuration WHERE cle = 'inscriptions_ouvertes'
-        `);
-        
-        const inscriptionsOuvertes = config[0]?.valeur === 'true' || config[0]?.valeur === '1';
-        
-        if (!inscriptionsOuvertes) {
-            return res.status(403).json({
-                success: false,
-                message: 'Les inscriptions sont fermées'
-            });
-        }
-        
-        // Récupérer les infos du planning
-        const plannings = await query(`
-            SELECT p.*, a.nombre_places_max, a.id as atelier_id
-            FROM planning p
-            JOIN ateliers a ON p.atelier_id = a.id
-            WHERE p.id = ?
-        `, [planningId]);
-        
-        if (plannings.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Atelier non trouvé dans le planning'
-            });
-        }
-        
-        const planning = plannings[0];
-        
-        // Vérifier qu'il reste des places
-        const inscrits = await query(`
-            SELECT COUNT(*) as count
-            FROM inscriptions
-            WHERE planning_id = ? AND statut = 'confirmee'
-        `, [planningId]);
-        
-        if (inscrits[0].count >= planning.nombre_places_max) {
-            return res.status(400).json({
-                success: false,
-                message: 'Atelier complet, plus de places disponibles'
-            });
-        }
-        
-        // Vérifier que l'élève n'est pas déjà inscrit
-        const dejaInscrit = await query(`
-            SELECT id FROM inscriptions
-            WHERE eleve_id = ? AND atelier_id = ? AND statut != 'annulee'
-        `, [eleve.id, planning.atelier_id]);
-        
-        if (dejaInscrit.length > 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'Vous êtes déjà inscrit à cet atelier'
-            });
-        }
-        
-        // Vérifier les conflits horaires (AMÉLIORÉ V5 - multi-périodes)
-        // Récupérer l'atelier et ses créneaux
-        const atelierInfo = await query(`
-            SELECT a.duree, p.creneau_debut_id, p.nombre_creneaux, c.jour
-            FROM planning p
-            JOIN ateliers a ON p.atelier_id = a.id
-            JOIN creneaux c ON p.creneau_debut_id = c.id
-            WHERE p.id = ?
-        `, [planningId]);
-        
-        if (atelierInfo.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Planning non trouvé'
-            });
-        }
-        
-        const nouvelAtelier = atelierInfo[0];
-        
-        // Récupérer tous les créneaux occupés par ce nouvel atelier
-        const creneauxNouvelAtelier = await query(`
-            SELECT id, jour, periode, ordre
-            FROM creneaux
-            WHERE jour = ? AND ordre >= (
-                SELECT ordre FROM creneaux WHERE id = ?
-            ) AND ordre < (
-                SELECT ordre + ? FROM creneaux WHERE id = ?
-            )
-        `, [
-            nouvelAtelier.jour,
-            nouvelAtelier.creneau_debut_id,
-            nouvelAtelier.nombre_creneaux,
-            nouvelAtelier.creneau_debut_id
-        ]);
-        
-        const creneauxIds = creneauxNouvelAtelier.map(c => c.id);
-        
-        // Vérifier si l'élève a déjà un atelier sur UN de ces créneaux
-        const conflits = await query(`
-            SELECT 
-                a.nom as atelier_nom,
-                a.duree,
-                c.jour,
-                c.periode,
-                c2.periode as periode_conflit
-            FROM inscriptions i
-            JOIN planning p ON i.planning_id = p.id
-            JOIN ateliers a ON i.atelier_id = a.id
-            JOIN creneaux c ON p.creneau_debut_id = c.id
-            JOIN creneaux c2 ON c2.jour = c.jour 
-                AND c2.ordre >= c.ordre 
-                AND c2.ordre < c.ordre + p.nombre_creneaux
-            WHERE i.eleve_id = ? 
-            AND i.statut = 'confirmee'
-            AND c2.id IN (?)
-        `, [eleve.id, creneauxIds]);
-        
-        if (conflits.length > 0) {
-            const conflit = conflits[0];
-            return res.status(400).json({
-                success: false,
-                message: `Conflit horaire avec l'atelier "${conflit.atelier_nom}" (${conflit.jour} ${conflit.periode_conflit})`
-            });
-        }
-        
-        // Vérification spéciale : ateliers 6 périodes bloquent toute la journée
-        if (nouvelAtelier.duree === 6) {
-            // Vérifier qu'aucun autre atelier ce jour-là
-            const autresAteliersJour = await query(`
+        // Utiliser une transaction avec verrouillage pour éviter les inscriptions simultanées
+        const result = await transaction(async (connection) => {
+            // Récupérer l'élève et sa classe
+            const [eleves] = await connection.execute(`
+                SELECT e.*, c.nom as classe_nom, c.inscriptions_ouvertes
+                FROM eleves e
+                JOIN classes c ON e.classe_id = c.id
+                WHERE e.utilisateur_id = ?
+            `, [eleveUserId]);
+            
+            if (eleves.length === 0) {
+                throw new Error('Élève non trouvé');
+            }
+            
+            const eleve = eleves[0];
+            
+            // Vérifier que les inscriptions sont ouvertes pour cette classe
+            if (!eleve.inscriptions_ouvertes) {
+                throw new Error('Les inscriptions ne sont pas ouvertes pour ta classe');
+            }
+            
+            // Récupérer les infos du planning AVEC VERROUILLAGE
+            const [plannings] = await connection.execute(`
+                SELECT p.*, a.nombre_places_max, a.id as atelier_id, a.nom as atelier_nom, a.duree
+                FROM planning p
+                JOIN ateliers a ON p.atelier_id = a.id
+                WHERE p.id = ?
+                FOR UPDATE
+            `, [planningId]);
+            
+            if (plannings.length === 0) {
+                throw new Error('Atelier non trouvé dans le planning');
+            }
+            
+            const planning = plannings[0];
+            
+            // Récupérer le quota
+            const [quotaConfig] = await connection.execute(`
+                SELECT valeur FROM configuration WHERE cle = 'quota_places_pourcent'
+            `);
+            const quotaPourcent = parseFloat(quotaConfig[0]?.valeur || 100);
+            const placesQuota = Math.ceil(planning.nombre_places_max * quotaPourcent / 100);
+            
+            // Compter les inscrits actuels (avec verrou)
+            const [inscrits] = await connection.execute(`
                 SELECT COUNT(*) as count
+                FROM inscriptions
+                WHERE planning_id = ? AND statut = 'confirmee'
+            `, [planningId]);
+            
+            if (inscrits[0].count >= placesQuota) {
+                throw new Error('Atelier complet, plus de places disponibles');
+            }
+            
+            // Vérifier que l'élève n'est pas déjà inscrit à cet atelier (sur ce créneau)
+            const [dejaInscrit] = await connection.execute(`
+                SELECT id FROM inscriptions
+                WHERE eleve_id = ? AND planning_id = ? AND statut = 'confirmee'
+            `, [eleve.id, planningId]);
+            
+            if (dejaInscrit.length > 0) {
+                throw new Error('Tu es déjà inscrit à cet atelier sur ce créneau');
+            }
+            
+            // Vérifier les conflits horaires
+            // Calculer les créneaux couverts par ce nouvel atelier
+            const creneauxCouverts = [];
+            for (let i = 0; i < planning.nombre_creneaux; i++) {
+                creneauxCouverts.push(planning.creneau_id + i);
+            }
+            
+            // Vérifier si l'élève a déjà un atelier sur l'un de ces créneaux
+            const [conflits] = await connection.execute(`
+                SELECT DISTINCT a.nom as atelier_nom
                 FROM inscriptions i
                 JOIN planning p ON i.planning_id = p.id
-                JOIN creneaux c ON p.creneau_debut_id = c.id
+                JOIN ateliers a ON p.atelier_id = a.id
                 WHERE i.eleve_id = ? 
                 AND i.statut = 'confirmee'
-                AND c.jour = ?
-            `, [eleve.id, nouvelAtelier.jour]);
+                AND (
+                    ${creneauxCouverts.map(c => `(p.creneau_id <= ${c} AND p.creneau_id + p.nombre_creneaux > ${c})`).join(' OR ')}
+                )
+            `, [eleve.id]);
             
-            if (autresAteliersJour[0].count > 0) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Impossible : cet atelier de 6 périodes occupe toute la journée et vous êtes déjà inscrit à un autre atelier ce jour-là'
-                });
+            if (conflits.length > 0) {
+                throw new Error(`Conflit horaire avec "${conflits[0].atelier_nom}"`);
             }
-        }
-        
-        // Vérification inverse : si élève a déjà un 6p ce jour, bloquer
-        const atelier6pCeJour = await query(`
-            SELECT a.nom
-            FROM inscriptions i
-            JOIN planning p ON i.planning_id = p.id
-            JOIN ateliers a ON p.atelier_id = a.id
-            JOIN creneaux c ON p.creneau_debut_id = c.id
-            WHERE i.eleve_id = ? 
-            AND i.statut = 'confirmee'
-            AND c.jour = ?
-            AND a.duree = 6
-        `, [eleve.id, nouvelAtelier.jour]);
-        
-        if (atelier6pCeJour.length > 0) {
-            return res.status(400).json({
-                success: false,
-                message: `Impossible : vous êtes déjà inscrit à l'atelier "${atelier6pCeJour[0].nom}" qui occupe toute la journée ${nouvelAtelier.jour}`
-            });
-        }
-        
-        // Inscrire l'élève
-        const result = await query(`
-            INSERT INTO inscriptions (eleve_id, atelier_id, planning_id, statut)
-            VALUES (?, ?, ?, 'confirmee')
-        `, [eleve.id, planning.atelier_id, planningId]);
-        
-        // Log
-        await query(
-            'INSERT INTO historique (utilisateur_id, action, table_cible, id_cible, details) VALUES (?, ?, ?, ?, ?)',
-            [req.user.id, 'INSCRIPTION', 'inscriptions', result.insertId, `Inscription atelier ${planning.atelier_id}`]
-        );
+            
+            // Tout est OK, créer l'inscription
+            const [insertResult] = await connection.execute(`
+                INSERT INTO inscriptions (eleve_id, atelier_id, planning_id, statut, date_inscription)
+                VALUES (?, ?, ?, 'confirmee', NOW())
+            `, [eleve.id, planning.atelier_id, planningId]);
+            
+            return {
+                inscriptionId: insertResult.insertId,
+                atelierNom: planning.atelier_nom
+            };
+        });
         
         res.json({
             success: true,
-            message: 'Inscription réussie !',
-            data: {
-                inscription_id: result.insertId
-            }
+            message: `Inscription confirmée pour "${result.atelierNom}"`,
+            data: { inscription_id: result.inscriptionId }
         });
         
     } catch (error) {
         console.error('Erreur inscription:', error);
-        res.status(500).json({
+        res.status(400).json({
             success: false,
-            message: 'Erreur lors de l\'inscription'
+            message: error.message || 'Erreur lors de l\'inscription'
         });
     }
 });
@@ -406,7 +341,10 @@ router.delete('/desinscrire/:inscriptionId', async (req, res) => {
         
         // Récupérer l'élève
         const eleves = await query(`
-            SELECT id FROM eleves WHERE utilisateur_id = ?
+            SELECT e.*, c.inscriptions_ouvertes
+            FROM eleves e
+            JOIN classes c ON e.classe_id = c.id
+            WHERE e.utilisateur_id = ?
         `, [eleveUserId]);
         
         if (eleves.length === 0) {
@@ -416,13 +354,23 @@ router.delete('/desinscrire/:inscriptionId', async (req, res) => {
             });
         }
         
-        const eleveId = eleves[0].id;
+        const eleve = eleves[0];
         
-        // Vérifier que l'inscription appartient à l'élève et n'est pas manuelle
+        // Vérifier que les inscriptions sont ouvertes
+        if (!eleve.inscriptions_ouvertes) {
+            return res.status(403).json({
+                success: false,
+                message: 'Les modifications ne sont pas autorisées'
+            });
+        }
+        
+        // Vérifier que l'inscription appartient à cet élève
         const inscriptions = await query(`
-            SELECT * FROM inscriptions
-            WHERE id = ? AND eleve_id = ?
-        `, [inscriptionId, eleveId]);
+            SELECT i.*, a.nom as atelier_nom
+            FROM inscriptions i
+            JOIN ateliers a ON i.atelier_id = a.id
+            WHERE i.id = ? AND i.eleve_id = ?
+        `, [inscriptionId, eleve.id]);
         
         if (inscriptions.length === 0) {
             return res.status(404).json({
@@ -431,29 +379,14 @@ router.delete('/desinscrire/:inscriptionId', async (req, res) => {
             });
         }
         
-        const inscription = inscriptions[0];
-        
-        if (inscription.inscription_manuelle) {
-            return res.status(403).json({
-                success: false,
-                message: 'Impossible de se désinscrire d\'un atelier obligatoire'
-            });
-        }
-        
-        // Annuler l'inscription
+        // Supprimer l'inscription (ou marquer comme annulée)
         await query(`
             UPDATE inscriptions SET statut = 'annulee' WHERE id = ?
         `, [inscriptionId]);
         
-        // Log
-        await query(
-            'INSERT INTO historique (utilisateur_id, action, table_cible, id_cible, details) VALUES (?, ?, ?, ?, ?)',
-            [req.user.id, 'DESINSCRIPTION', 'inscriptions', inscriptionId, 'Désinscription atelier']
-        );
-        
         res.json({
             success: true,
-            message: 'Désinscription réussie'
+            message: `Désinscription de "${inscriptions[0].atelier_nom}" effectuée`
         });
         
     } catch (error) {
@@ -462,6 +395,26 @@ router.delete('/desinscrire/:inscriptionId', async (req, res) => {
             success: false,
             message: 'Erreur lors de la désinscription'
         });
+    }
+});
+
+/**
+ * GET /api/eleves/creneaux
+ * Liste des créneaux pour l'affichage de l'horaire
+ */
+router.get('/creneaux', async (req, res) => {
+    try {
+        const creneaux = await query(`
+            SELECT * FROM creneaux ORDER BY ordre
+        `);
+        
+        res.json({
+            success: true,
+            data: creneaux
+        });
+    } catch (error) {
+        console.error('Erreur créneaux:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
 
