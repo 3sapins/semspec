@@ -44,8 +44,6 @@ router.get('/ateliers-disponibles', async (req, res) => {
         `);
         const quotaPourcent = parseFloat(quotaConfig[0]?.valeur || 100);
         
-        // MODIFICATION V5: Retourner les ateliers même si inscriptions fermées (en lecture seule)
-        
         // Récupérer les ateliers disponibles avec places restantes
         const ateliers = await query(`
             SELECT 
@@ -61,8 +59,11 @@ router.get('/ateliers-disponibles', async (req, res) => {
                 a.enseignant2_acronyme,
                 a.enseignant3_acronyme,
                 p.id as planning_id,
+                p.creneau_id,
+                p.nombre_creneaux,
                 c.jour,
                 c.periode,
+                c.ordre as creneau_ordre,
                 c.heure_debut,
                 c.heure_fin,
                 s.nom as salle_nom,
@@ -78,7 +79,7 @@ router.get('/ateliers-disponibles', async (req, res) => {
             FROM ateliers a
             JOIN utilisateurs u ON a.enseignant_acronyme = u.acronyme
             LEFT JOIN planning p ON a.id = p.atelier_id
-            LEFT JOIN creneaux c ON p.creneau_debut_id = c.id
+            LEFT JOIN creneaux c ON p.creneau_id = c.id
             LEFT JOIN salles s ON p.salle_id = s.id
             LEFT JOIN inscriptions i ON a.id = i.atelier_id AND i.statut = 'confirmee'
             WHERE a.statut = 'valide'
@@ -92,6 +93,7 @@ router.get('/ateliers-disponibles', async (req, res) => {
             quota_pourcent: quotaPourcent,
             data: ateliers,
             eleve_info: {
+                id: eleve.id,
                 classe: eleve.classe_nom
             }
         });
@@ -127,28 +129,33 @@ router.get('/mes-inscriptions', async (req, res) => {
         
         const eleveId = eleves[0].id;
         
-        // Récupérer les inscriptions
+        // Récupérer les inscriptions avec les créneaux couverts
         const inscriptions = await query(`
             SELECT 
                 i.id,
                 i.statut,
                 i.date_inscription,
                 i.inscription_manuelle,
+                a.id as atelier_id,
                 a.nom as atelier_nom,
                 a.description as atelier_description,
                 a.informations_eleves,
+                a.duree,
                 u.nom as enseignant_nom,
                 u.prenom as enseignant_prenom,
                 p.id as planning_id,
+                p.creneau_id,
+                p.nombre_creneaux,
                 c.jour,
                 c.periode,
+                c.ordre as creneau_ordre,
                 c.heure_debut,
                 c.heure_fin,
                 s.nom as salle_nom
             FROM inscriptions i
             JOIN ateliers a ON i.atelier_id = a.id
             LEFT JOIN planning p ON i.planning_id = p.id
-            LEFT JOIN creneaux c ON p.creneau_debut_id = c.id
+            LEFT JOIN creneaux c ON p.creneau_id = c.id
             LEFT JOIN salles s ON p.salle_id = s.id
             JOIN utilisateurs u ON a.enseignant_acronyme = u.acronyme
             WHERE i.eleve_id = ? AND i.statut != 'annulee'
