@@ -882,7 +882,7 @@ router.post('/placer-manuel', async (req, res) => {
         }
         
         // Récupérer info atelier
-        const ateliers = await query('SELECT duree FROM ateliers WHERE id = ?', [atelier_id]);
+        const ateliers = await query('SELECT * FROM ateliers WHERE id = ?', [atelier_id]);
         if (ateliers.length === 0) {
             return res.status(404).json({
                 success: false,
@@ -890,10 +890,99 @@ router.post('/placer-manuel', async (req, res) => {
             });
         }
         
-        const duree = ateliers[0].duree;
+        const atelier = ateliers[0];
+        const duree = atelier.duree;
         const nombreCreneaux = Math.ceil(duree / 2);
         
-        // Placer (un atelier peut être placé plusieurs fois)
+        // Récupérer info créneau
+        const creneauxInfo = await query('SELECT * FROM creneaux ORDER BY ordre');
+        const creneauIndex = creneauxInfo.findIndex(c => c.id === parseInt(creneau_id));
+        
+        if (creneauIndex === -1) {
+            return res.status(404).json({
+                success: false,
+                message: 'Créneau non trouvé'
+            });
+        }
+        
+        // Vérifier que les créneaux nécessaires existent
+        if (creneauIndex + nombreCreneaux > creneauxInfo.length) {
+            return res.status(400).json({
+                success: false,
+                message: `Pas assez de créneaux disponibles pour un atelier de ${duree} périodes`
+            });
+        }
+        
+        // Collecter les créneaux nécessaires
+        const creneauxNecessaires = [];
+        for (let i = 0; i < nombreCreneaux; i++) {
+            creneauxNecessaires.push(creneauxInfo[creneauIndex + i]);
+        }
+        
+        // Vérifier mercredi après-midi
+        for (const c of creneauxNecessaires) {
+            if (c.jour === 'mercredi' && c.periode === 'P6-7') {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Impossible de placer un atelier le mercredi après-midi'
+                });
+            }
+        }
+        
+        // Vérifier si le créneau est déjà occupé par un atelier multi-créneaux
+        for (const c of creneauxNecessaires) {
+            // Vérifier si un autre atelier occupe ce créneau dans cette salle
+            const conflitSalle = await query(`
+                SELECT p.*, a.nom as atelier_nom, a.duree
+                FROM planning p
+                JOIN ateliers a ON p.atelier_id = a.id
+                WHERE p.salle_id = ?
+                AND (
+                    -- Le créneau est le créneau de début
+                    p.creneau_id = ?
+                    -- Ou le créneau est couvert par un atelier multi-créneaux
+                    OR (p.creneau_id <= ? AND p.creneau_id + p.nombre_creneaux > ?)
+                )
+            `, [salle_id, c.id, c.id, c.id]);
+            
+            if (conflitSalle.length > 0) {
+                const conflit = conflitSalle[0];
+                return res.status(400).json({
+                    success: false,
+                    message: `Créneau occupé : "${conflit.atelier_nom}" (${conflit.duree}p) utilise déjà cette salle sur ce créneau`
+                });
+            }
+        }
+        
+        // Vérifier si les enseignants sont disponibles
+        const enseignants = [atelier.enseignant_acronyme];
+        if (atelier.enseignant2_acronyme) enseignants.push(atelier.enseignant2_acronyme);
+        if (atelier.enseignant3_acronyme) enseignants.push(atelier.enseignant3_acronyme);
+        
+        for (const c of creneauxNecessaires) {
+            for (const ens of enseignants) {
+                // Vérifier si l'enseignant anime déjà un atelier
+                const conflitEns = await query(`
+                    SELECT p.*, a.nom as atelier_nom
+                    FROM planning p
+                    JOIN ateliers a ON p.atelier_id = a.id
+                    WHERE (a.enseignant_acronyme = ? OR a.enseignant2_acronyme = ? OR a.enseignant3_acronyme = ?)
+                    AND (
+                        p.creneau_id = ?
+                        OR (p.creneau_id <= ? AND p.creneau_id + p.nombre_creneaux > ?)
+                    )
+                `, [ens, ens, ens, c.id, c.id, c.id]);
+                
+                if (conflitEns.length > 0) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `L'enseignant ${ens} anime déjà "${conflitEns[0].atelier_nom}" sur ce créneau`
+                    });
+                }
+            }
+        }
+        
+        // Tout est OK, placer l'atelier
         await query(`
             INSERT INTO planning (atelier_id, salle_id, creneau_id, nombre_creneaux, valide)
             VALUES (?, ?, ?, ?, TRUE)
@@ -901,7 +990,7 @@ router.post('/placer-manuel', async (req, res) => {
         
         await query(
             'INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
-            [req.user.id, 'PLACEMENT_MANUEL', `Atelier ${atelier_id} placé manuellement`]
+            [req.user.id, 'PLACEMENT_MANUEL', `Atelier "${atelier.nom}" placé manuellement`]
         );
         
         res.json({
