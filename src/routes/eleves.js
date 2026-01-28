@@ -57,6 +57,26 @@ router.get('/ateliers-disponibles', async (req, res) => {
             }
         });
         
+        // Debug: tester chaque JOIN séparément
+        const debug1 = await query(`SELECT COUNT(*) as c FROM ateliers WHERE statut = 'valide'`);
+        const debug2 = await query(`SELECT COUNT(*) as c FROM planning`);
+        const debug3 = await query(`SELECT COUNT(*) as c FROM ateliers a INNER JOIN planning p ON a.id = p.atelier_id WHERE a.statut = 'valide'`);
+        const debug4 = await query(`SELECT COUNT(*) as c FROM creneaux`);
+        const debug5 = await query(`
+            SELECT COUNT(*) as c 
+            FROM ateliers a 
+            INNER JOIN planning p ON a.id = p.atelier_id 
+            INNER JOIN creneaux c ON p.creneau_id = c.id 
+            WHERE a.statut = 'valide'
+        `);
+        
+        console.log(`[ELEVES DEBUG]`);
+        console.log(`  - Ateliers validés: ${debug1[0].c}`);
+        console.log(`  - Planning entries: ${debug2[0].c}`);
+        console.log(`  - Ateliers+Planning JOIN: ${debug3[0].c}`);
+        console.log(`  - Creneaux total: ${debug4[0].c}`);
+        console.log(`  - Ateliers+Planning+Creneaux JOIN: ${debug5[0].c}`);
+        
         // Récupérer tous les ateliers placés dans le planning avec leurs créneaux
         const ateliers = await query(`
             SELECT 
@@ -66,11 +86,12 @@ router.get('/ateliers-disponibles', async (req, res) => {
                 a.duree,
                 a.nombre_places_max,
                 a.informations_eleves,
+                a.enseignant_acronyme,
                 t.nom as theme_nom,
                 t.couleur as theme_couleur,
                 t.icone as theme_icone,
-                u.nom as enseignant_nom,
-                u.prenom as enseignant_prenom,
+                COALESCE(u.nom, a.enseignant_acronyme) as enseignant_nom,
+                COALESCE(u.prenom, '') as enseignant_prenom,
                 p.id as planning_id,
                 p.creneau_id,
                 p.nombre_creneaux,
@@ -80,14 +101,16 @@ router.get('/ateliers-disponibles', async (req, res) => {
                 s.nom as salle_nom,
                 (SELECT COUNT(*) FROM inscriptions WHERE planning_id = p.id AND statut = 'confirmee') as nb_inscrits
             FROM ateliers a
-            JOIN utilisateurs u ON a.enseignant_acronyme = u.acronyme
-            JOIN planning p ON a.id = p.atelier_id
-            JOIN creneaux c ON p.creneau_id = c.id
+            INNER JOIN planning p ON a.id = p.atelier_id
+            INNER JOIN creneaux c ON p.creneau_id = c.id
+            LEFT JOIN utilisateurs u ON a.enseignant_acronyme = u.acronyme
             LEFT JOIN salles s ON p.salle_id = s.id
             LEFT JOIN themes t ON a.theme_id = t.id
             WHERE a.statut = 'valide'
             ORDER BY c.ordre, a.nom
         `);
+        
+        console.log(`  - Final result: ${ateliers.length} ateliers`);
         
         // Enrichir chaque atelier avec les infos de disponibilité
         const ateliersEnrichis = ateliers.map(a => {
