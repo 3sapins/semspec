@@ -14,24 +14,30 @@ router.get('/dashboard', async (req, res) => {
     try {
         const acronyme = req.user.acronyme;
         
-        // Statistiques des ateliers de l'enseignant
+        // Statistiques des ateliers de l'enseignant (principal + co-animateur)
         const ateliers = await query(`
             SELECT 
                 statut,
                 COUNT(*) as count,
-                SUM(budget_max) as budget_total
+                COALESCE(SUM(budget_max), 0) as budget_total
             FROM ateliers 
-            WHERE enseignant_acronyme = ?
+            WHERE enseignant_acronyme = ? 
+               OR enseignant2_acronyme = ? 
+               OR enseignant3_acronyme = ?
             GROUP BY statut
-        `, [acronyme]);
+        `, [acronyme, acronyme, acronyme]);
         
         // Total des inscriptions à ses ateliers
         const inscriptions = await query(`
             SELECT COUNT(DISTINCT i.id) as total
             FROM inscriptions i
-            JOIN ateliers a ON i.atelier_id = a.id
-            WHERE a.enseignant_acronyme = ? AND i.statut = 'confirmee'
-        `, [acronyme]);
+            JOIN planning p ON i.planning_id = p.id
+            JOIN ateliers a ON p.atelier_id = a.id
+            WHERE (a.enseignant_acronyme = ? 
+                   OR a.enseignant2_acronyme = ? 
+                   OR a.enseignant3_acronyme = ?)
+            AND i.statut = 'confirmee'
+        `, [acronyme, acronyme, acronyme]);
         
         // Disponibilités déclarées
         const disponibilites = await query(`
@@ -40,12 +46,20 @@ router.get('/dashboard', async (req, res) => {
             WHERE enseignant_acronyme = ? AND disponible = TRUE
         `, [acronyme]);
         
+        // Vérifier si les disponibilités sont validées
+        const validation = await query(`
+            SELECT valide FROM disponibilites_enseignants 
+            WHERE enseignant_acronyme = ? 
+            LIMIT 1
+        `, [acronyme]);
+        
         res.json({
             success: true,
             data: {
                 ateliers: ateliers,
                 inscriptions_total: inscriptions[0]?.total || 0,
                 disponibilites_declarees: disponibilites[0]?.count || 0,
+                disponibilites_validees: validation[0]?.valide || false,
                 creneaux_total: 14
             }
         });
@@ -60,6 +74,203 @@ router.get('/dashboard', async (req, res) => {
 });
 
 /**
+ * GET /api/enseignants/mon-horaire
+ * Horaire complet de l'enseignant avec nb inscrits par créneau
+ */
+router.get('/mon-horaire', async (req, res) => {
+    try {
+        const acronyme = req.user.acronyme;
+        
+        // Récupérer l'horaire de l'enseignant
+        const horaire = await query(`
+            SELECT 
+                p.id as planning_id,
+                p.creneau_id,
+                p.nombre_creneaux,
+                a.id as atelier_id,
+                a.nom as atelier_nom,
+                a.duree,
+                a.nombre_places_max,
+                c.jour,
+                c.periode,
+                c.ordre,
+                s.nom as salle_nom,
+                (SELECT COUNT(*) FROM inscriptions 
+                 WHERE planning_id = p.id AND statut = 'confirmee') as nb_inscrits
+            FROM planning p
+            JOIN ateliers a ON p.atelier_id = a.id
+            JOIN creneaux c ON p.creneau_id = c.id
+            LEFT JOIN salles s ON p.salle_id = s.id
+            WHERE (a.enseignant_acronyme = ? 
+                   OR a.enseignant2_acronyme = ? 
+                   OR a.enseignant3_acronyme = ?)
+            AND a.statut = 'valide'
+            ORDER BY c.ordre
+        `, [acronyme, acronyme, acronyme]);
+        
+        // Récupérer tous les créneaux pour la grille
+        const creneaux = await query('SELECT * FROM creneaux ORDER BY ordre');
+        
+        res.json({
+            success: true,
+            data: {
+                ateliers: horaire,
+                creneaux: creneaux
+            }
+        });
+        
+    } catch (error) {
+        console.error('Erreur horaire enseignant:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur lors de la récupération de l\'horaire'
+        });
+    }
+});
+
+/**
+ * GET /api/enseignants/listes/:planningId
+ * Liste des élèves inscrits à un créneau spécifique
+ */
+router.get('/listes/:planningId', async (req, res) => {
+    try {
+        const { planningId } = req.params;
+        const acronyme = req.user.acronyme;
+        
+        // Vérifier que c'est un atelier de l'enseignant
+        const planning = await query(`
+            SELECT p.id, p.creneau_id, a.id as atelier_id, a.nom, a.nombre_places_max,
+                   c.jour, c.periode, s.nom as salle_nom
+            FROM planning p
+            JOIN ateliers a ON p.atelier_id = a.id
+            JOIN creneaux c ON p.creneau_id = c.id
+            LEFT JOIN salles s ON p.salle_id = s.id
+            WHERE p.id = ?
+            AND (a.enseignant_acronyme = ? 
+                 OR a.enseignant2_acronyme = ? 
+                 OR a.enseignant3_acronyme = ?)
+        `, [planningId, acronyme, acronyme, acronyme]);
+        
+        if (planning.length === 0) {
+            return res.status(403).json({
+                success: false,
+                message: 'Accès non autorisé à cet atelier'
+            });
+        }
+        
+        // Récupérer les élèves inscrits
+        const eleves = await query(`
+            SELECT 
+                i.id as inscription_id,
+                e.id as eleve_id,
+                u.nom,
+                u.prenom,
+                cl.nom as classe_nom,
+                i.statut,
+                i.inscription_manuelle
+            FROM inscriptions i
+            JOIN eleves e ON i.eleve_id = e.id
+            JOIN utilisateurs u ON e.utilisateur_id = u.id
+            JOIN classes cl ON e.classe_id = cl.id
+            WHERE i.planning_id = ? AND i.statut = 'confirmee'
+            ORDER BY cl.nom, u.nom, u.prenom
+        `, [planningId]);
+        
+        res.json({
+            success: true,
+            data: {
+                planning: planning[0],
+                eleves: eleves,
+                total: eleves.length
+            }
+        });
+        
+    } catch (error) {
+        console.error('Erreur liste élèves:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur lors de la récupération de la liste'
+        });
+    }
+});
+
+/**
+ * GET /api/enseignants/catalogue
+ * Catalogue de tous les ateliers validés (avec noms enseignants)
+ */
+router.get('/catalogue', async (req, res) => {
+    try {
+        const ateliers = await query(`
+            SELECT 
+                a.id,
+                a.nom,
+                a.description,
+                a.duree,
+                a.nombre_places_max,
+                a.informations_eleves,
+                a.enseignant_acronyme,
+                a.enseignant2_acronyme,
+                a.enseignant3_acronyme,
+                CONCAT_WS(', ',
+                    (SELECT CONCAT(prenom, ' ', nom) FROM utilisateurs WHERE acronyme = a.enseignant_acronyme),
+                    (SELECT CONCAT(prenom, ' ', nom) FROM utilisateurs WHERE acronyme = a.enseignant2_acronyme),
+                    (SELECT CONCAT(prenom, ' ', nom) FROM utilisateurs WHERE acronyme = a.enseignant3_acronyme)
+                ) as enseignants_noms,
+                t.nom as theme_nom,
+                t.couleur as theme_couleur,
+                t.icone as theme_icone
+            FROM ateliers a
+            LEFT JOIN themes t ON a.theme_id = t.id
+            WHERE a.statut = 'valide'
+            ORDER BY a.nom
+        `);
+        
+        // Pour chaque atelier, récupérer les créneaux
+        for (const atelier of ateliers) {
+            const creneaux = await query(`
+                SELECT 
+                    p.id as planning_id,
+                    c.jour,
+                    c.periode,
+                    s.nom as salle_nom,
+                    (SELECT COUNT(*) FROM inscriptions WHERE planning_id = p.id AND statut = 'confirmee') as nb_inscrits
+                FROM planning p
+                JOIN creneaux c ON p.creneau_id = c.id
+                LEFT JOIN salles s ON p.salle_id = s.id
+                WHERE p.atelier_id = ?
+                ORDER BY c.ordre
+            `, [atelier.id]);
+            atelier.creneaux = creneaux;
+        }
+        
+        res.json({
+            success: true,
+            data: ateliers
+        });
+        
+    } catch (error) {
+        console.error('Erreur catalogue:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur lors de la récupération du catalogue'
+        });
+    }
+});
+
+/**
+ * GET /api/enseignants/themes
+ * Liste des thèmes pour filtrage
+ */
+router.get('/themes', async (req, res) => {
+    try {
+        const themes = await query('SELECT * FROM themes ORDER BY nom');
+        res.json({ success: true, data: themes });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
  * GET /api/enseignants/ateliers
  * Liste des ateliers de l'enseignant
  */
@@ -70,14 +281,15 @@ router.get('/ateliers', async (req, res) => {
         const ateliers = await query(`
             SELECT 
                 a.*,
-                COUNT(DISTINCT i.id) as nombre_inscrits,
-                (a.nombre_places_max - COUNT(DISTINCT i.id)) as places_restantes
+                (SELECT COUNT(*) FROM inscriptions i 
+                 JOIN planning p ON i.planning_id = p.id 
+                 WHERE p.atelier_id = a.id AND i.statut = 'confirmee') as nombre_inscrits
             FROM ateliers a
-            LEFT JOIN inscriptions i ON a.id = i.atelier_id AND i.statut = 'confirmee'
             WHERE a.enseignant_acronyme = ?
-            GROUP BY a.id
+               OR a.enseignant2_acronyme = ?
+               OR a.enseignant3_acronyme = ?
             ORDER BY a.date_creation DESC
-        `, [acronyme]);
+        `, [acronyme, acronyme, acronyme]);
         
         res.json({
             success: true,
@@ -104,12 +316,15 @@ router.get('/ateliers/:id', async (req, res) => {
         
         const ateliers = await query(`
             SELECT a.*,
-                COUNT(DISTINCT i.id) as nombre_inscrits
+                (SELECT COUNT(*) FROM inscriptions i 
+                 JOIN planning p ON i.planning_id = p.id 
+                 WHERE p.atelier_id = a.id AND i.statut = 'confirmee') as nombre_inscrits
             FROM ateliers a
-            LEFT JOIN inscriptions i ON a.id = i.atelier_id AND i.statut = 'confirmee'
-            WHERE a.id = ? AND a.enseignant_acronyme = ?
-            GROUP BY a.id
-        `, [id, acronyme]);
+            WHERE a.id = ? 
+            AND (a.enseignant_acronyme = ? 
+                 OR a.enseignant2_acronyme = ? 
+                 OR a.enseignant3_acronyme = ?)
+        `, [id, acronyme, acronyme, acronyme]);
         
         if (ateliers.length === 0) {
             return res.status(404).json({
@@ -196,10 +411,12 @@ router.post('/ateliers', async (req, res) => {
         ]);
         
         // Log
-        await query(
-            'INSERT INTO historique (utilisateur_id, action, table_cible, id_cible, details) VALUES (?, ?, ?, ?, ?)',
-            [req.user.id, 'CREATE', 'ateliers', result.insertId, `Atelier "${nom}" créé`]
-        );
+        try {
+            await query(
+                'INSERT INTO historique (utilisateur_id, action, table_cible, id_cible, details) VALUES (?, ?, ?, ?, ?)',
+                [req.user.id, 'CREATE', 'ateliers', result.insertId, `Atelier "${nom}" créé`]
+            );
+        } catch (e) {}
         
         res.json({
             success: true,
@@ -239,8 +456,9 @@ router.put('/ateliers/:id', async (req, res) => {
         
         // Vérifier que l'atelier appartient à l'enseignant
         const ateliers = await query(
-            'SELECT * FROM ateliers WHERE id = ? AND enseignant_acronyme = ?',
-            [id, acronyme]
+            `SELECT * FROM ateliers WHERE id = ? 
+             AND (enseignant_acronyme = ? OR enseignant2_acronyme = ? OR enseignant3_acronyme = ?)`,
+            [id, acronyme, acronyme, acronyme]
         );
         
         if (ateliers.length === 0) {
@@ -256,11 +474,10 @@ router.put('/ateliers/:id', async (req, res) => {
         if (!['brouillon', 'refuse'].includes(atelier.statut)) {
             return res.status(403).json({
                 success: false,
-                message: 'Impossible de modifier un atelier déjà soumis ou validé'
+                message: 'Cet atelier ne peut plus être modifié'
             });
         }
         
-        // Mise à jour
         await query(`
             UPDATE ateliers SET
                 nom = ?,
@@ -273,22 +490,16 @@ router.put('/ateliers/:id', async (req, res) => {
                 informations_eleves = ?
             WHERE id = ?
         `, [
-            nom || atelier.nom,
+            nom !== undefined ? nom : atelier.nom,
             description !== undefined ? description : atelier.description,
-            duree || atelier.duree,
-            nombre_places_max || atelier.nombre_places_max,
+            duree !== undefined ? duree : atelier.duree,
+            nombre_places_max !== undefined ? nombre_places_max : atelier.nombre_places_max,
             budget_max !== undefined ? budget_max : atelier.budget_max,
             type_salle_demande !== undefined ? type_salle_demande : atelier.type_salle_demande,
             remarques !== undefined ? remarques : atelier.remarques,
             informations_eleves !== undefined ? informations_eleves : atelier.informations_eleves,
             id
         ]);
-        
-        // Log
-        await query(
-            'INSERT INTO historique (utilisateur_id, action, table_cible, id_cible, details) VALUES (?, ?, ?, ?, ?)',
-            [req.user.id, 'UPDATE', 'ateliers', id, `Atelier "${nom || atelier.nom}" modifié`]
-        );
         
         res.json({
             success: true,
@@ -313,9 +524,8 @@ router.delete('/ateliers/:id', async (req, res) => {
         const { id } = req.params;
         const acronyme = req.user.acronyme;
         
-        // Vérifier que l'atelier appartient à l'enseignant et est en brouillon
         const ateliers = await query(
-            'SELECT * FROM ateliers WHERE id = ? AND enseignant_acronyme = ? AND statut = "brouillon"',
+            `SELECT * FROM ateliers WHERE id = ? AND enseignant_acronyme = ? AND statut = 'brouillon'`,
             [id, acronyme]
         );
         
@@ -327,12 +537,6 @@ router.delete('/ateliers/:id', async (req, res) => {
         }
         
         await query('DELETE FROM ateliers WHERE id = ?', [id]);
-        
-        // Log
-        await query(
-            'INSERT INTO historique (utilisateur_id, action, table_cible, id_cible, details) VALUES (?, ?, ?, ?, ?)',
-            [req.user.id, 'DELETE', 'ateliers', id, `Atelier "${ateliers[0].nom}" supprimé`]
-        );
         
         res.json({
             success: true,
@@ -357,9 +561,8 @@ router.post('/ateliers/:id/soumettre', async (req, res) => {
         const { id } = req.params;
         const acronyme = req.user.acronyme;
         
-        // Vérifier que l'atelier appartient à l'enseignant et est en brouillon
         const ateliers = await query(
-            'SELECT * FROM ateliers WHERE id = ? AND enseignant_acronyme = ? AND statut = "brouillon"',
+            `SELECT * FROM ateliers WHERE id = ? AND enseignant_acronyme = ? AND statut = 'brouillon'`,
             [id, acronyme]
         );
         
@@ -370,16 +573,9 @@ router.post('/ateliers/:id/soumettre', async (req, res) => {
             });
         }
         
-        // Changer le statut à "soumis"
         await query(
             'UPDATE ateliers SET statut = "soumis" WHERE id = ?',
             [id]
-        );
-        
-        // Log
-        await query(
-            'INSERT INTO historique (utilisateur_id, action, table_cible, id_cible, details) VALUES (?, ?, ?, ?, ?)',
-            [req.user.id, 'SUBMIT', 'ateliers', id, `Atelier "${ateliers[0].nom}" soumis pour validation`]
         );
         
         res.json({
@@ -413,13 +609,16 @@ router.get('/disponibilites', async (req, res) => {
             [acronyme]
         );
         
-        // Créer un map pour faciliter l'accès
+        // Vérifier si validées
+        const validation = disponibilites.length > 0 ? disponibilites[0].valide : false;
+        
+        // Créer un map
         const dispoMap = {};
         disponibilites.forEach(d => {
             dispoMap[d.creneau_id] = d;
         });
         
-        // Construire la réponse avec tous les créneaux
+        // Construire la réponse
         const result = creneaux.map(c => ({
             creneau_id: c.id,
             jour: c.jour,
@@ -433,7 +632,8 @@ router.get('/disponibilites', async (req, res) => {
         
         res.json({
             success: true,
-            data: result
+            data: result,
+            valide: validation
         });
         
     } catch (error) {
@@ -454,8 +654,6 @@ router.put('/disponibilites', async (req, res) => {
         const acronyme = req.user.acronyme;
         const { disponibilites } = req.body;
         
-        // disponibilites est un tableau d'objets: [{creneau_id, disponible, periodes_enseignees_normalement}]
-        
         if (!Array.isArray(disponibilites)) {
             return res.status(400).json({
                 success: false,
@@ -463,20 +661,30 @@ router.put('/disponibilites', async (req, res) => {
             });
         }
         
-        // Utiliser une transaction pour tout mettre à jour
+        // Vérifier si les disponibilités sont déjà validées
+        const existantes = await query(
+            'SELECT valide FROM disponibilites_enseignants WHERE enseignant_acronyme = ? LIMIT 1',
+            [acronyme]
+        );
+        
+        if (existantes.length > 0 && existantes[0].valide) {
+            return res.status(403).json({
+                success: false,
+                message: 'Vos disponibilités ont été validées et ne peuvent plus être modifiées'
+            });
+        }
+        
         await transaction(async (connection) => {
-            // Supprimer les anciennes disponibilités
             await connection.execute(
                 'DELETE FROM disponibilites_enseignants WHERE enseignant_acronyme = ?',
                 [acronyme]
             );
             
-            // Insérer les nouvelles
             for (const dispo of disponibilites) {
                 await connection.execute(`
                     INSERT INTO disponibilites_enseignants 
-                    (enseignant_acronyme, creneau_id, disponible, periodes_enseignees_normalement)
-                    VALUES (?, ?, ?, ?)
+                    (enseignant_acronyme, creneau_id, disponible, periodes_enseignees_normalement, valide)
+                    VALUES (?, ?, ?, ?, FALSE)
                 `, [
                     acronyme,
                     dispo.creneau_id,
@@ -485,12 +693,6 @@ router.put('/disponibilites', async (req, res) => {
                 ]);
             }
         });
-        
-        // Log
-        await query(
-            'INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
-            [req.user.id, 'UPDATE_DISPONIBILITES', `Disponibilités mises à jour pour ${acronyme}`]
-        );
         
         res.json({
             success: true,
@@ -534,114 +736,127 @@ router.get('/types-salles', async (req, res) => {
 });
 
 /**
- * GET /api/enseignants/mon-horaire
- * Horaire de l'enseignant avec ses ateliers et nombre d'inscrits
+ * GET /api/enseignants/impression/horaire
+ * Données pour impression de l'horaire
  */
-router.get('/mon-horaire', async (req, res) => {
+router.get('/impression/horaire', async (req, res) => {
     try {
         const acronyme = req.user.acronyme;
         
-        // Récupérer tous les ateliers de l'enseignant placés dans le planning
-        const ateliers = await query(`
+        // Infos enseignant
+        const enseignant = await query(
+            'SELECT nom, prenom FROM utilisateurs WHERE acronyme = ?',
+            [acronyme]
+        );
+        
+        // Horaire
+        const horaire = await query(`
             SELECT 
                 p.id as planning_id,
                 p.creneau_id,
-                p.nombre_creneaux,
-                a.id as atelier_id,
                 a.nom as atelier_nom,
-                a.duree,
                 a.nombre_places_max,
                 c.jour,
                 c.periode,
-                c.ordre as creneau_ordre,
+                c.ordre,
                 s.nom as salle_nom,
-                (SELECT COUNT(*) FROM inscriptions WHERE planning_id = p.id AND statut = 'confirmee') as nb_inscrits
+                (SELECT COUNT(*) FROM inscriptions 
+                 WHERE planning_id = p.id AND statut = 'confirmee') as nb_inscrits
             FROM planning p
             JOIN ateliers a ON p.atelier_id = a.id
             JOIN creneaux c ON p.creneau_id = c.id
             LEFT JOIN salles s ON p.salle_id = s.id
-            WHERE (a.enseignant_acronyme = ? OR a.enseignant2_acronyme = ? OR a.enseignant3_acronyme = ?)
+            WHERE (a.enseignant_acronyme = ? 
+                   OR a.enseignant2_acronyme = ? 
+                   OR a.enseignant3_acronyme = ?)
             AND a.statut = 'valide'
             ORDER BY c.ordre
         `, [acronyme, acronyme, acronyme]);
         
-        // Récupérer tous les créneaux
-        const creneaux = await query(`SELECT * FROM creneaux ORDER BY ordre`);
+        const creneaux = await query('SELECT * FROM creneaux ORDER BY ordre');
         
         res.json({
             success: true,
             data: {
-                ateliers: ateliers,
-                creneaux: creneaux
+                enseignant: enseignant[0] || { nom: acronyme, prenom: '' },
+                horaire,
+                creneaux
             }
         });
         
     } catch (error) {
-        console.error('Erreur horaire enseignant:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Erreur lors de la récupération de l\'horaire'
-        });
+        console.error('Erreur impression horaire:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
 
 /**
- * GET /api/enseignants/listes/:planningId
- * Liste des élèves inscrits à un créneau de l'enseignant
+ * GET /api/enseignants/impression/listes
+ * Toutes les listes de l'enseignant pour impression
  */
-router.get('/listes/:planningId', async (req, res) => {
+router.get('/impression/listes', async (req, res) => {
     try {
-        const { planningId } = req.params;
         const acronyme = req.user.acronyme;
         
-        // Vérifier que c'est bien un atelier de cet enseignant
-        const verif = await query(`
-            SELECT p.id, a.nom as atelier_nom, c.jour, c.periode, s.nom as salle_nom,
-                   a.nombre_places_max
+        // Infos enseignant
+        const enseignant = await query(
+            'SELECT nom, prenom FROM utilisateurs WHERE acronyme = ?',
+            [acronyme]
+        );
+        
+        // Récupérer tous les plannings de l'enseignant
+        const plannings = await query(`
+            SELECT 
+                p.id as planning_id,
+                a.nom as atelier_nom,
+                a.nombre_places_max,
+                c.jour,
+                c.periode,
+                s.nom as salle_nom
             FROM planning p
             JOIN ateliers a ON p.atelier_id = a.id
             JOIN creneaux c ON p.creneau_id = c.id
             LEFT JOIN salles s ON p.salle_id = s.id
-            WHERE p.id = ?
-            AND (a.enseignant_acronyme = ? OR a.enseignant2_acronyme = ? OR a.enseignant3_acronyme = ?)
-        `, [planningId, acronyme, acronyme, acronyme]);
+            WHERE (a.enseignant_acronyme = ? 
+                   OR a.enseignant2_acronyme = ? 
+                   OR a.enseignant3_acronyme = ?)
+            AND a.statut = 'valide'
+            ORDER BY c.ordre
+        `, [acronyme, acronyme, acronyme]);
         
-        if (verif.length === 0) {
-            return res.status(403).json({
-                success: false,
-                message: 'Accès non autorisé'
+        // Pour chaque planning, récupérer les élèves
+        const listes = [];
+        for (const p of plannings) {
+            const eleves = await query(`
+                SELECT 
+                    u.nom, u.prenom,
+                    cl.nom as classe_nom
+                FROM inscriptions i
+                JOIN eleves e ON i.eleve_id = e.id
+                JOIN utilisateurs u ON e.utilisateur_id = u.id
+                JOIN classes cl ON e.classe_id = cl.id
+                WHERE i.planning_id = ? AND i.statut = 'confirmee'
+                ORDER BY cl.nom, u.nom, u.prenom
+            `, [p.planning_id]);
+            
+            listes.push({
+                ...p,
+                eleves,
+                total: eleves.length
             });
         }
         
-        // Récupérer les élèves
-        const eleves = await query(`
-            SELECT 
-                i.id as inscription_id,
-                e.id as eleve_id,
-                u.nom as eleve_nom,
-                u.prenom as eleve_prenom,
-                e.numero_eleve,
-                c.nom as classe_nom
-            FROM inscriptions i
-            JOIN eleves e ON i.eleve_id = e.id
-            JOIN utilisateurs u ON e.utilisateur_id = u.id
-            JOIN classes c ON e.classe_id = c.id
-            WHERE i.planning_id = ? AND i.statut = 'confirmee'
-            ORDER BY c.nom, u.nom, u.prenom
-        `, [planningId]);
-        
         res.json({
             success: true,
-            planning: verif[0],
-            data: eleves
+            data: {
+                enseignant: enseignant[0] || { nom: acronyme, prenom: '' },
+                listes
+            }
         });
         
     } catch (error) {
-        console.error('Erreur liste enseignant:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Erreur serveur'
-        });
+        console.error('Erreur impression listes:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
 

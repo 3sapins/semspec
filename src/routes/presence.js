@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { query, transaction } = require('../config/database');
+const { query } = require('../config/database');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 
 // Toutes les routes nécessitent authentification
@@ -27,7 +27,7 @@ router.get('/mes-ateliers', async (req, res) => {
                 cr.periode,
                 cr.ordre,
                 s.nom as salle_nom,
-                (SELECT COUNT(*) FROM inscriptions WHERE atelier_id = a.id) as total_inscrits,
+                (SELECT COUNT(*) FROM inscriptions WHERE planning_id = pl.id AND statut = 'confirmee') as total_inscrits,
                 (SELECT COUNT(*) FROM presences WHERE atelier_id = a.id AND creneau_id = cr.id AND statut = 'present') as presents,
                 (SELECT COUNT(*) FROM presences WHERE atelier_id = a.id AND creneau_id = cr.id AND statut = 'absent') as absents,
                 (SELECT MAX(valide_le) FROM presences WHERE atelier_id = a.id AND creneau_id = cr.id) as valide_le,
@@ -78,6 +78,13 @@ router.get('/atelier/:atelierId/:creneauId', async (req, res) => {
             }
         }
         
+        // Récupérer le planning_id pour ce créneau
+        const planningResult = await query(`
+            SELECT id FROM planning WHERE atelier_id = ? AND creneau_id = ?
+        `, [atelierId, creneauId]);
+        
+        const planningId = planningResult.length > 0 ? planningResult[0].id : null;
+        
         // Infos atelier
         const atelierInfo = await query(`
             SELECT 
@@ -96,7 +103,7 @@ router.get('/atelier/:atelierId/:creneauId', async (req, res) => {
             WHERE a.id = ?
         `, [creneauId, atelierId]);
         
-        // Liste élèves avec présence
+        // Liste élèves avec présence - via planning_id
         const eleves = await query(`
             SELECT 
                 e.id as eleve_id,
@@ -111,12 +118,12 @@ router.get('/atelier/:atelierId/:creneauId', async (req, res) => {
             JOIN eleves e ON i.eleve_id = e.id
             JOIN utilisateurs u ON e.utilisateur_id = u.id
             JOIN classes c ON e.classe_id = c.id
-            LEFT JOIN presences p ON p.atelier_id = i.atelier_id 
+            LEFT JOIN presences p ON p.atelier_id = ? 
                 AND p.eleve_id = e.id 
                 AND p.creneau_id = ?
-            WHERE i.atelier_id = ?
+            WHERE i.planning_id = ? AND i.statut = 'confirmee'
             ORDER BY c.nom, u.nom, u.prenom
-        `, [creneauId, atelierId]);
+        `, [atelierId, creneauId, planningId]);
         
         // Statut validation
         const validation = await query(`
@@ -149,7 +156,7 @@ router.get('/atelier/:atelierId/:creneauId', async (req, res) => {
 router.post('/atelier/:atelierId/:creneauId/pointer', async (req, res) => {
     try {
         const { atelierId, creneauId } = req.params;
-        const { presences } = req.body; // Array de { eleve_id, statut, commentaire }
+        const { presences } = req.body;
         const user = req.user;
         
         // Vérifier accès
@@ -171,15 +178,14 @@ router.post('/atelier/:atelierId/:creneauId/pointer', async (req, res) => {
             }
         }
         
-        // Enregistrer chaque présence
+        // Enregistrer chaque présence - SANS updated_at
         for (const p of presences) {
             await query(`
                 INSERT INTO presences (atelier_id, eleve_id, creneau_id, statut, commentaire)
                 VALUES (?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE 
                     statut = VALUES(statut),
-                    commentaire = VALUES(commentaire),
-                    updated_at = CURRENT_TIMESTAMP
+                    commentaire = VALUES(commentaire)
             `, [atelierId, p.eleve_id, creneauId, p.statut, p.commentaire || null]);
         }
         
@@ -222,7 +228,7 @@ router.post('/atelier/:atelierId/:creneauId/valider', async (req, res) => {
             }
         }
         
-        // Enregistrer et valider chaque présence
+        // Enregistrer et valider chaque présence - SANS updated_at
         let presents = 0, absents = 0;
         
         for (const p of presences) {
@@ -233,8 +239,7 @@ router.post('/atelier/:atelierId/:creneauId/valider', async (req, res) => {
                     statut = VALUES(statut),
                     commentaire = VALUES(commentaire),
                     valide_par = VALUES(valide_par),
-                    valide_le = NOW(),
-                    updated_at = CURRENT_TIMESTAMP
+                    valide_le = NOW()
             `, [atelierId, p.eleve_id, creneauId, p.statut, p.commentaire || null, user.acronyme]);
             
             if (p.statut === 'present') presents++;
@@ -242,10 +247,14 @@ router.post('/atelier/:atelierId/:creneauId/valider', async (req, res) => {
         }
         
         // Historique
-        await query(
-            'INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
-            [user.id, 'VALIDATE_PRESENCE', `Présences validées atelier #${atelierId} créneau #${creneauId}: ${presents}P/${absents}A`]
-        );
+        try {
+            await query(
+                'INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
+                [user.id, 'VALIDATE_PRESENCE', `Présences validées atelier #${atelierId} créneau #${creneauId}: ${presents}P/${absents}A`]
+            );
+        } catch (e) {
+            // Ignorer si table historique n'existe pas
+        }
         
         res.json({ 
             success: true, 
@@ -281,7 +290,7 @@ router.get('/admin/ateliers', adminMiddleware, async (req, res) => {
                 cr.periode,
                 cr.ordre,
                 s.nom as salle_nom,
-                (SELECT COUNT(*) FROM inscriptions WHERE atelier_id = a.id) as total_inscrits,
+                (SELECT COUNT(*) FROM inscriptions WHERE planning_id = pl.id AND statut = 'confirmee') as total_inscrits,
                 (SELECT COUNT(*) FROM presences WHERE atelier_id = a.id AND creneau_id = cr.id AND statut = 'present') as presents,
                 (SELECT COUNT(*) FROM presences WHERE atelier_id = a.id AND creneau_id = cr.id AND statut = 'absent') as absents,
                 (SELECT MAX(valide_le) FROM presences WHERE atelier_id = a.id AND creneau_id = cr.id) as valide_le,
@@ -404,8 +413,8 @@ router.get('/admin/stats', adminMiddleware, async (req, res) => {
                 (SELECT COUNT(DISTINCT pl2.atelier_id) FROM planning pl2 WHERE pl2.creneau_id = cr.id) as total_ateliers
             FROM creneaux cr
             LEFT JOIN planning pl ON cr.id = pl.creneau_id
-            LEFT JOIN inscriptions i ON pl.atelier_id = i.atelier_id
-            LEFT JOIN presences p ON i.atelier_id = p.atelier_id AND i.eleve_id = p.eleve_id AND cr.id = p.creneau_id
+            LEFT JOIN inscriptions i ON pl.id = i.planning_id
+            LEFT JOIN presences p ON pl.atelier_id = p.atelier_id AND i.eleve_id = p.eleve_id AND cr.id = p.creneau_id
             GROUP BY cr.id
             ORDER BY cr.ordre
         `);
