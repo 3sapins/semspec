@@ -31,6 +31,7 @@
             background: white;
             padding: 15px;
             border-radius: 12px;
+            flex-wrap: wrap;
         }
         .tab {
             padding: 12px 24px;
@@ -41,10 +42,7 @@
             font-weight: 600;
             transition: all 0.3s;
         }
-        .tab.active {
-            background: #667eea;
-            color: white;
-        }
+        .tab.active { background: #667eea; color: white; }
         .tab-content {
             display: none;
             background: white;
@@ -63,10 +61,10 @@
             transition: all 0.3s;
         }
         .btn-primary { background: #667eea; color: white; }
-        .btn-primary:hover { background: #5568d3; }
         .btn-secondary { background: #e5e7eb; color: #374151; }
         .btn-danger { background: #ef4444; color: white; }
         .btn-success { background: #10b981; color: white; }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
         .form-group { margin-bottom: 20px; }
         label { display: block; font-weight: 600; margin-bottom: 8px; }
         input, select, textarea {
@@ -76,472 +74,171 @@
             border-radius: 8px;
             font-size: 14px;
         }
-        input:focus, select:focus, textarea:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #e5e7eb;
-        }
-        th {
-            background: #f9fafb;
-            font-weight: 600;
-            color: #374151;
-        }
+        input:focus, select:focus { outline: none; border-color: #667eea; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        th { background: #f9fafb; font-weight: 600; }
         tr:hover { background: #f9fafb; }
-        .alert {
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-        .alert-success {
-            background: #d1fae5;
-            color: #065f46;
-            border-left: 4px solid #10b981;
-        }
-        .alert-error {
-            background: #fee2e2;
-            color: #991b1b;
-            border-left: 4px solid #ef4444;
-        }
+        .alert { padding: 15px; border-radius: 8px; margin-bottom: 20px; display: none; }
+        .alert-success { background: #d1fae5; color: #065f46; border-left: 4px solid #10b981; }
+        .alert-error { background: #fee2e2; color: #991b1b; border-left: 4px solid #ef4444; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        @media (max-width: 768px) {
-            .grid { grid-template-columns: 1fr; }
-        }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+        .card { background: #f9fafb; padding: 20px; border-radius: 10px; margin-bottom: 15px; }
+        .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .badge-blue { background: #dbeafe; color: #1e40af; }
+        .badge-green { background: #d1fae5; color: #065f46; }
+        .badge-red { background: #fee2e2; color: #991b1b; }
+        .badge-yellow { background: #fef3c7; color: #92400e; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>🔧 Gestion</h1>
-            <a href="index.html" class="btn btn-secondary">← Retour</a>
+            <a href="index.html" class="btn btn-secondary">← Retour Admin</a>
         </div>
-
-        <div id="alert" class="alert" style="display: none;"></div>
-
+        <div id="alert" class="alert"></div>
         <div class="tabs">
             <button class="tab active" onclick="switchTab('listes')">📋 Listes</button>
             <button class="tab" onclick="switchTab('ajouter')">➕ Ajouter</button>
-            <button class="tab" onclick="switchTab('import')">📥 Import CSV</button>
             <button class="tab" onclick="switchTab('inscrire')">✍️ Inscrire</button>
             <button class="tab" onclick="switchTab('piquet')">👮 Piquet</button>
-            <button class="tab" onclick="switchTab('placement')">📍 Placement Manuel</button>
-            <button class="tab" onclick="switchTab('themes')">🎨 Thèmes</button>
-            <button class="tab" onclick="switchTab('typesalles')">🏠 Types Salles</button>
+            <button class="tab" onclick="switchTab('placement')">📍 Placement</button>
+            <button class="tab" onclick="switchTab('eleves-creneaux')">👁️ Élèves/Créneaux</button>
+            <button class="tab" onclick="switchTab('creneaux-faibles')">⚠️ Faibles</button>
         </div>
 
         <!-- ONGLET LISTES -->
         <div id="listes" class="tab-content active">
             <h2 style="margin-bottom: 20px;">📋 Listes</h2>
-            
-            <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+            <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
                 <button class="btn btn-primary" onclick="loadListe('enseignants')">👨‍🏫 Enseignants</button>
                 <button class="btn btn-primary" onclick="loadListe('eleves')">🎓 Élèves</button>
                 <button class="btn btn-primary" onclick="loadListe('classes')">🏫 Classes</button>
                 <button class="btn btn-primary" onclick="loadListe('salles')">🚪 Salles</button>
             </div>
-
             <div id="listeContainer"></div>
         </div>
 
         <!-- ONGLET AJOUTER -->
         <div id="ajouter" class="tab-content">
             <h2 style="margin-bottom: 20px;">➕ Ajouter</h2>
-            
             <div class="grid">
-                <!-- Ajouter Enseignant -->
-                <div>
-                    <h3 style="margin-bottom: 15px;">👨‍🏫 Nouvel Enseignant</h3>
+                <div class="card">
+                    <h3>👨‍🏫 Enseignant</h3>
                     <form id="formEnseignant">
-                        <div class="form-group">
-                            <label>Acronyme *</label>
-                            <input type="text" id="ens_acronyme" required maxlength="10">
-                        </div>
-                        <div class="form-group">
-                            <label>Nom *</label>
-                            <input type="text" id="ens_nom" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Prénom *</label>
-                            <input type="text" id="ens_prenom" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Email</label>
-                            <input type="email" id="ens_email">
-                        </div>
-                        <div class="form-group">
-                            <label>Charge Max (périodes) <small style="color: #6b7280;">Périodes enseignées habituellement</small></label>
-                            <input type="number" id="ens_charge_max" min="0" max="30" value="0">
-                        </div>
-                        <button type="submit" class="btn btn-success" style="width: 100%;">
-                            Ajouter l'enseignant
-                        </button>
+                        <div class="form-group"><label>Acronyme *</label><input type="text" id="ens_acronyme" required></div>
+                        <div class="form-group"><label>Nom *</label><input type="text" id="ens_nom" required></div>
+                        <div class="form-group"><label>Prénom *</label><input type="text" id="ens_prenom" required></div>
+                        <div class="form-group"><label>Email</label><input type="email" id="ens_email"></div>
+                        <button type="submit" class="btn btn-success">Ajouter</button>
                     </form>
                 </div>
-
-                <!-- Ajouter Salle -->
-                <div>
-                    <h3 style="margin-bottom: 15px;">🚪 Nouvelle Salle</h3>
+                <div class="card">
+                    <h3>🏫 Classe</h3>
+                    <form id="formClasse">
+                        <div class="form-group"><label>Nom *</label><input type="text" id="classe_nom" required placeholder="ex: 9VP1"></div>
+                        <div class="form-group"><label>Niveau</label><select id="classe_niveau"><option value="">--</option><option>9VP</option><option>9VG</option><option>10VP</option><option>10VG</option></select></div>
+                        <button type="submit" class="btn btn-success">Ajouter</button>
+                    </form>
+                </div>
+                <div class="card">
+                    <h3>🚪 Salle</h3>
                     <form id="formSalle">
-                        <div class="form-group">
-                            <label>Nom *</label>
-                            <input type="text" id="salle_nom" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Type</label>
-                            <select id="salle_type">
-                                <option value="Classe standard">Classe standard</option>
-                                <option value="Salle informatique">Salle informatique</option>
-                                <option value="Atelier">Atelier</option>
-                                <option value="Laboratoire">Laboratoire</option>
-                                <option value="Salle de sport">Salle de sport</option>
-                                <option value="Extérieur">Extérieur</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Capacité *</label>
-                            <input type="number" id="salle_capacite" required min="1">
-                        </div>
-                        <button type="submit" class="btn btn-success" style="width: 100%;">
-                            Ajouter la salle
-                        </button>
+                        <div class="form-group"><label>Nom *</label><input type="text" id="salle_nom" required></div>
+                        <div class="form-group"><label>Capacité</label><input type="number" id="salle_capacite" value="25"></div>
+                        <div class="form-group"><label>Type</label><input type="text" id="salle_type"></div>
+                        <button type="submit" class="btn btn-success">Ajouter</button>
+                    </form>
+                </div>
+                <div class="card">
+                    <h3>🎓 Élève</h3>
+                    <form id="formEleve">
+                        <div class="form-group"><label>Nom *</label><input type="text" id="eleve_nom" required></div>
+                        <div class="form-group"><label>Prénom *</label><input type="text" id="eleve_prenom" required></div>
+                        <div class="form-group"><label>Classe *</label><select id="eleve_classe" required></select></div>
+                        <button type="submit" class="btn btn-success">Ajouter</button>
                     </form>
                 </div>
             </div>
-
-            <!-- Ajouter Élève -->
-            <div style="margin-top: 30px;">
-                <h3 style="margin-bottom: 15px;">🎓 Nouvel Élève</h3>
-                <form id="formEleve" class="grid">
-                    <div class="form-group">
-                        <label>Nom *</label>
-                        <input type="text" id="eleve_nom" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Prénom *</label>
-                        <input type="text" id="eleve_prenom" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Classe *</label>
-                        <select id="eleve_classe" required></select>
-                    </div>
-                    <div class="form-group">
-                        <label>Numéro élève</label>
-                        <input type="text" id="eleve_numero">
-                    </div>
-                    <div style="grid-column: 1 / -1;">
-                        <button type="submit" class="btn btn-success" style="width: 100%;">
-                            Ajouter l'élève
-                        </button>
-                    </div>
-                </form>
-            </div>
         </div>
 
-        <!-- ONGLET IMPORT CSV -->
-        <div id="import" class="tab-content">
-            <h2 style="margin-bottom: 20px;">📥 Import CSV en Masse</h2>
-            
-            <div class="alert" id="importAlert" style="display: none;"></div>
-
-            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 30px;">
-                <!-- Import Enseignants -->
-                <div style="background: #f9fafb; padding: 25px; border-radius: 10px;">
-                    <h3 style="margin-bottom: 15px; color: #667eea;">👨‍🏫 Import Enseignants</h3>
-                    
-                    <div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid #667eea;">
-                        <p style="margin-bottom: 10px; font-weight: 600;">Format CSV :</p>
-                        <code style="display: block; background: #f3f4f6; padding: 10px; border-radius: 5px; font-size: 12px;">
-                            acronyme,nom,prenom,email,charge_max<br>
-                            DUP,Dupuis,Jean,jean.dupuis@ecole.ch,20<br>
-                            MAR,Martin,Sophie,sophie.martin@ecole.ch,18
-                        </code>
-                        <p style="margin-top: 8px; font-size: 11px; color: #6b7280;">
-                            charge_max = périodes enseignées habituellement (optionnel)
-                        </p>
-                    </div>
-
-                    <input type="file" id="csvEnseignants" accept=".csv" style="margin-bottom: 15px; width: 100%; padding: 10px; border: 2px dashed #667eea; border-radius: 8px;">
-                    
-                    <button class="btn btn-primary" onclick="importCSV('enseignants')" style="width: 100%;">
-                        📤 Importer Enseignants
-                    </button>
-                    
-                    <div id="resultEnseignants" style="margin-top: 15px;"></div>
-                </div>
-
-                <!-- Import Élèves -->
-                <div style="background: #f9fafb; padding: 25px; border-radius: 10px;">
-                    <h3 style="margin-bottom: 15px; color: #667eea;">🎓 Import Élèves</h3>
-                    
-                    <div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid #667eea;">
-                        <p style="margin-bottom: 10px; font-weight: 600;">Format CSV :</p>
-                        <code style="display: block; background: #f3f4f6; padding: 10px; border-radius: 5px; font-size: 12px;">
-                            nom,prenom,classe,numero<br>
-                            Dupont,Paul,9VP1,12345<br>
-                            Martin,Marie,9VP2,12346
-                        </code>
-                    </div>
-
-                    <input type="file" id="csvEleves" accept=".csv" style="margin-bottom: 15px; width: 100%; padding: 10px; border: 2px dashed #667eea; border-radius: 8px;">
-                    
-                    <button class="btn btn-primary" onclick="importCSV('eleves')" style="width: 100%;">
-                        📤 Importer Élèves
-                    </button>
-                    
-                    <div id="resultEleves" style="margin-top: 15px;"></div>
-                </div>
-
-                <!-- Import Salles -->
-                <div style="background: #f9fafb; padding: 25px; border-radius: 10px;">
-                    <h3 style="margin-bottom: 15px; color: #667eea;">🚪 Import Salles</h3>
-                    
-                    <div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid #667eea;">
-                        <p style="margin-bottom: 10px; font-weight: 600;">Format CSV :</p>
-                        <code style="display: block; background: #f3f4f6; padding: 10px; border-radius: 5px; font-size: 12px;">
-                            nom,type,capacite<br>
-                            C001,classe,25<br>
-                            Gymnase,sport,40
-                        </code>
-                        <p style="margin-top: 10px; font-size: 12px; color: #6b7280;">
-                            Types: classe, informatique, labo, art, sport, polyvalente
-                        </p>
-                    </div>
-
-                    <input type="file" id="csvSalles" accept=".csv" style="margin-bottom: 15px; width: 100%; padding: 10px; border: 2px dashed #667eea; border-radius: 8px;">
-                    
-                    <button class="btn btn-primary" onclick="importCSV('salles')" style="width: 100%;">
-                        📤 Importer Salles
-                    </button>
-                    
-                    <div id="resultSalles" style="margin-top: 15px;"></div>
-                </div>
-            </div>
-
-            <div style="margin-top: 30px; padding: 20px; background: #dbeafe; border-radius: 10px; border-left: 4px solid #3b82f6;">
-                <h4 style="color: #1e40af; margin-bottom: 10px;">💡 Conseils</h4>
-                <ul style="margin-left: 20px; color: #1e3a8a; line-height: 1.8;">
-                    <li>Utilisez un tableur (Excel, LibreOffice) pour préparer vos CSV</li>
-                    <li>Encodage : UTF-8 (pour les accents)</li>
-                    <li>Séparateur : virgule (,)</li>
-                    <li>Première ligne = en-têtes obligatoires</li>
-                    <li>Les doublons (même acronyme/numéro) seront ignorés</li>
-                </ul>
-            </div>
-        </div>
-
-        <!-- ONGLET INSCRIRE -->
+        <!-- ONGLET INSCRIRE (PAR CRÉNEAU) -->
         <div id="inscrire" class="tab-content">
-            <h2 style="margin-bottom: 20px;">✍️ Inscriptions Manuelles</h2>
-            
+            <h2 style="margin-bottom: 20px;">✍️ Inscrire des élèves à un CRÉNEAU</h2>
             <div class="grid">
-                <!-- Inscrire une classe entière -->
-                <div>
-                    <h3 style="margin-bottom: 15px;">🏫 Inscrire une Classe Entière</h3>
+                <div class="card">
+                    <h3>📋 Inscrire une classe entière</h3>
                     <form id="formInscrireClasse">
-                        <div class="form-group">
-                            <label>Atelier *</label>
-                            <select id="inscr_atelier_classe" required></select>
-                        </div>
-                        <div class="form-group">
-                            <label>Classe *</label>
-                            <select id="inscr_classe" required></select>
-                        </div>
-                        <button type="submit" class="btn btn-primary" style="width: 100%;">
-                            📥 Inscrire toute la classe
-                        </button>
+                        <div class="form-group"><label>Créneau *</label><select id="inscr_planning_classe" required></select></div>
+                        <div class="form-group"><label>Classe *</label><select id="inscr_classe" required></select></div>
+                        <button type="submit" class="btn btn-success" style="width:100%;">📥 Inscrire toute la classe</button>
                     </form>
                     <div id="resultatInscrClasse" style="margin-top: 15px;"></div>
                 </div>
-
-                <!-- Inscrire des élèves individuels -->
-                <div>
-                    <h3 style="margin-bottom: 15px;">🎓 Inscrire des Élèves Individuels</h3>
+                <div class="card">
+                    <h3>🎯 Inscrire des élèves spécifiques</h3>
                     <form id="formInscrireEleves">
-                        <div class="form-group">
-                            <label>Atelier *</label>
-                            <select id="inscr_atelier_eleves" required></select>
-                        </div>
-                        <div class="form-group">
-                            <label>Rechercher un élève</label>
-                            <input type="text" id="rechercheEleve" placeholder="Nom ou prénom..." oninput="rechercherEleves()" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;">
-                        </div>
-                        <div id="resultatsRecherche" style="max-height:200px;overflow-y:auto;border:1px solid #eee;border-radius:8px;margin-bottom:15px;"></div>
-                        <div class="form-group">
-                            <label>Élèves sélectionnés</label>
-                            <div id="elevesSelectionnes" style="min-height:50px;padding:10px;background:#f8f9fa;border-radius:8px;"></div>
-                        </div>
-                        <button type="submit" class="btn btn-success" style="width: 100%;">
-                            📥 Inscrire les élèves sélectionnés
-                        </button>
+                        <div class="form-group"><label>Créneau *</label><select id="inscr_planning_eleves" required></select></div>
+                        <div class="form-group"><label>Rechercher</label><input type="text" id="rechercheEleve" placeholder="Nom ou prénom..." oninput="rechercherEleves()"></div>
+                        <div id="resultatsRecherche" style="max-height:150px;overflow-y:auto;border:1px solid #eee;border-radius:8px;margin-bottom:10px;"></div>
+                        <div class="form-group"><label>Sélectionnés</label><div id="elevesSelectionnes" style="min-height:40px;padding:10px;background:#f3f4f6;border-radius:8px;"></div></div>
+                        <button type="submit" class="btn btn-success" style="width:100%;">📥 Inscrire</button>
                     </form>
                     <div id="resultatInscrEleves" style="margin-top: 15px;"></div>
                 </div>
-            </div>
-            
-            <!-- Ou par classe avec sélection -->
-            <div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 10px;">
-                <h3 style="margin-bottom: 15px;">📋 Sélectionner dans une classe</h3>
-                <div class="form-group">
-                    <label>Classe</label>
-                    <select id="select_classe_eleves" onchange="loadElevesClasse()" style="width:100%;max-width:300px;padding:10px;border:1px solid #ddd;border-radius:8px;">
-                        <option value="">-- Choisir une classe --</option>
-                    </select>
-                </div>
-                <div id="elevesClasseContainer" style="margin-top: 15px;"></div>
             </div>
         </div>
 
         <!-- ONGLET PIQUET -->
         <div id="piquet" class="tab-content">
-            <h2 style="margin-bottom: 20px;">👮 Enseignants de Piquet</h2>
-            
+            <h2 style="margin-bottom: 20px;">👮 Piquet / Dégagement</h2>
             <div class="grid">
-                <div>
-                    <h3 style="margin-bottom: 15px;">Ajouter un Piquet</h3>
+                <div class="card">
+                    <h3>Ajouter</h3>
                     <form id="formPiquet">
-                        <div class="form-group">
-                            <label>Enseignant *</label>
-                            <select id="piquet_enseignant" required></select>
-                        </div>
-                        <div class="form-group">
-                            <label>Créneau *</label>
-                            <select id="piquet_creneau" required></select>
-                        </div>
-                        <div class="form-group">
-                            <label>Type *</label>
-                            <select id="piquet_type">
-                                <option value="piquet">Piquet</option>
-                                <option value="degagement">Dégagement</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Salle (si dégagement)</label>
-                            <select id="piquet_salle">
-                                <option value="">-- Aucune --</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="btn btn-success" style="width: 100%;">
-                            Ajouter
-                        </button>
+                        <div class="form-group"><label>Enseignant *</label><select id="piquet_enseignant" required></select></div>
+                        <div class="form-group"><label>Créneau *</label><select id="piquet_creneau" required></select></div>
+                        <div class="form-group"><label>Type *</label><select id="piquet_type"><option value="piquet">Piquet</option><option value="degagement">Dégagement</option></select></div>
+                        <div class="form-group"><label>Salle (si dégagement)</label><select id="piquet_salle"><option value="">-- Aucune --</option></select></div>
+                        <button type="submit" class="btn btn-success" style="width:100%;">✅ Ajouter</button>
                     </form>
                 </div>
-
-                <div>
-                    <h3 style="margin-bottom: 15px;">Liste des Piquets</h3>
-                    <div id="piquetListe"></div>
-                </div>
+                <div><h3 style="margin-bottom: 15px;">Liste</h3><div id="piquetListe"></div></div>
             </div>
         </div>
 
         <!-- ONGLET PLACEMENT MANUEL -->
         <div id="placement" class="tab-content">
             <h2 style="margin-bottom: 20px;">📍 Placement Manuel</h2>
-            
             <form id="formPlacement" class="grid">
-                <div class="form-group">
-                    <label>Atelier *</label>
-                    <select id="place_atelier" required></select>
-                </div>
-                <div class="form-group">
-                    <label>Salle *</label>
-                    <select id="place_salle" required></select>
-                </div>
-                <div class="form-group">
-                    <label>Créneau de début *</label>
-                    <select id="place_creneau" required></select>
-                </div>
-                <div style="grid-column: 1 / -1;">
-                    <button type="submit" class="btn btn-primary" style="width: 100%;">
-                        Placer l'atelier
-                    </button>
-                </div>
+                <div class="form-group"><label>Atelier *</label><select id="place_atelier" required></select></div>
+                <div class="form-group"><label>Salle *</label><select id="place_salle" required></select></div>
+                <div class="form-group"><label>Créneau *</label><select id="place_creneau" required></select></div>
+                <div style="grid-column: 1 / -1;"><button type="submit" class="btn btn-primary" style="width:100%;">📍 Placer</button></div>
             </form>
+            <div id="resultatPlacement" style="margin-top: 15px;"></div>
+        </div>
 
-            <div style="margin-top: 20px; padding: 15px; background: #fef3c7; border-radius: 8px;">
-                <strong>💡 Astuce :</strong> Assurez-vous que la salle et l'enseignant sont disponibles sur le créneau choisi.
+        <!-- ONGLET ÉLÈVES PAR CRÉNEAU -->
+        <div id="eleves-creneaux" class="tab-content">
+            <h2 style="margin-bottom: 20px;">👁️ Élèves par créneau</h2>
+            <div class="card">
+                <div style="display:flex;gap:15px;flex-wrap:wrap;margin-bottom:20px;">
+                    <div class="form-group" style="flex:1;min-width:150px;"><label>Jour</label><select id="filtre_jour" onchange="loadElevesCreneaux()"><option value="">Tous</option><option value="lundi">Lundi</option><option value="mardi">Mardi</option><option value="mercredi">Mercredi</option><option value="jeudi">Jeudi</option><option value="vendredi">Vendredi</option></select></div>
+                    <div class="form-group" style="flex:1;min-width:150px;"><label>Classe</label><select id="filtre_classe_eleves" onchange="loadElevesCreneaux()"></select></div>
+                </div>
+                <div id="elevesCreneauxContainer"></div>
             </div>
         </div>
 
-        <!-- ONGLET THÈMES -->
-        <div id="themes" class="tab-content">
-            <h2 style="margin-bottom: 20px;">🎨 Gestion des Thèmes</h2>
-            
-            <div class="grid">
-                <!-- Formulaire ajout/modification -->
-                <div>
-                    <h3 style="margin-bottom: 15px;" id="themesFormTitle">Ajouter un Thème</h3>
-                    <form id="formTheme">
-                        <input type="hidden" id="theme_edit_id">
-                        <div class="form-group">
-                            <label>Nom *</label>
-                            <input type="text" id="theme_nom" required placeholder="Ex: Sport & Mouvement">
-                        </div>
-                        <div class="form-group">
-                            <label>Description</label>
-                            <input type="text" id="theme_description" placeholder="Ex: Activités sportives">
-                        </div>
-                        <div class="form-group">
-                            <label>Icône (emoji)</label>
-                            <input type="text" id="theme_icone" placeholder="⚽" maxlength="5" style="width:80px;">
-                        </div>
-                        <div class="form-group">
-                            <label>Couleur</label>
-                            <input type="color" id="theme_couleur" value="#667eea" style="width:80px;height:40px;">
-                        </div>
-                        <div class="form-group">
-                            <label>Ordre d'affichage</label>
-                            <input type="number" id="theme_ordre" value="0" min="0" style="width:80px;">
-                        </div>
-                        <div style="display:flex;gap:10px;">
-                            <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
-                            <button type="button" class="btn btn-secondary" onclick="resetThemeForm()">🔄 Nouveau</button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- Liste des thèmes -->
-                <div>
-                    <h3 style="margin-bottom: 15px;">Thèmes existants</h3>
-                    <div id="themesListe" style="max-height:400px;overflow-y:auto;"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ONGLET TYPES DE SALLES -->
-        <div id="typesalles" class="tab-content">
-            <h2 style="margin-bottom: 20px;">🏠 Types de Salles</h2>
-            
-            <div class="grid">
-                <!-- Formulaire ajout -->
-                <div>
-                    <h3 style="margin-bottom: 15px;">Ajouter un Type de Salle</h3>
-                    <form id="formTypeSalle">
-                        <div class="form-group">
-                            <label>Nom du type *</label>
-                            <input type="text" id="type_salle_nom" required placeholder="Ex: Informatique">
-                        </div>
-                        <button type="submit" class="btn btn-primary">➕ Ajouter</button>
-                    </form>
-                    
-                    <div style="margin-top:20px;">
-                        <h4>Types existants</h4>
-                        <div id="typesSallesListe" style="margin-top:10px;"></div>
-                    </div>
-                </div>
-
-                <!-- Liste des salles avec leur type -->
-                <div>
-                    <h3 style="margin-bottom: 15px;">Salles et leurs types</h3>
-                    <div id="sallesTypesListe" style="max-height:500px;overflow-y:auto;"></div>
-                </div>
+        <!-- ONGLET CRÉNEAUX FAIBLES -->
+        <div id="creneaux-faibles" class="tab-content">
+            <h2 style="margin-bottom: 20px;">⚠️ Créneaux faibles</h2>
+            <div class="card">
+                <div class="form-group" style="max-width:150px;"><label>Seuil</label><input type="number" id="seuil_faibles" value="5" min="1" onchange="loadCreneauxFaibles()"></div>
+                <div id="creneauxFaiblesContainer"></div>
             </div>
         </div>
     </div>
@@ -549,30 +246,25 @@
     <script>
         const API_BASE = '/api/gestion';
         const token = localStorage.getItem('token');
+        if (!token) window.location.href = 'index.html';
 
-        if (!token) {
-            window.location.href = 'login.html';
-        }
-
-        // Charger au démarrage
         document.addEventListener('DOMContentLoaded', () => {
             loadClassesForSelects();
             loadAteliersForSelects();
             loadEnseignantsForSelects();
             loadSallesForSelects();
             loadCreneauxForSelects();
+            loadPlanningsForSelects();
         });
 
         function switchTab(tabName) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            
             event.target.classList.add('active');
             document.getElementById(tabName).classList.add('active');
-
             if (tabName === 'piquet') loadPiquetListe();
-            if (tabName === 'themes') loadThemesListe();
-            if (tabName === 'typesalles') { loadTypesSallesListe(); loadSallesAvecTypes(); }
+            if (tabName === 'eleves-creneaux') loadElevesCreneaux();
+            if (tabName === 'creneaux-faibles') loadCreneauxFaibles();
         }
 
         function showAlert(message, type) {
@@ -583,1220 +275,334 @@
             setTimeout(() => alert.style.display = 'none', 5000);
         }
 
-        // === LISTES ===
-        async function loadListe(type) {
+        async function loadClassesForSelects() {
             try {
-                const response = await fetch(`${API_BASE}/${type}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const response = await fetch(`${API_BASE}/classes`, { headers: { 'Authorization': `Bearer ${token}` } });
                 const result = await response.json();
-                
-                let html = `<h3>${type.charAt(0).toUpperCase() + type.slice(1)}</h3>`;
-                html += '<table><thead><tr>';
-                
-                if (type === 'enseignants') {
-                    html += '<th>Acronyme</th><th>Nom</th><th>Prénom</th><th>Email</th><th>Actions</th>';
-                    html += '</tr></thead><tbody>';
-                    result.data.forEach(item => {
-                        html += `<tr>
-                            <td>${item.acronyme}</td>
-                            <td>${item.nom}</td>
-                            <td>${item.prenom}</td>
-                            <td>${item.email || '-'}</td>
-                            <td>
-                                <button class="btn btn-primary" style="padding:5px 10px;font-size:12px;margin-right:5px;" onclick="openDisponibilites('${item.acronyme}', '${item.nom} ${item.prenom}')">📅 Dispos</button>
-                                <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px;" onclick="resetPassword(${item.id}, '${item.acronyme}')">🔑 Reset MDP</button>
-                            </td>
-                        </tr>`;
-                    });
-                } else if (type === 'eleves') {
-                    html += '<th>Nom</th><th>Prénom</th><th>Classe</th><th>Actions</th>';
-                    html += '</tr></thead><tbody>';
-                    result.data.forEach(item => {
-                        html += `<tr>
-                            <td>${item.nom}</td>
-                            <td>${item.prenom}</td>
-                            <td>${item.classe_nom}</td>
-                            <td><button class="btn btn-secondary" style="padding:5px 10px;font-size:12px;" onclick="resetPassword(${item.utilisateur_id}, '${item.prenom} ${item.nom}')">🔑 Reset MDP</button></td>
-                        </tr>`;
-                    });
-                } else if (type === 'classes') {
-                    html += '<th>Nom</th><th>Niveau</th><th>Voie</th><th>Élèves</th>';
-                    html += '</tr></thead><tbody>';
-                    result.data.forEach(item => {
-                        html += `<tr><td>${item.nom}</td><td>${item.niveau}</td><td>${item.voie}</td><td>${item.nombre_eleves}</td></tr>`;
-                    });
-                } else if (type === 'salles') {
-                    html += '<th>Nom</th><th>Type</th><th>Capacité</th><th>Disponible</th><th>Actions</th>';
-                    html += '</tr></thead><tbody>';
-                    result.data.forEach(item => {
-                        html += `<tr>
-                            <td>${item.nom}</td>
-                            <td>${item.type_salle || '-'}</td>
-                            <td>${item.capacite}</td>
-                            <td>${item.disponible ? '✅' : '❌'}</td>
-                            <td>
-                                <button class="btn btn-primary" style="padding:5px 10px;font-size:12px;" onclick="openModifierSalle(${item.id}, '${item.nom}', '${item.type_salle || ''}', ${item.capacite}, ${item.disponible})">✏️ Modifier</button>
-                            </td>
-                        </tr>`;
-                    });
-                }
-                
-                html += '</tbody></table>';
-                document.getElementById('listeContainer').innerHTML = html;
-                
-            } catch (error) {
-                showAlert('Erreur de chargement', 'error');
-            }
+                ['eleve_classe', 'inscr_classe', 'filtre_classe_eleves'].forEach(id => {
+                    const select = document.getElementById(id);
+                    if (select) {
+                        select.innerHTML = '<option value="">-- Toutes --</option>';
+                        result.data.forEach(c => select.innerHTML += `<option value="${c.id}">${c.nom}</option>`);
+                    }
+                });
+            } catch (e) { console.error(e); }
         }
 
-        // === AJOUTER ===
+        async function loadEnseignantsForSelects() {
+            try {
+                const response = await fetch(`${API_BASE}/enseignants`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const result = await response.json();
+                const select = document.getElementById('piquet_enseignant');
+                if (select) {
+                    select.innerHTML = '<option value="">-- Sélectionner --</option>';
+                    result.data.forEach(e => select.innerHTML += `<option value="${e.id}">${e.prenom} ${e.nom} (${e.acronyme})</option>`);
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadSallesForSelects() {
+            try {
+                const response = await fetch(`${API_BASE}/salles`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const result = await response.json();
+                ['piquet_salle', 'place_salle'].forEach(id => {
+                    const select = document.getElementById(id);
+                    if (select) {
+                        select.innerHTML = '<option value="">-- Sélectionner --</option>';
+                        result.data.forEach(s => select.innerHTML += `<option value="${s.id}">${s.nom}</option>`);
+                    }
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadCreneauxForSelects() {
+            try {
+                const response = await fetch('/api/planning/creneaux', { headers: { 'Authorization': `Bearer ${token}` } });
+                const result = await response.json();
+                ['piquet_creneau', 'place_creneau'].forEach(id => {
+                    const select = document.getElementById(id);
+                    if (select) {
+                        select.innerHTML = '<option value="">-- Sélectionner --</option>';
+                        result.data.forEach(c => {
+                            const jour = c.jour.charAt(0).toUpperCase() + c.jour.slice(1);
+                            select.innerHTML += `<option value="${c.id}">${jour} ${c.periode}</option>`;
+                        });
+                    }
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadAteliersForSelects() {
+            try {
+                const response = await fetch('/api/admin/ateliers?statut=valide', { headers: { 'Authorization': `Bearer ${token}` } });
+                const result = await response.json();
+                const select = document.getElementById('place_atelier');
+                if (select) {
+                    select.innerHTML = '<option value="">-- Sélectionner --</option>';
+                    result.data.forEach(a => select.innerHTML += `<option value="${a.id}">${a.nom} (${a.duree}p)</option>`);
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadPlanningsForSelects() {
+            try {
+                const response = await fetch(`${API_BASE}/ateliers-planifies`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const result = await response.json();
+                ['inscr_planning_classe', 'inscr_planning_eleves'].forEach(id => {
+                    const select = document.getElementById(id);
+                    if (select) {
+                        select.innerHTML = '<option value="">-- Sélectionner --</option>';
+                        result.data.forEach(p => {
+                            const jour = p.jour.charAt(0).toUpperCase() + p.jour.slice(1);
+                            const places = p.nombre_places_max - p.nb_inscrits;
+                            select.innerHTML += `<option value="${p.planning_id}">${p.atelier_nom} - ${jour} ${p.periode} (${places} places)</option>`;
+                        });
+                    }
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadListe(type) {
+            try {
+                const response = await fetch(`${API_BASE}/${type}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const result = await response.json();
+                let html = '<table><thead><tr>';
+                if (type === 'enseignants') {
+                    html += '<th>Acronyme</th><th>Nom</th><th>Prénom</th><th>Email</th><th>Ateliers</th></tr></thead><tbody>';
+                    result.data.forEach(e => html += `<tr><td>${e.acronyme}</td><td>${e.nom}</td><td>${e.prenom}</td><td>${e.email || '-'}</td><td>${e.nombre_ateliers}</td></tr>`);
+                } else if (type === 'eleves') {
+                    html += '<th>Nom</th><th>Prénom</th><th>Classe</th></tr></thead><tbody>';
+                    result.data.forEach(e => html += `<tr><td>${e.nom}</td><td>${e.prenom}</td><td>${e.classe_nom}</td></tr>`);
+                } else if (type === 'classes') {
+                    html += '<th>Nom</th><th>Niveau</th><th>Élèves</th></tr></thead><tbody>';
+                    result.data.forEach(c => html += `<tr><td>${c.nom}</td><td>${c.niveau || '-'}</td><td>${c.nombre_eleves}</td></tr>`);
+                } else if (type === 'salles') {
+                    html += '<th>Nom</th><th>Capacité</th><th>Type</th><th>Dispo</th></tr></thead><tbody>';
+                    result.data.forEach(s => html += `<tr><td>${s.nom}</td><td>${s.capacite}</td><td>${s.type_salle || '-'}</td><td>${s.disponible ? '✅' : '❌'}</td></tr>`);
+                }
+                html += '</tbody></table><p style="margin-top:10px;color:#666;"><strong>' + result.data.length + '</strong> enregistrements</p>';
+                document.getElementById('listeContainer').innerHTML = html;
+            } catch (e) { document.getElementById('listeContainer').innerHTML = '<p style="color:red;">Erreur</p>'; }
+        }
+
+        // FORMULAIRES
         document.getElementById('formEnseignant').addEventListener('submit', async (e) => {
             e.preventDefault();
             try {
-                const data = {
-                    acronyme: document.getElementById('ens_acronyme').value,
-                    nom: document.getElementById('ens_nom').value,
-                    prenom: document.getElementById('ens_prenom').value,
-                    email: document.getElementById('ens_email').value || null,
-                    charge_max: parseInt(document.getElementById('ens_charge_max').value) || 0
-                };
-                
-                const response = await fetch(`${API_BASE}/enseignants`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(data)
-                });
-                
+                const data = { acronyme: document.getElementById('ens_acronyme').value.toUpperCase(), nom: document.getElementById('ens_nom').value, prenom: document.getElementById('ens_prenom').value, email: document.getElementById('ens_email').value || null };
+                const response = await fetch(`${API_BASE}/enseignants`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(data) });
                 const result = await response.json();
-                if (result.success) {
-                    showAlert('✅ Enseignant ajouté ! Mot de passe: ' + (result.default_password || 'SemaineSpeciale2026'), 'success');
-                    e.target.reset();
-                } else {
-                    showAlert('❌ ' + result.message, 'error');
-                }
-            } catch (error) {
-                showAlert('❌ Erreur', 'error');
-            }
+                if (result.success) { showAlert('✅ Enseignant ajouté !', 'success'); e.target.reset(); loadEnseignantsForSelects(); }
+                else showAlert('❌ ' + result.message, 'error');
+            } catch (e) { showAlert('❌ Erreur', 'error'); }
+        });
+
+        document.getElementById('formClasse').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                const data = { nom: document.getElementById('classe_nom').value, niveau: document.getElementById('classe_niveau').value || null };
+                const response = await fetch(`${API_BASE}/classes`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(data) });
+                const result = await response.json();
+                if (result.success) { showAlert('✅ Classe ajoutée !', 'success'); e.target.reset(); loadClassesForSelects(); }
+                else showAlert('❌ ' + result.message, 'error');
+            } catch (e) { showAlert('❌ Erreur', 'error'); }
         });
 
         document.getElementById('formSalle').addEventListener('submit', async (e) => {
             e.preventDefault();
             try {
-                const data = {
-                    nom: document.getElementById('salle_nom').value,
-                    type_salle: document.getElementById('salle_type').value,
-                    capacite: parseInt(document.getElementById('salle_capacite').value)
-                };
-                
-                const response = await fetch(`${API_BASE}/salles`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(data)
-                });
-                
+                const data = { nom: document.getElementById('salle_nom').value, capacite: parseInt(document.getElementById('salle_capacite').value) || 25, type_salle: document.getElementById('salle_type').value || null };
+                const response = await fetch(`${API_BASE}/salles`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(data) });
                 const result = await response.json();
-                if (result.success) {
-                    showAlert('✅ Salle ajoutée !', 'success');
-                    e.target.reset();
-                    loadSallesForSelects();
-                } else {
-                    showAlert('❌ ' + result.message, 'error');
-                }
-            } catch (error) {
-                showAlert('❌ Erreur', 'error');
-            }
+                if (result.success) { showAlert('✅ Salle ajoutée !', 'success'); e.target.reset(); loadSallesForSelects(); }
+                else showAlert('❌ ' + result.message, 'error');
+            } catch (e) { showAlert('❌ Erreur', 'error'); }
         });
 
         document.getElementById('formEleve').addEventListener('submit', async (e) => {
             e.preventDefault();
             try {
-                const data = {
-                    nom: document.getElementById('eleve_nom').value,
-                    prenom: document.getElementById('eleve_prenom').value,
-                    classe_id: parseInt(document.getElementById('eleve_classe').value),
-                    numero_eleve: document.getElementById('eleve_numero').value || null
-                };
-                
-                const response = await fetch(`${API_BASE}/eleves`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(data)
-                });
-                
+                const data = { nom: document.getElementById('eleve_nom').value, prenom: document.getElementById('eleve_prenom').value, classe_id: parseInt(document.getElementById('eleve_classe').value) };
+                const response = await fetch(`${API_BASE}/eleves`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(data) });
                 const result = await response.json();
-                if (result.success) {
-                    showAlert('✅ Élève ajouté !', 'success');
-                    e.target.reset();
-                } else {
-                    showAlert('❌ ' + result.message, 'error');
-                }
-            } catch (error) {
-                showAlert('❌ Erreur', 'error');
-            }
+                if (result.success) { showAlert('✅ Élève ajouté !', 'success'); e.target.reset(); }
+                else showAlert('❌ ' + result.message, 'error');
+            } catch (e) { showAlert('❌ Erreur', 'error'); }
         });
 
-        // === INSCRIRE ===
+        // INSCRIRE
         let tousLesEleves = [];
         let elevesSelectionnesIds = new Set();
         
-        // Charger tous les élèves au démarrage
         async function chargerTousEleves() {
             try {
-                const response = await fetch(`${API_BASE}/eleves`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const response = await fetch(`${API_BASE}/eleves`, { headers: { 'Authorization': `Bearer ${token}` } });
                 const result = await response.json();
                 tousLesEleves = result.data || [];
-            } catch (error) {
-                console.error('Erreur chargement élèves:', error);
-            }
+            } catch (e) { console.error(e); }
         }
         chargerTousEleves();
         
-        // Recherche d'élèves
         function rechercherEleves() {
             const terme = document.getElementById('rechercheEleve').value.toLowerCase().trim();
             const container = document.getElementById('resultatsRecherche');
-            
-            if (terme.length < 2) {
-                container.innerHTML = '<p style="padding:10px;color:#666;">Tapez au moins 2 caractères...</p>';
-                return;
-            }
-            
-            const resultats = tousLesEleves.filter(e => 
-                e.nom.toLowerCase().includes(terme) || 
-                e.prenom.toLowerCase().includes(terme)
-            ).slice(0, 20);
-            
-            if (resultats.length === 0) {
-                container.innerHTML = '<p style="padding:10px;color:#666;">Aucun élève trouvé</p>';
-                return;
-            }
-            
+            if (terme.length < 2) { container.innerHTML = '<p style="padding:10px;color:#666;">Tapez 2+ caractères</p>'; return; }
+            const resultats = tousLesEleves.filter(e => e.nom.toLowerCase().includes(terme) || e.prenom.toLowerCase().includes(terme)).slice(0, 15);
+            if (resultats.length === 0) { container.innerHTML = '<p style="padding:10px;color:#666;">Aucun résultat</p>'; return; }
             let html = '';
             resultats.forEach(e => {
                 const selected = elevesSelectionnesIds.has(e.id);
-                html += `<div style="padding:8px 12px;border-bottom:1px solid #eee;cursor:pointer;${selected ? 'background:#d1fae5;' : ''}" 
-                    onclick="toggleEleve(${e.id}, '${e.prenom}', '${e.nom}', '${e.classe_nom || ''}')">
-                    ${selected ? '✅' : '⬜'} <strong>${e.nom}</strong> ${e.prenom} <small style="color:#666;">(${e.classe_nom || 'Classe ?'})</small>
-                </div>`;
+                html += `<div style="padding:8px;border-bottom:1px solid #eee;cursor:pointer;${selected ? 'background:#d1fae5;' : ''}" onclick="toggleEleve(${e.id})">${selected ? '✅' : '⬜'} <strong>${e.nom}</strong> ${e.prenom} <small>(${e.classe_nom || '?'})</small></div>`;
             });
             container.innerHTML = html;
         }
         
-        // Sélectionner/désélectionner un élève
-        function toggleEleve(id, prenom, nom, classe) {
-            if (elevesSelectionnesIds.has(id)) {
-                elevesSelectionnesIds.delete(id);
-            } else {
-                elevesSelectionnesIds.add(id);
-            }
+        function toggleEleve(id) {
+            if (elevesSelectionnesIds.has(id)) elevesSelectionnesIds.delete(id);
+            else elevesSelectionnesIds.add(id);
             rechercherEleves();
             afficherElevesSelectionnes();
         }
         
-        // Afficher les élèves sélectionnés
         function afficherElevesSelectionnes() {
             const container = document.getElementById('elevesSelectionnes');
-            if (elevesSelectionnesIds.size === 0) {
-                container.innerHTML = '<p style="color:#666;">Aucun élève sélectionné</p>';
-                return;
-            }
-            
+            if (elevesSelectionnesIds.size === 0) { container.innerHTML = '<p style="color:#666;">Aucun</p>'; return; }
+            const selected = tousLesEleves.filter(e => elevesSelectionnesIds.has(e.id));
             let html = '';
-            elevesSelectionnesIds.forEach(id => {
-                const e = tousLesEleves.find(el => el.id === id);
-                if (e) {
-                    html += `<span style="display:inline-block;background:#667eea;color:white;padding:4px 10px;border-radius:15px;margin:3px;font-size:12px;">
-                        ${e.prenom} ${e.nom} 
-                        <span onclick="retirerEleve(${id})" style="cursor:pointer;margin-left:5px;">×</span>
-                    </span>`;
-                }
-            });
+            selected.forEach(e => html += `<span style="display:inline-block;background:#667eea;color:white;padding:2px 8px;border-radius:12px;margin:2px;font-size:11px;">${e.prenom} ${e.nom} <span onclick="toggleEleve(${e.id})" style="cursor:pointer;">×</span></span>`);
             container.innerHTML = html;
         }
-        
-        function retirerEleve(id) {
-            elevesSelectionnesIds.delete(id);
-            rechercherEleves();
-            afficherElevesSelectionnes();
-        }
-        
-        // Soumettre inscription classe
+
         document.getElementById('formInscrireClasse').addEventListener('submit', async (e) => {
             e.preventDefault();
             const resultDiv = document.getElementById('resultatInscrClasse');
-            resultDiv.innerHTML = '<p>⏳ Inscription en cours...</p>';
-            
             try {
-                const data = {
-                    classe_ids: [parseInt(document.getElementById('inscr_classe').value)],
-                    atelier_id: parseInt(document.getElementById('inscr_atelier_classe').value)
-                };
-                
-                const response = await fetch('/api/admin/inscriptions-manuelles', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(data)
-                });
-                
+                const data = { planning_id: parseInt(document.getElementById('inscr_planning_classe').value), classe_id: parseInt(document.getElementById('inscr_classe').value) };
+                resultDiv.innerHTML = '<p>⏳ Inscription...</p>';
+                const response = await fetch(`${API_BASE}/inscriptions-classe`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(data) });
                 const result = await response.json();
-                if (result.success) {
-                    let html = `<div style="padding:10px;background:#d1fae5;border-radius:8px;">✅ ${result.message}</div>`;
-                    if (result.data.conflits && result.data.conflits.length > 0) {
-                        html += `<div style="margin-top:10px;padding:10px;background:#fef3c7;border-radius:8px;">
-                            <strong>⚠️ Conflits d'horaire :</strong><ul style="margin:5px 0 0 20px;">`;
-                        result.data.conflits.forEach(c => {
-                            html += `<li>${c.eleve} → déjà inscrit à "${c.conflit}"</li>`;
-                        });
-                        html += '</ul></div>';
-                    }
-                    resultDiv.innerHTML = html;
-                } else {
-                    resultDiv.innerHTML = `<div style="padding:10px;background:#fee2e2;border-radius:8px;">❌ ${result.message}</div>`;
-                }
-            } catch (error) {
-                resultDiv.innerHTML = `<div style="padding:10px;background:#fee2e2;border-radius:8px;">❌ Erreur</div>`;
-            }
+                if (result.success) { resultDiv.innerHTML = `<div style="padding:10px;background:#d1fae5;border-radius:8px;">✅ ${result.message}</div>`; loadPlanningsForSelects(); }
+                else resultDiv.innerHTML = `<div style="padding:10px;background:#fee2e2;border-radius:8px;">❌ ${result.message}</div>`;
+            } catch (e) { resultDiv.innerHTML = '<div style="padding:10px;background:#fee2e2;border-radius:8px;">❌ Erreur</div>'; }
         });
-        
-        // Soumettre inscription élèves individuels
+
         document.getElementById('formInscrireEleves').addEventListener('submit', async (e) => {
             e.preventDefault();
             const resultDiv = document.getElementById('resultatInscrEleves');
-            
-            if (elevesSelectionnesIds.size === 0) {
-                resultDiv.innerHTML = `<div style="padding:10px;background:#fef3c7;border-radius:8px;">⚠️ Sélectionnez au moins un élève</div>`;
-                return;
-            }
-            
-            resultDiv.innerHTML = '<p>⏳ Inscription en cours...</p>';
-            
+            if (elevesSelectionnesIds.size === 0) { resultDiv.innerHTML = '<div style="padding:10px;background:#fef3c7;border-radius:8px;">⚠️ Sélectionnez des élèves</div>'; return; }
             try {
-                const data = {
-                    eleve_ids: Array.from(elevesSelectionnesIds),
-                    atelier_id: parseInt(document.getElementById('inscr_atelier_eleves').value)
-                };
-                
-                const response = await fetch('/api/admin/inscriptions-manuelles', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(data)
-                });
-                
+                const data = { planning_id: parseInt(document.getElementById('inscr_planning_eleves').value), eleve_ids: Array.from(elevesSelectionnesIds) };
+                resultDiv.innerHTML = '<p>⏳ Inscription...</p>';
+                const response = await fetch(`${API_BASE}/inscriptions-eleves`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(data) });
                 const result = await response.json();
-                if (result.success) {
-                    let html = `<div style="padding:10px;background:#d1fae5;border-radius:8px;">✅ ${result.message}</div>`;
-                    if (result.data.conflits && result.data.conflits.length > 0) {
-                        html += `<div style="margin-top:10px;padding:10px;background:#fef3c7;border-radius:8px;">
-                            <strong>⚠️ Conflits d'horaire :</strong><ul style="margin:5px 0 0 20px;">`;
-                        result.data.conflits.forEach(c => {
-                            html += `<li>${c.eleve} → déjà inscrit à "${c.conflit}"</li>`;
-                        });
-                        html += '</ul></div>';
-                    }
-                    resultDiv.innerHTML = html;
-                    // Vider la sélection
-                    elevesSelectionnesIds.clear();
-                    afficherElevesSelectionnes();
-                    document.getElementById('rechercheEleve').value = '';
-                    document.getElementById('resultatsRecherche').innerHTML = '';
-                } else {
-                    resultDiv.innerHTML = `<div style="padding:10px;background:#fee2e2;border-radius:8px;">❌ ${result.message}</div>`;
-                }
-            } catch (error) {
-                resultDiv.innerHTML = `<div style="padding:10px;background:#fee2e2;border-radius:8px;">❌ Erreur</div>`;
-            }
+                if (result.success) { resultDiv.innerHTML = `<div style="padding:10px;background:#d1fae5;border-radius:8px;">✅ ${result.message}</div>`; elevesSelectionnesIds.clear(); afficherElevesSelectionnes(); document.getElementById('rechercheEleve').value = ''; document.getElementById('resultatsRecherche').innerHTML = ''; loadPlanningsForSelects(); }
+                else resultDiv.innerHTML = `<div style="padding:10px;background:#fee2e2;border-radius:8px;">❌ ${result.message}</div>`;
+            } catch (e) { resultDiv.innerHTML = '<div style="padding:10px;background:#fee2e2;border-radius:8px;">❌ Erreur</div>'; }
         });
-        
-        // Charger élèves d'une classe pour sélection
-        async function loadElevesClasse() {
-            const classeId = document.getElementById('select_classe_eleves').value;
-            const container = document.getElementById('elevesClasseContainer');
-            
-            if (!classeId) {
-                container.innerHTML = '';
-                return;
-            }
-            
-            try {
-                const response = await fetch(`${API_BASE}/eleves?classe_id=${classeId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const result = await response.json();
-                
-                if (result.data.length === 0) {
-                    container.innerHTML = '<p style="color:#666;">Aucun élève dans cette classe</p>';
-                    return;
-                }
-                
-                let html = `<p style="margin-bottom:10px;"><strong>${result.data.length} élèves</strong> - Cliquez pour ajouter à la sélection</p>`;
-                html += '<div style="display:flex;flex-wrap:wrap;gap:5px;">';
-                result.data.forEach(e => {
-                    const selected = elevesSelectionnesIds.has(e.id);
-                    html += `<span onclick="toggleEleve(${e.id}, '${e.prenom}', '${e.nom}', '')" 
-                        style="cursor:pointer;padding:5px 10px;border-radius:15px;font-size:12px;
-                        ${selected ? 'background:#667eea;color:white;' : 'background:#e5e7eb;'}">
-                        ${e.prenom} ${e.nom}
-                    </span>`;
-                });
-                html += '</div>';
-                container.innerHTML = html;
-            } catch (error) {
-                container.innerHTML = '<p style="color:red;">Erreur de chargement</p>';
-            }
-        }
 
-        // === PIQUET ===
+        // PIQUET
         document.getElementById('formPiquet').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const utilisateur_id = document.getElementById('piquet_enseignant').value;
+            const creneau_id = document.getElementById('piquet_creneau').value;
+            if (!utilisateur_id || !creneau_id) { showAlert('❌ Enseignant et créneau requis', 'error'); return; }
             try {
-                const data = {
-                    utilisateur_id: parseInt(document.getElementById('piquet_enseignant').value),
-                    creneau_id: parseInt(document.getElementById('piquet_creneau').value),
-                    type: document.getElementById('piquet_type').value
-                };
-                
-                const response = await fetch(`${API_BASE}/piquet`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(data)
-                });
-                
+                const data = { utilisateur_id: parseInt(utilisateur_id), creneau_id: parseInt(creneau_id), type: document.getElementById('piquet_type').value, salle_id: document.getElementById('piquet_salle').value ? parseInt(document.getElementById('piquet_salle').value) : null };
+                const response = await fetch(`${API_BASE}/piquet`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(data) });
                 const result = await response.json();
-                if (result.success) {
-                    showAlert('✅ Piquet ajouté !', 'success');
-                    e.target.reset();
-                    loadPiquetListe();
-                } else {
-                    showAlert('❌ ' + result.message, 'error');
-                }
-            } catch (error) {
-                showAlert('❌ Erreur', 'error');
-            }
+                if (result.success) { showAlert('✅ ' + result.message, 'success'); e.target.reset(); loadPiquetListe(); }
+                else showAlert('❌ ' + result.message, 'error');
+            } catch (e) { showAlert('❌ Erreur', 'error'); }
         });
 
         async function loadPiquetListe() {
             try {
-                const response = await fetch(`${API_BASE}/piquet`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const response = await fetch(`${API_BASE}/piquet`, { headers: { 'Authorization': `Bearer ${token}` } });
                 const result = await response.json();
-                
-                let html = '<table><thead><tr><th>Enseignant</th><th>Créneau</th><th>Type</th><th>Salle</th><th>Action</th></tr></thead><tbody>';
+                if (result.data.length === 0) { document.getElementById('piquetListe').innerHTML = '<p style="color:#666;">Aucun</p>'; return; }
+                let html = '<table><thead><tr><th>Enseignant</th><th>Créneau</th><th>Type</th><th>Salle</th><th></th></tr></thead><tbody>';
                 result.data.forEach(p => {
-                    html += `<tr>
-                        <td>${p.enseignant_prenom} ${p.enseignant_nom}</td>
-                        <td>${p.jour} ${p.periode}</td>
-                        <td>${p.type}</td>
-                        <td>${p.salle_nom || '-'}</td>
-                        <td><button class="btn btn-danger" onclick="deletePiquet(${p.id})">🗑️</button></td>
-                    </tr>`;
+                    const jour = p.jour.charAt(0).toUpperCase() + p.jour.slice(1);
+                    const typeLabel = p.type === 'degagement' ? '<span class="badge badge-blue">Dégagement</span>' : '<span class="badge badge-yellow">Piquet</span>';
+                    html += `<tr><td>${p.enseignant_prenom} ${p.enseignant_nom}</td><td>${jour} ${p.periode}</td><td>${typeLabel}</td><td>${p.salle_nom || '-'}</td><td><button class="btn btn-danger btn-sm" onclick="deletePiquet(${p.id})">🗑️</button></td></tr>`;
                 });
                 html += '</tbody></table>';
                 document.getElementById('piquetListe').innerHTML = html;
-            } catch (error) {
-                console.error(error);
-            }
+            } catch (e) { document.getElementById('piquetListe').innerHTML = '<p style="color:red;">Erreur</p>'; }
         }
 
         async function deletePiquet(id) {
-            if (!confirm('Supprimer ce piquet ?')) return;
+            if (!confirm('Supprimer ?')) return;
             try {
-                await fetch(`${API_BASE}/piquet/${id}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                showAlert('✅ Piquet supprimé', 'success');
-                loadPiquetListe();
-            } catch (error) {
-                showAlert('❌ Erreur', 'error');
-            }
+                const response = await fetch(`${API_BASE}/piquet/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+                const result = await response.json();
+                if (result.success) { showAlert('✅ Supprimé', 'success'); loadPiquetListe(); }
+                else showAlert('❌ ' + result.message, 'error');
+            } catch (e) { showAlert('❌ Erreur', 'error'); }
         }
 
-        // === PLACEMENT MANUEL ===
+        // PLACEMENT
         document.getElementById('formPlacement').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const resultDiv = document.getElementById('resultatPlacement');
             try {
-                const data = {
-                    atelier_id: parseInt(document.getElementById('place_atelier').value),
-                    salle_id: parseInt(document.getElementById('place_salle').value),
-                    creneau_id: parseInt(document.getElementById('place_creneau').value)
-                };
-                
-                console.log('Données envoyées:', data);
-                
-                const response = await fetch('/api/planning/placer-manuel', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(data)
-                });
-                
+                const data = { atelier_id: parseInt(document.getElementById('place_atelier').value), salle_id: parseInt(document.getElementById('place_salle').value), creneau_id: parseInt(document.getElementById('place_creneau').value) };
+                resultDiv.innerHTML = '<p>⏳ Placement...</p>';
+                const response = await fetch('/api/planning/placer-manuel', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(data) });
                 const result = await response.json();
-                if (result.success) {
-                    showAlert('✅ Atelier placé !', 'success');
-                    e.target.reset();
-                } else {
-                    showAlert('❌ ' + result.message, 'error');
-                }
-            } catch (error) {
-                showAlert('❌ Erreur', 'error');
-            }
+                if (result.success) { resultDiv.innerHTML = `<div style="padding:10px;background:#d1fae5;border-radius:8px;">✅ ${result.message}</div>`; e.target.reset(); loadAteliersForSelects(); loadPlanningsForSelects(); }
+                else resultDiv.innerHTML = `<div style="padding:10px;background:#fee2e2;border-radius:8px;">❌ ${result.message}</div>`;
+            } catch (e) { resultDiv.innerHTML = '<div style="padding:10px;background:#fee2e2;border-radius:8px;">❌ Erreur</div>'; }
         });
 
-        // === CHARGEMENT SELECTS ===
-        async function loadClassesForSelects() {
+        // ÉLÈVES PAR CRÉNEAU
+        async function loadElevesCreneaux() {
+            const container = document.getElementById('elevesCreneauxContainer');
+            const jour = document.getElementById('filtre_jour').value;
+            const classeId = document.getElementById('filtre_classe_eleves').value;
             try {
-                const response = await fetch(`${API_BASE}/classes`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                let url = `${API_BASE}/tous-eleves-creneaux?`;
+                if (jour) url += `jour=${jour}&`;
+                if (classeId) url += `classe_id=${classeId}&`;
+                container.innerHTML = '<p>⏳ Chargement...</p>';
+                const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
                 const result = await response.json();
-                
-                const selects = ['eleve_classe', 'inscr_classe', 'select_classe_eleves'];
-                selects.forEach(id => {
-                    const select = document.getElementById(id);
-                    if (select) {
-                        select.innerHTML = '<option value="">-- Sélectionner --</option>';
-                        result.data.forEach(c => {
-                            select.innerHTML += `<option value="${c.id}">${c.nom}</option>`;
-                        });
-                    }
+                if (result.data.length === 0) { container.innerHTML = '<p style="color:#666;">Aucune inscription</p>'; return; }
+                const parCreneau = {};
+                result.data.forEach(i => {
+                    const key = `${i.jour}_${i.periode}`;
+                    if (!parCreneau[key]) parCreneau[key] = { jour: i.jour, periode: i.periode, eleves: [] };
+                    parCreneau[key].eleves.push(i);
                 });
-            } catch (error) {
-                console.error(error);
-            }
+                let html = '';
+                Object.values(parCreneau).forEach(creneau => {
+                    const jour = creneau.jour.charAt(0).toUpperCase() + creneau.jour.slice(1);
+                    html += `<div style="margin-bottom:20px;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;"><div style="background:#667eea;color:white;padding:10px 15px;font-weight:600;">${jour} ${creneau.periode} - ${creneau.eleves.length} élèves</div><table style="margin:0;"><thead><tr><th>Élève</th><th>Classe</th><th>Atelier</th><th>Salle</th></tr></thead><tbody>`;
+                    creneau.eleves.forEach(e => html += `<tr><td>${e.eleve_nom} ${e.eleve_prenom}</td><td>${e.classe_nom}</td><td>${e.atelier_nom}</td><td>${e.salle_nom || '-'}</td></tr>`);
+                    html += '</tbody></table></div>';
+                });
+                container.innerHTML = html;
+            } catch (e) { container.innerHTML = '<p style="color:red;">Erreur</p>'; }
         }
 
-        async function loadAteliersForSelects() {
+        // CRÉNEAUX FAIBLES
+        async function loadCreneauxFaibles() {
+            const container = document.getElementById('creneauxFaiblesContainer');
+            const seuil = document.getElementById('seuil_faibles').value || 5;
             try {
-                const response = await fetch('/api/admin/ateliers?statut=valide', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                container.innerHTML = '<p>⏳ Chargement...</p>';
+                const response = await fetch(`${API_BASE}/creneaux-faibles?seuil=${seuil}`, { headers: { 'Authorization': `Bearer ${token}` } });
                 const result = await response.json();
-                
-                const selects = ['inscr_atelier_classe', 'inscr_atelier_eleves', 'place_atelier'];
-                selects.forEach(id => {
-                    const select = document.getElementById(id);
-                    if (select) {
-                        select.innerHTML = '<option value="">-- Sélectionner --</option>';
-                        result.data.forEach(a => {
-                            select.innerHTML += `<option value="${a.id}">${a.nom} (${a.enseignant_acronyme})</option>`;
-                        });
-                    }
+                if (result.data.length === 0) { container.innerHTML = `<p style="color:#10b981;">✅ Aucun créneau avec moins de ${seuil} inscriptions</p>`; return; }
+                let html = `<p style="margin-bottom:15px;"><strong>${result.data.length}</strong> créneaux avec moins de ${seuil} inscriptions</p><table><thead><tr><th>Atelier</th><th>Jour</th><th>Période</th><th>Salle</th><th>Inscrits</th><th>Dispo</th></tr></thead><tbody>`;
+                result.data.forEach(c => {
+                    const jour = c.jour.charAt(0).toUpperCase() + c.jour.slice(1);
+                    const badge = c.nb_inscrits === 0 ? '<span class="badge badge-red">0</span>' : `<span class="badge badge-yellow">${c.nb_inscrits}</span>`;
+                    html += `<tr><td><strong>${c.atelier_nom}</strong></td><td>${jour}</td><td>${c.periode}</td><td>${c.salle_nom || '-'}</td><td>${badge}</td><td>${c.places_restantes}</td></tr>`;
                 });
-            } catch (error) {
-                console.error(error);
-            }
-        }
-
-        async function loadEnseignantsForSelects() {
-            try {
-                const response = await fetch('/api/admin/enseignants/liste', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const result = await response.json();
-                
-                const select = document.getElementById('piquet_enseignant');
-                if (select) {
-                    select.innerHTML = '<option value="">-- Sélectionner --</option>';
-                    result.data.forEach(e => {
-                        select.innerHTML += `<option value="${e.id}">${e.nom} ${e.prenom} (${e.acronyme})</option>`;
-                    });
-                }
-            } catch (error) {
-                console.error(error);
-            }
-        }
-
-        async function loadSallesForSelects() {
-            try {
-                const response = await fetch(`${API_BASE}/salles`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const result = await response.json();
-                
-                const selects = ['piquet_salle', 'place_salle'];
-                selects.forEach(id => {
-                    const select = document.getElementById(id);
-                    if (select) {
-                        select.innerHTML = '<option value="">-- Sélectionner --</option>';
-                        result.data.forEach(s => {
-                            select.innerHTML += `<option value="${s.id}">${s.nom}</option>`;
-                        });
-                    }
-                });
-            } catch (error) {
-                console.error(error);
-            }
-        }
-
-        async function loadCreneauxForSelects() {
-            try {
-                const response = await fetch('/api/planning/creneaux', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const result = await response.json();
-                
-                const selects = ['piquet_creneau', 'place_creneau'];
-                selects.forEach(id => {
-                    const select = document.getElementById(id);
-                    if (select) {
-                        select.innerHTML = '<option value="">-- Sélectionner --</option>';
-                        result.data.forEach(c => {
-                            select.innerHTML += `<option value="${c.id}">${c.jour} ${c.periode} (${c.heure_debut}-${c.heure_fin})</option>`;
-                        });
-                    }
-                });
-            } catch (error) {
-                console.error(error);
-            }
-        }
-
-        // Import CSV
-        async function importCSV(type) {
-            const fileInput = document.getElementById(`csv${type.charAt(0).toUpperCase() + type.slice(1)}`);
-            const resultDiv = document.getElementById(`result${type.charAt(0).toUpperCase() + type.slice(1)}`);
-            const file = fileInput.files[0];
-
-            if (!file) {
-                showAlert('Veuillez sélectionner un fichier CSV', 'error');
-                return;
-            }
-
-            resultDiv.innerHTML = '<p style="color: #667eea;">📤 Import en cours...</p>';
-
-            try {
-                const text = await file.text();
-                const lines = text.split('\n').filter(l => l.trim());
-                
-                if (lines.length < 2) {
-                    throw new Error('Fichier vide ou mal formaté');
-                }
-
-                const headers = lines[0].split(',').map(h => h.trim());
-                const rows = lines.slice(1);
-
-                let successes = 0;
-                let errors = [];
-
-                for (let i = 0; i < rows.length; i++) {
-                    const values = rows[i].split(',').map(v => v.trim());
-                    if (values.length === 0 || !values[0]) continue;
-
-                    const data = {};
-                    headers.forEach((header, index) => {
-                        data[header] = values[index] || '';
-                    });
-
-                    try {
-                        const response = await fetch(`/api/gestion/${type}`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${token}`
-                            },
-                            body: JSON.stringify(data)
-                        });
-
-                        const result = await response.json();
-                        if (result.success) {
-                            successes++;
-                        } else {
-                            errors.push(`Ligne ${i + 2}: ${result.message}`);
-                        }
-                    } catch (err) {
-                        errors.push(`Ligne ${i + 2}: Erreur réseau`);
-                    }
-                }
-
-                // Afficher résultats
-                let html = `<div style="background: white; padding: 15px; border-radius: 8px; margin-top: 15px;">`;
-                html += `<p style="color: #10b981; font-weight: 600;">✅ ${successes} importé(s) avec succès</p>`;
-                
-                if (errors.length > 0) {
-                    html += `<p style="color: #ef4444; font-weight: 600; margin-top: 10px;">❌ ${errors.length} erreur(s) :</p>`;
-                    html += `<ul style="margin-left: 20px; margin-top: 5px; color: #991b1b; font-size: 12px;">`;
-                    errors.slice(0, 10).forEach(err => {
-                        html += `<li>${err}</li>`;
-                    });
-                    if (errors.length > 10) {
-                        html += `<li>... et ${errors.length - 10} autre(s)</li>`;
-                    }
-                    html += `</ul>`;
-                }
-                html += `</div>`;
-                
-                resultDiv.innerHTML = html;
-                
-                if (successes > 0) {
-                    showAlert(`✅ ${successes} ${type} importé(s) !`, 'success');
-                }
-
-                // Réinitialiser input
-                fileInput.value = '';
-
-            } catch (error) {
-                console.error('Erreur import:', error);
-                resultDiv.innerHTML = `<p style="color: #ef4444;">❌ Erreur : ${error.message}</p>`;
-                showAlert('Erreur lors de l\'import CSV', 'error');
-            }
-        }
-
-        // === RÉINITIALISATION MOT DE PASSE ===
-        async function resetPassword(userId, userName) {
-            if (!confirm(`Réinitialiser le mot de passe de ${userName} ?\n\nLe nouveau mot de passe sera :\n- Pour un enseignant : son acronyme\n- Pour un élève : prénomnom`)) {
-                return;
-            }
-
-            try {
-                const response = await fetch(`/api/admin/utilisateurs/${userId}/reset-password`, {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    showAlert(`✅ Mot de passe réinitialisé !\nNouveau mot de passe : ${result.nouveau_mot_de_passe}`, 'success');
-                } else {
-                    showAlert('❌ ' + result.message, 'error');
-                }
-            } catch (error) {
-                console.error('Erreur reset password:', error);
-                showAlert('❌ Erreur lors de la réinitialisation', 'error');
-            }
-        }
-
-        // === GESTION DES DISPONIBILITÉS ===
-        let currentEnseignantAcronyme = '';
-        let creneauxData = [];
-        let disponibilitesData = {};
-
-        async function openDisponibilites(acronyme, nomComplet) {
-            currentEnseignantAcronyme = acronyme;
-            document.getElementById('dispoEnseignantNom').textContent = `${nomComplet} (${acronyme})`;
-            
-            // Charger les créneaux
-            try {
-                const response = await fetch('/api/planning/creneaux', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const result = await response.json();
-                creneauxData = result.data || [];
-                
-                // Charger les disponibilités existantes
-                const dispoResponse = await fetch(`/api/admin/enseignants/${acronyme}/disponibilites`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const dispoResult = await dispoResponse.json();
-                
-                // Créer map des indisponibilités
-                disponibilitesData = {};
-                (dispoResult.data || []).forEach(d => {
-                    disponibilitesData[d.creneau_id] = d.disponible;
-                });
-                
-                renderDisponibilitesGrid();
-                document.getElementById('modalDisponibilites').style.display = 'flex';
-            } catch (error) {
-                console.error('Erreur chargement disponibilités:', error);
-                showAlert('❌ Erreur de chargement', 'error');
-            }
-        }
-
-        function renderDisponibilitesGrid() {
-            const jours = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
-            const periodes = ['P1-2', 'P3-4', 'P6-7'];
-            
-            let html = '<table style="width:100%;"><thead><tr><th></th>';
-            jours.forEach(j => html += `<th>${j.charAt(0).toUpperCase() + j.slice(1)}</th>`);
-            html += '</tr></thead><tbody>';
-            
-            periodes.forEach(periode => {
-                html += `<tr><td><strong>${periode}</strong></td>`;
-                jours.forEach(jour => {
-                    // Pas de P6-7 le mercredi
-                    if (jour === 'mercredi' && periode === 'P6-7') {
-                        html += '<td style="background:#eee;">-</td>';
-                        return;
-                    }
-                    
-                    const creneau = creneauxData.find(c => c.jour === jour && c.periode === periode);
-                    if (creneau) {
-                        // Par défaut disponible (true), sauf si explicitement false
-                        const estDisponible = disponibilitesData[creneau.id] !== false;
-                        const bgColor = estDisponible ? '#d1fae5' : '#fee2e2';
-                        const icon = estDisponible ? '✅' : '❌';
-                        html += `<td style="background:${bgColor};cursor:pointer;text-align:center;padding:10px;" onclick="toggleDispo(${creneau.id})">${icon}</td>`;
-                    } else {
-                        html += '<td>-</td>';
-                    }
-                });
-                html += '</tr>';
-            });
-            
-            html += '</tbody></table>';
-            html += '<p style="margin-top:15px;color:#666;font-size:12px;">✅ = Disponible | ❌ = Indisponible<br>Cliquez sur une case pour changer.</p>';
-            
-            document.getElementById('dispoGrid').innerHTML = html;
-        }
-
-        function toggleDispo(creneauId) {
-            // Par défaut disponible (undefined ou true), toggle vers false ou true
-            const actuel = disponibilitesData[creneauId];
-            disponibilitesData[creneauId] = (actuel === false) ? true : false;
-            renderDisponibilitesGrid();
-        }
-
-        async function saveDisponibilites() {
-            try {
-                // Envoyer uniquement les indisponibilités
-                const indisponibilites = Object.entries(disponibilitesData)
-                    .filter(([id, dispo]) => dispo === false)
-                    .map(([id, dispo]) => parseInt(id));
-                
-                const response = await fetch(`/api/admin/enseignants/${currentEnseignantAcronyme}/disponibilites`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ indisponibilites })
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                    showAlert('✅ Disponibilités enregistrées', 'success');
-                    closeModalDisponibilites();
-                } else {
-                    showAlert('❌ ' + result.message, 'error');
-                }
-            } catch (error) {
-                console.error('Erreur sauvegarde:', error);
-                showAlert('❌ Erreur lors de la sauvegarde', 'error');
-            }
-        }
-
-        function closeModalDisponibilites() {
-            document.getElementById('modalDisponibilites').style.display = 'none';
-        }
-    </script>
-
-    <!-- Modale Disponibilités -->
-    <div id="modalDisponibilites" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;justify-content:center;align-items:center;">
-        <div style="background:white;padding:30px;border-radius:15px;max-width:700px;width:90%;max-height:90vh;overflow-y:auto;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-                <h2>📅 Disponibilités</h2>
-                <button onclick="closeModalDisponibilites()" style="background:none;border:none;font-size:24px;cursor:pointer;">×</button>
-            </div>
-            <p style="margin-bottom:15px;"><strong>Enseignant :</strong> <span id="dispoEnseignantNom"></span></p>
-            <div id="dispoGrid"></div>
-            <div style="margin-top:20px;display:flex;gap:10px;justify-content:flex-end;">
-                <button class="btn btn-secondary" onclick="closeModalDisponibilites()">Annuler</button>
-                <button class="btn btn-primary" onclick="saveDisponibilites()">💾 Enregistrer</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modale Modifier Salle -->
-    <div id="modalSalle" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;justify-content:center;align-items:center;">
-        <div style="background:white;padding:30px;border-radius:15px;max-width:500px;width:90%;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-                <h2>✏️ Modifier Salle</h2>
-                <button onclick="closeModalSalle()" style="background:none;border:none;font-size:24px;cursor:pointer;">×</button>
-            </div>
-            <p style="margin-bottom:15px;"><strong>Salle :</strong> <span id="modalSalleNom"></span></p>
-            <form id="formModifierSalle">
-                <input type="hidden" id="modalSalleId">
-                <div class="form-group" style="margin-bottom:15px;">
-                    <label>Type de salle</label>
-                    <select id="modalSalleType" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;">
-                        <option value="">-- Aucun type --</option>
-                        <option value="standard">Standard</option>
-                        <option value="informatique">Informatique</option>
-                        <option value="sport">Sport</option>
-                        <option value="sciences">Sciences / Labo</option>
-                        <option value="musique">Musique</option>
-                        <option value="arts">Arts visuels</option>
-                        <option value="cuisine">Cuisine</option>
-                        <option value="conference">Conférence / Aula</option>
-                        <option value="exterieur">Extérieur</option>
-                    </select>
-                </div>
-                <div class="form-group" style="margin-bottom:15px;">
-                    <label>Capacité</label>
-                    <input type="number" id="modalSalleCapacite" min="1" max="500" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;">
-                </div>
-                <div class="form-group" style="margin-bottom:15px;">
-                    <label>
-                        <input type="checkbox" id="modalSalleDisponible"> Disponible
-                    </label>
-                </div>
-                <div style="display:flex;gap:10px;justify-content:flex-end;">
-                    <button type="button" class="btn btn-secondary" onclick="closeModalSalle()">Annuler</button>
-                    <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <script>
-        // === MODIFIER SALLE ===
-        function openModifierSalle(id, nom, type, capacite, disponible) {
-            document.getElementById('modalSalleId').value = id;
-            document.getElementById('modalSalleNom').textContent = nom;
-            document.getElementById('modalSalleType').value = type || '';
-            document.getElementById('modalSalleCapacite').value = capacite;
-            document.getElementById('modalSalleDisponible').checked = disponible;
-            document.getElementById('modalSalle').style.display = 'flex';
-        }
-
-        function closeModalSalle() {
-            document.getElementById('modalSalle').style.display = 'none';
-        }
-
-        document.getElementById('formModifierSalle').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            try {
-                const id = document.getElementById('modalSalleId').value;
-                const data = {
-                    type_salle: document.getElementById('modalSalleType').value || null,
-                    capacite: parseInt(document.getElementById('modalSalleCapacite').value),
-                    disponible: document.getElementById('modalSalleDisponible').checked
-                };
-                
-                const response = await fetch(`/api/gestion/salles/${id}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(data)
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                    showAlert('✅ Salle modifiée !', 'success');
-                    closeModalSalle();
-                    loadListe('salles');
-                } else {
-                    showAlert('❌ ' + result.message, 'error');
-                }
-            } catch (error) {
-                showAlert('❌ Erreur', 'error');
-            }
-        });
-
-        // ============================================================
-        // GESTION DES THÈMES
-        // ============================================================
-        
-        async function loadThemesListe() {
-            try {
-                const response = await fetch('/api/catalogue/admin/themes', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const result = await response.json();
-                
-                if (!result.success) throw new Error(result.message);
-                
-                let html = '<table style="width:100%;"><thead><tr>';
-                html += '<th>Icône</th><th>Nom</th><th>Couleur</th><th>Ateliers</th><th>Actions</th>';
-                html += '</tr></thead><tbody>';
-                
-                result.data.forEach(t => {
-                    html += `<tr style="${!t.actif ? 'opacity:0.5;' : ''}">
-                        <td style="font-size:1.5em;">${t.icone || '📚'}</td>
-                        <td><strong>${t.nom}</strong><br><small style="color:#666;">${t.description || ''}</small></td>
-                        <td><span style="display:inline-block;width:25px;height:25px;background:${t.couleur};border-radius:5px;"></span></td>
-                        <td>${t.nb_ateliers || 0}</td>
-                        <td>
-                            <button class="btn btn-primary" style="padding:5px 10px;font-size:12px;margin:2px;" onclick="editTheme(${t.id}, '${t.nom.replace(/'/g, "\\'")}', '${(t.description || '').replace(/'/g, "\\'")}', '${t.icone || ''}', '${t.couleur}', ${t.ordre}, ${t.actif})">✏️</button>
-                            <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px;margin:2px;" onclick="deleteTheme(${t.id}, '${t.nom.replace(/'/g, "\\'")}')">🗑️</button>
-                        </td>
-                    </tr>`;
-                });
-                
                 html += '</tbody></table>';
-                document.getElementById('themesListe').innerHTML = html;
-                
-            } catch (error) {
-                console.error('Erreur:', error);
-                document.getElementById('themesListe').innerHTML = '<p style="color:red;">Erreur de chargement</p>';
-            }
-        }
-        
-        function editTheme(id, nom, description, icone, couleur, ordre, actif) {
-            document.getElementById('theme_edit_id').value = id;
-            document.getElementById('theme_nom').value = nom;
-            document.getElementById('theme_description').value = description;
-            document.getElementById('theme_icone').value = icone;
-            document.getElementById('theme_couleur').value = couleur;
-            document.getElementById('theme_ordre').value = ordre;
-            document.getElementById('themesFormTitle').textContent = '✏️ Modifier le Thème';
-        }
-        
-        function resetThemeForm() {
-            document.getElementById('theme_edit_id').value = '';
-            document.getElementById('formTheme').reset();
-            document.getElementById('theme_couleur').value = '#667eea';
-            document.getElementById('themesFormTitle').textContent = 'Ajouter un Thème';
-        }
-        
-        document.getElementById('formTheme').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            try {
-                const editId = document.getElementById('theme_edit_id').value;
-                const data = {
-                    nom: document.getElementById('theme_nom').value,
-                    description: document.getElementById('theme_description').value || null,
-                    icone: document.getElementById('theme_icone').value || '📚',
-                    couleur: document.getElementById('theme_couleur').value,
-                    ordre: parseInt(document.getElementById('theme_ordre').value) || 0,
-                    actif: true
-                };
-                
-                const url = editId ? `/api/catalogue/admin/themes/${editId}` : '/api/catalogue/admin/themes';
-                const method = editId ? 'PUT' : 'POST';
-                
-                const response = await fetch(url, {
-                    method,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(data)
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                    showAlert(`✅ Thème ${editId ? 'modifié' : 'ajouté'} !`, 'success');
-                    resetThemeForm();
-                    loadThemesListe();
-                } else {
-                    showAlert('❌ ' + result.message, 'error');
-                }
-            } catch (error) {
-                showAlert('❌ Erreur', 'error');
-            }
-        });
-        
-        async function deleteTheme(id, nom) {
-            if (!confirm(`Supprimer le thème "${nom}" ?\n\nLes ateliers associés n'auront plus de thème.`)) return;
-            
-            try {
-                const response = await fetch(`/api/catalogue/admin/themes/${id}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                    showAlert('✅ Thème supprimé', 'success');
-                    loadThemesListe();
-                } else {
-                    showAlert('❌ ' + result.message, 'error');
-                }
-            } catch (error) {
-                showAlert('❌ Erreur', 'error');
-            }
-        }
-
-        // ============================================================
-        // GESTION DES TYPES DE SALLES
-        // ============================================================
-        
-        // Liste des types de salles prédéfinis
-        const typesSallesPredefinies = [
-            'standard', 'informatique', 'sport', 'sciences', 
-            'musique', 'arts', 'cuisine', 'conference', 'exterieur'
-        ];
-        
-        async function loadTypesSallesListe() {
-            // Récupérer les types utilisés dans les salles
-            try {
-                const response = await fetch(`${API_BASE}/salles`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const result = await response.json();
-                
-                // Extraire les types uniques
-                const typesUtilises = new Set();
-                result.data.forEach(s => {
-                    if (s.type_salle) typesUtilises.add(s.type_salle);
-                });
-                
-                // Fusionner avec les prédéfinis
-                const tousTypes = new Set([...typesSallesPredefinies, ...typesUtilises]);
-                
-                let html = '<div style="display:flex;flex-wrap:wrap;gap:10px;">';
-                Array.from(tousTypes).sort().forEach(type => {
-                    const count = result.data.filter(s => s.type_salle === type).length;
-                    html += `<span style="background:#e5e7eb;padding:8px 15px;border-radius:20px;">
-                        ${type} <small>(${count})</small>
-                        <span onclick="deleteTypeSalle('${type}')" style="cursor:pointer;color:red;margin-left:5px;" title="Supprimer ce type">×</span>
-                    </span>`;
-                });
-                html += '</div>';
-                
-                document.getElementById('typesSallesListe').innerHTML = html;
-                
-            } catch (error) {
-                console.error('Erreur:', error);
-            }
-        }
-        
-        async function loadSallesAvecTypes() {
-            try {
-                const response = await fetch(`${API_BASE}/salles`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const result = await response.json();
-                
-                let html = '<table style="width:100%;"><thead><tr>';
-                html += '<th>Salle</th><th>Type actuel</th><th>Changer</th>';
-                html += '</tr></thead><tbody>';
-                
-                // Options de types
-                const typesOptions = typesSallesPredefinies.map(t => 
-                    `<option value="${t}">${t}</option>`
-                ).join('');
-                
-                result.data.forEach(s => {
-                    html += `<tr>
-                        <td><strong>${s.nom}</strong></td>
-                        <td>${s.type_salle || '<em style="color:#999;">Aucun</em>'}</td>
-                        <td>
-                            <select onchange="changerTypeSalle(${s.id}, this.value)" style="padding:5px;border-radius:5px;border:1px solid #ddd;">
-                                <option value="">-- Aucun --</option>
-                                ${typesOptions}
-                            </select>
-                        </td>
-                    </tr>`;
-                });
-                
-                html += '</tbody></table>';
-                document.getElementById('sallesTypesListe').innerHTML = html;
-                
-                // Sélectionner la valeur actuelle
-                result.data.forEach(s => {
-                    const select = document.querySelector(`select[onchange*="changerTypeSalle(${s.id}"]`);
-                    if (select && s.type_salle) {
-                        select.value = s.type_salle;
-                    }
-                });
-                
-            } catch (error) {
-                console.error('Erreur:', error);
-            }
-        }
-        
-        async function changerTypeSalle(salleId, type) {
-            try {
-                const response = await fetch(`${API_BASE}/salles/${salleId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ type_salle: type || null, capacite: 30, disponible: true })
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                    showAlert('✅ Type de salle modifié', 'success');
-                    loadTypesSallesListe();
-                } else {
-                    showAlert('❌ ' + result.message, 'error');
-                }
-            } catch (error) {
-                showAlert('❌ Erreur', 'error');
-            }
-        }
-        
-        document.getElementById('formTypeSalle').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const nouveauType = document.getElementById('type_salle_nom').value.toLowerCase().trim();
-            
-            if (typesSallesPredefinies.includes(nouveauType)) {
-                showAlert('⚠️ Ce type existe déjà', 'error');
-                return;
-            }
-            
-            // Ajouter aux types (il sera visible une fois assigné à une salle)
-            typesSallesPredefinies.push(nouveauType);
-            showAlert('✅ Type ajouté ! Vous pouvez maintenant l\'assigner à des salles.', 'success');
-            document.getElementById('type_salle_nom').value = '';
-            loadTypesSallesListe();
-            loadSallesAvecTypes();
-        });
-        
-        async function deleteTypeSalle(type) {
-            if (!confirm(`Supprimer le type "${type}" ?\n\nToutes les salles de ce type seront remises à "Aucun".`)) return;
-            
-            try {
-                // Récupérer toutes les salles avec ce type
-                const response = await fetch(`${API_BASE}/salles`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const result = await response.json();
-                
-                const sallesAvecType = result.data.filter(s => s.type_salle === type);
-                
-                // Mettre à jour chaque salle pour enlever le type
-                for (const salle of sallesAvecType) {
-                    await fetch(`${API_BASE}/salles/${salle.id}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({ 
-                            type_salle: null, 
-                            capacite: salle.capacite, 
-                            disponible: salle.disponible 
-                        })
-                    });
-                }
-                
-                // Retirer des types prédéfinis si c'était un type ajouté
-                const index = typesSallesPredefinies.indexOf(type);
-                if (index > -1) {
-                    typesSallesPredefinies.splice(index, 1);
-                }
-                
-                showAlert(`✅ Type "${type}" supprimé (${sallesAvecType.length} salle(s) mise(s) à jour)`, 'success');
-                loadTypesSallesListe();
-                loadSallesAvecTypes();
-                
-            } catch (error) {
-                console.error('Erreur:', error);
-                showAlert('❌ Erreur lors de la suppression', 'error');
-            }
+                container.innerHTML = html;
+            } catch (e) { container.innerHTML = '<p style="color:red;">Erreur</p>'; }
         }
     </script>
 </body>
