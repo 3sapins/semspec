@@ -64,7 +64,7 @@ router.post('/enseignants', async (req, res) => {
             });
         }
         
-        // Mot de passe par défaut = acronyme (ou mot_de_passe du CSV si fourni)
+        // Mot de passe par défaut
         const defaultPassword = req.body.mot_de_passe || acronyme;
         const hashedPassword = await bcrypt.hash(defaultPassword, 10);
         
@@ -72,11 +72,6 @@ router.post('/enseignants', async (req, res) => {
             INSERT INTO utilisateurs (acronyme, nom, prenom, email, mot_de_passe, role, charge_max)
             VALUES (?, ?, ?, ?, ?, 'enseignant', ?)
         `, [acronyme, nom, prenom, email, hashedPassword, parseInt(charge_max) || 0]);
-        
-        await query(
-            'INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
-            [req.user.id, 'CREATE_ENSEIGNANT', `Enseignant ${acronyme} créé`]
-        );
         
         res.json({
             success: true,
@@ -95,26 +90,30 @@ router.post('/enseignants', async (req, res) => {
  */
 router.get('/eleves', async (req, res) => {
     try {
+        const { classe_id } = req.query;
+        let whereClause = '';
+        let params = [];
+        
+        if (classe_id) {
+            whereClause = 'WHERE e.classe_id = ?';
+            params.push(classe_id);
+        }
+        
         const eleves = await query(`
             SELECT 
                 u.id as utilisateur_id,
-                e.id as eleve_id,
-                u.acronyme,
+                e.id,
+                e.numero_eleve,
                 u.nom,
                 u.prenom,
-                u.email,
-                e.numero_eleve,
-                c.nom as classe_nom,
                 c.id as classe_id,
-                COUNT(DISTINCT i.id) as nombre_inscriptions
-            FROM utilisateurs u
-            JOIN eleves e ON u.id = e.utilisateur_id
+                c.nom as classe_nom
+            FROM eleves e
+            JOIN utilisateurs u ON e.utilisateur_id = u.id
             JOIN classes c ON e.classe_id = c.id
-            LEFT JOIN inscriptions i ON e.id = i.eleve_id AND i.statut = 'confirmee'
-            WHERE u.role = 'eleve'
-            GROUP BY e.id
+            ${whereClause}
             ORDER BY c.nom, u.nom, u.prenom
-        `);
+        `, params);
         
         res.json({ success: true, data: eleves });
     } catch (error) {
@@ -125,93 +124,33 @@ router.get('/eleves', async (req, res) => {
 
 /**
  * POST /api/gestion/eleves
- * Ajouter un nouvel élève
+ * Ajouter un élève
  */
 router.post('/eleves', async (req, res) => {
     try {
-        const { nom, prenom, email, classe_id, classe_nom, mot_de_passe } = req.body;
+        const { nom, prenom, classe_id, numero_eleve } = req.body;
         
-        if (!nom || !prenom) {
+        if (!nom || !prenom || !classe_id) {
             return res.status(400).json({
                 success: false,
-                message: 'Nom et prénom requis'
+                message: 'Nom, prénom et classe requis'
             });
         }
         
-        // Trouver la classe (par id ou par nom)
-        let classeId = classe_id;
-        if (!classeId && classe_nom) {
-            const classes = await query('SELECT id FROM classes WHERE nom = ?', [classe_nom]);
-            if (classes.length > 0) {
-                classeId = classes[0].id;
-            } else {
-                return res.status(400).json({
-                    success: false,
-                    message: `Classe "${classe_nom}" non trouvée`
-                });
-            }
-        }
+        const acronyme = `${nom.substring(0, 3).toUpperCase()}${prenom.substring(0, 2).toUpperCase()}`;
+        const defaultPassword = await bcrypt.hash('eleve2026', 10);
         
-        if (!classeId) {
-            return res.status(400).json({
-                success: false,
-                message: 'Classe requise (classe_id ou classe_nom)'
-            });
-        }
+        const result = await query(`
+            INSERT INTO utilisateurs (acronyme, nom, prenom, mot_de_passe, role)
+            VALUES (?, ?, ?, ?, 'eleve')
+        `, [acronyme, nom, prenom, defaultPassword]);
         
-        // Générer l'acronyme = prénomnom (sans accents, minuscules)
-        const cleanPrenom = prenom.toLowerCase()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-            .replace(/[^a-z]/g, '');
-        const cleanNom = nom.toLowerCase()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-            .replace(/[^a-z]/g, '');
-        let acronyme = cleanPrenom + cleanNom;
-        
-        // Vérifier unicité de l'acronyme, ajouter chiffre si doublon
-        let suffix = 1;
-        let baseAcronyme = acronyme;
-        while (true) {
-            const existing = await query('SELECT id FROM utilisateurs WHERE acronyme = ?', [acronyme]);
-            if (existing.length === 0) break;
-            acronyme = baseAcronyme + suffix;
-            suffix++;
-        }
-        
-        // Mot de passe par défaut = acronyme (ou mot_de_passe du CSV si fourni)
-        const defaultPassword = mot_de_passe || acronyme;
-        const hashedPassword = await bcrypt.hash(defaultPassword, 10);
-        
-        // Créer l'utilisateur puis l'élève
-        await transaction(async (connection) => {
-            // Créer dans utilisateurs
-            const [userResult] = await connection.execute(`
-                INSERT INTO utilisateurs (acronyme, nom, prenom, email, mot_de_passe, role)
-                VALUES (?, ?, ?, ?, ?, 'eleve')
-            `, [acronyme, nom, prenom, email || null, hashedPassword]);
-            
-            const userId = userResult.insertId;
-            
-            // Créer dans eleves (liaison avec classe)
-            await connection.execute(`
-                INSERT INTO eleves (utilisateur_id, classe_id)
-                VALUES (?, ?)
-            `, [userId, classeId]);
-        });
-        
-        // Mettre à jour le compteur d'élèves de la classe
         await query(`
-            UPDATE classes SET nombre_eleves = (
-                SELECT COUNT(*) FROM eleves WHERE classe_id = ?
-            ) WHERE id = ?
-        `, [classeId, classeId]);
+            INSERT INTO eleves (utilisateur_id, classe_id, numero_eleve)
+            VALUES (?, ?, ?)
+        `, [result.insertId, classe_id, numero_eleve || null]);
         
-        res.json({
-            success: true,
-            message: `Élève créé. Identifiant: ${acronyme} / Mot de passe: ${defaultPassword}`,
-            acronyme: acronyme,
-            mot_de_passe: defaultPassword
-        });
+        res.json({ success: true, message: 'Élève ajouté' });
     } catch (error) {
         console.error('Erreur création élève:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
@@ -229,9 +168,7 @@ router.get('/classes', async (req, res) => {
                 c.id,
                 c.nom,
                 c.niveau,
-                c.voie,
-                c.annee,
-                COUNT(DISTINCT e.id) as nombre_eleves
+                COUNT(e.id) as nombre_eleves
             FROM classes c
             LEFT JOIN eleves e ON c.id = e.classe_id
             GROUP BY c.id
@@ -246,33 +183,34 @@ router.get('/classes', async (req, res) => {
 });
 
 /**
- * GET /api/gestion/classes/:id/eleves
- * Liste des élèves d'une classe
+ * POST /api/gestion/classes
+ * Ajouter une classe
  */
-router.get('/classes/:id/eleves', async (req, res) => {
+router.post('/classes', async (req, res) => {
     try {
-        const { id } = req.params;
+        const { nom, niveau } = req.body;
         
-        const eleves = await query(`
-            SELECT 
-                e.id as eleve_id,
-                u.id as utilisateur_id,
-                u.acronyme,
-                u.nom,
-                u.prenom,
-                e.numero_eleve,
-                COUNT(DISTINCT i.id) as nombre_inscriptions
-            FROM eleves e
-            JOIN utilisateurs u ON e.utilisateur_id = u.id
-            LEFT JOIN inscriptions i ON e.id = i.eleve_id AND i.statut = 'confirmee'
-            WHERE e.classe_id = ?
-            GROUP BY e.id
-            ORDER BY u.nom, u.prenom
-        `, [id]);
+        if (!nom) {
+            return res.status(400).json({
+                success: false,
+                message: 'Nom de classe requis'
+            });
+        }
         
-        res.json({ success: true, data: eleves });
+        await query(`
+            INSERT INTO classes (nom, niveau)
+            VALUES (?, ?)
+        `, [nom, niveau || null]);
+        
+        res.json({ success: true, message: 'Classe ajoutée' });
     } catch (error) {
-        console.error('Erreur élèves classe:', error);
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({
+                success: false,
+                message: 'Cette classe existe déjà'
+            });
+        }
+        console.error('Erreur création classe:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
@@ -284,15 +222,8 @@ router.get('/classes/:id/eleves', async (req, res) => {
 router.get('/salles', async (req, res) => {
     try {
         const salles = await query(`
-            SELECT 
-                s.*,
-                COUNT(DISTINCT p.id) as nombre_utilisations
-            FROM salles s
-            LEFT JOIN planning p ON s.id = p.salle_id
-            GROUP BY s.id
-            ORDER BY s.batiment, s.nom
+            SELECT * FROM salles ORDER BY nom
         `);
-        
         res.json({ success: true, data: salles });
     } catch (error) {
         console.error('Erreur liste salles:', error);
@@ -302,34 +233,32 @@ router.get('/salles', async (req, res) => {
 
 /**
  * POST /api/gestion/salles
- * Ajouter une nouvelle salle
+ * Ajouter une salle
  */
 router.post('/salles', async (req, res) => {
     try {
-        const { nom, capacite, type_salle, batiment, equipement } = req.body;
+        const { nom, capacite, type_salle, batiment, etage, equipement } = req.body;
         
-        if (!nom || !capacite) {
+        if (!nom) {
             return res.status(400).json({
                 success: false,
-                message: 'Nom et capacité requis'
+                message: 'Nom de salle requis'
             });
         }
         
         await query(`
-            INSERT INTO salles (nom, capacite, type_salle, batiment, equipement, disponible)
-            VALUES (?, ?, ?, ?, ?, TRUE)
-        `, [nom, capacite, type_salle || null, batiment || null, equipement || null]);
+            INSERT INTO salles (nom, capacite, type_salle, batiment, etage, equipement, disponible)
+            VALUES (?, ?, ?, ?, ?, ?, TRUE)
+        `, [nom, capacite || 25, type_salle, batiment, etage, equipement]);
         
-        await query(
-            'INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
-            [req.user.id, 'CREATE_SALLE', `Salle ${nom} créée`]
-        );
-        
-        res.json({
-            success: true,
-            message: 'Salle créée avec succès'
-        });
+        res.json({ success: true, message: 'Salle ajoutée' });
     } catch (error) {
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({
+                success: false,
+                message: 'Cette salle existe déjà'
+            });
+        }
         console.error('Erreur création salle:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
@@ -356,15 +285,7 @@ router.put('/salles/:id', async (req, res) => {
             WHERE id = ?
         `, [nom, capacite, type_salle, batiment, etage, equipement, disponible, id]);
         
-        await query(
-            'INSERT INTO historique (utilisateur_id, action, table_cible, id_cible, details) VALUES (?, ?, ?, ?, ?)',
-            [req.user.id, 'UPDATE', 'salles', id, `Salle modifiée`]
-        );
-        
-        res.json({
-            success: true,
-            message: 'Salle modifiée avec succès'
-        });
+        res.json({ success: true, message: 'Salle modifiée' });
     } catch (error) {
         console.error('Erreur modification salle:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
@@ -372,34 +293,66 @@ router.put('/salles/:id', async (req, res) => {
 });
 
 /**
+ * GET /api/gestion/ateliers-planifies
+ * Liste des ateliers avec leurs créneaux (pour inscriptions manuelles)
+ */
+router.get('/ateliers-planifies', async (req, res) => {
+    try {
+        const ateliers = await query(`
+            SELECT 
+                p.id as planning_id,
+                a.id as atelier_id,
+                a.nom as atelier_nom,
+                a.nombre_places_max,
+                c.id as creneau_id,
+                c.jour,
+                c.periode,
+                s.nom as salle_nom,
+                (SELECT COUNT(*) FROM inscriptions WHERE planning_id = p.id AND statut = 'confirmee') as nb_inscrits
+            FROM planning p
+            JOIN ateliers a ON p.atelier_id = a.id
+            JOIN creneaux c ON p.creneau_id = c.id
+            LEFT JOIN salles s ON p.salle_id = s.id
+            WHERE a.statut = 'valide'
+            ORDER BY a.nom, c.ordre
+        `);
+        
+        res.json({ success: true, data: ateliers });
+    } catch (error) {
+        console.error('Erreur liste ateliers planifiés:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
  * POST /api/gestion/inscriptions-classe
- * Inscrire toute une classe à un atelier
+ * Inscrire toute une classe à un CRÉNEAU (pas un atelier)
  */
 router.post('/inscriptions-classe', async (req, res) => {
     try {
-        const { atelier_id, classe_id } = req.body;
+        const { planning_id, classe_id } = req.body;
         
-        if (!atelier_id || !classe_id) {
+        if (!planning_id || !classe_id) {
             return res.status(400).json({
                 success: false,
-                message: 'Atelier et classe requis'
+                message: 'Planning (créneau) et classe requis'
             });
         }
         
-        // Récupérer le planning
+        // Vérifier que le planning existe
         const plannings = await query(
-            'SELECT id FROM planning WHERE atelier_id = ?',
-            [atelier_id]
+            'SELECT p.*, a.nombre_places_max FROM planning p JOIN ateliers a ON p.atelier_id = a.id WHERE p.id = ?',
+            [planning_id]
         );
         
         if (plannings.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: 'Atelier non placé dans le planning'
+                message: 'Créneau non trouvé'
             });
         }
         
-        const planningId = plannings[0].id;
+        const planning = plannings[0];
         
         // Récupérer les élèves de la classe
         const eleves = await query(
@@ -408,32 +361,41 @@ router.post('/inscriptions-classe', async (req, res) => {
         );
         
         let inscrit = 0;
+        let conflits = [];
         
         for (const eleve of eleves) {
-            // Vérifier si pas déjà inscrit
-            const existing = await query(
-                'SELECT id FROM inscriptions WHERE eleve_id = ? AND atelier_id = ? AND statut != "annulee"',
-                [eleve.id, atelier_id]
+            // Vérifier si pas déjà inscrit à ce créneau
+            const existingSameCreneau = await query(
+                'SELECT id FROM inscriptions WHERE eleve_id = ? AND planning_id = ? AND statut != "annulee"',
+                [eleve.id, planning_id]
             );
             
-            if (existing.length === 0) {
-                await query(`
-                    INSERT INTO inscriptions (eleve_id, atelier_id, planning_id, statut, inscription_manuelle)
-                    VALUES (?, ?, ?, 'confirmee', TRUE)
-                `, [eleve.id, atelier_id, planningId]);
-                inscrit++;
+            if (existingSameCreneau.length > 0) continue;
+            
+            // Vérifier conflit horaire (même créneau, autre atelier)
+            const conflitHoraire = await query(`
+                SELECT a.nom FROM inscriptions i
+                JOIN planning p ON i.planning_id = p.id
+                JOIN ateliers a ON p.atelier_id = a.id
+                WHERE i.eleve_id = ? AND p.creneau_id = ? AND i.statut != 'annulee' AND p.id != ?
+            `, [eleve.id, planning.creneau_id, planning_id]);
+            
+            if (conflitHoraire.length > 0) {
+                conflits.push({ eleve_id: eleve.id, conflit: conflitHoraire[0].nom });
+                continue;
             }
+            
+            await query(`
+                INSERT INTO inscriptions (eleve_id, atelier_id, planning_id, statut, inscription_manuelle)
+                VALUES (?, ?, ?, 'confirmee', TRUE)
+            `, [eleve.id, planning.atelier_id, planning_id]);
+            inscrit++;
         }
-        
-        await query(
-            'INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
-            [req.user.id, 'INSCRIPTION_CLASSE', `${inscrit} élèves inscrits`]
-        );
         
         res.json({
             success: true,
             message: `${inscrit} élèves inscrits`,
-            data: { inscrit }
+            data: { inscrit, conflits }
         });
     } catch (error) {
         console.error('Erreur inscription classe:', error);
@@ -443,61 +405,75 @@ router.post('/inscriptions-classe', async (req, res) => {
 
 /**
  * POST /api/gestion/inscriptions-eleves
- * Inscrire des élèves spécifiques à un atelier
+ * Inscrire des élèves spécifiques à un CRÉNEAU (pas un atelier)
  */
 router.post('/inscriptions-eleves', async (req, res) => {
     try {
-        const { atelier_id, eleve_ids } = req.body;
+        const { planning_id, eleve_ids } = req.body;
         
-        if (!atelier_id || !Array.isArray(eleve_ids)) {
+        if (!planning_id || !Array.isArray(eleve_ids) || eleve_ids.length === 0) {
             return res.status(400).json({
                 success: false,
-                message: 'Atelier et liste d\'élèves requis'
+                message: 'Planning (créneau) et liste d\'élèves requis'
             });
         }
         
-        // Récupérer le planning
+        // Vérifier que le planning existe
         const plannings = await query(
-            'SELECT id FROM planning WHERE atelier_id = ?',
-            [atelier_id]
+            'SELECT p.*, a.nombre_places_max, a.nom as atelier_nom FROM planning p JOIN ateliers a ON p.atelier_id = a.id WHERE p.id = ?',
+            [planning_id]
         );
         
         if (plannings.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: 'Atelier non placé dans le planning'
+                message: 'Créneau non trouvé'
             });
         }
         
-        const planningId = plannings[0].id;
+        const planning = plannings[0];
         
         let inscrit = 0;
+        let conflits = [];
         
         for (const eleveId of eleve_ids) {
             // Vérifier si pas déjà inscrit
-            const existing = await query(
-                'SELECT id FROM inscriptions WHERE eleve_id = ? AND atelier_id = ? AND statut != "annulee"',
-                [eleveId, atelier_id]
+            const existingSameCreneau = await query(
+                'SELECT id FROM inscriptions WHERE eleve_id = ? AND planning_id = ? AND statut != "annulee"',
+                [eleveId, planning_id]
             );
             
-            if (existing.length === 0) {
-                await query(`
-                    INSERT INTO inscriptions (eleve_id, atelier_id, planning_id, statut, inscription_manuelle)
-                    VALUES (?, ?, ?, 'confirmee', TRUE)
-                `, [eleveId, atelier_id, planningId]);
-                inscrit++;
+            if (existingSameCreneau.length > 0) continue;
+            
+            // Vérifier conflit horaire
+            const conflitHoraire = await query(`
+                SELECT a.nom, u.nom as eleve_nom, u.prenom as eleve_prenom FROM inscriptions i
+                JOIN planning p ON i.planning_id = p.id
+                JOIN ateliers a ON p.atelier_id = a.id
+                JOIN eleves e ON i.eleve_id = e.id
+                JOIN utilisateurs u ON e.utilisateur_id = u.id
+                WHERE i.eleve_id = ? AND p.creneau_id = ? AND i.statut != 'annulee' AND p.id != ?
+            `, [eleveId, planning.creneau_id, planning_id]);
+            
+            if (conflitHoraire.length > 0) {
+                conflits.push({ 
+                    eleve: `${conflitHoraire[0].eleve_prenom} ${conflitHoraire[0].eleve_nom}`,
+                    conflit: conflitHoraire[0].nom 
+                });
+                continue;
             }
+            
+            await query(`
+                INSERT INTO inscriptions (eleve_id, atelier_id, planning_id, statut, inscription_manuelle)
+                VALUES (?, ?, ?, 'confirmee', TRUE)
+            `, [eleveId, planning.atelier_id, planning_id]);
+            inscrit++;
         }
-        
-        await query(
-            'INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
-            [req.user.id, 'INSCRIPTION_ELEVES', `${inscrit} élèves inscrits`]
-        );
         
         res.json({
             success: true,
-            message: `${inscrit} élèves inscrits`,
-            data: { inscrit }
+            message: `${inscrit} élèves inscrits à "${planning.atelier_nom}"`,
+            data: { inscrit, conflits }
         });
     } catch (error) {
         console.error('Erreur inscription élèves:', error);
@@ -506,31 +482,162 @@ router.post('/inscriptions-eleves', async (req, res) => {
 });
 
 /**
- * PUT /api/gestion/salles/:id
- * Modifier une salle
+ * GET /api/gestion/creneaux-faibles
+ * Liste des créneaux avec faibles inscriptions
  */
-router.put('/salles/:id', async (req, res) => {
+router.get('/creneaux-faibles', async (req, res) => {
     try {
-        const { id } = req.params;
-        const { type_salle, capacite, disponible } = req.body;
+        const { seuil = 5 } = req.query;
         
-        await query(
-            'UPDATE salles SET type_salle = ?, capacite = ?, disponible = ? WHERE id = ?',
-            [type_salle, capacite, disponible ? 1 : 0, id]
-        );
+        const creneaux = await query(`
+            SELECT 
+                p.id as planning_id,
+                a.id as atelier_id,
+                a.nom as atelier_nom,
+                a.nombre_places_max,
+                c.jour,
+                c.periode,
+                s.nom as salle_nom,
+                (SELECT COUNT(*) FROM inscriptions WHERE planning_id = p.id AND statut = 'confirmee') as nb_inscrits,
+                a.nombre_places_max - (SELECT COUNT(*) FROM inscriptions WHERE planning_id = p.id AND statut = 'confirmee') as places_restantes
+            FROM planning p
+            JOIN ateliers a ON p.atelier_id = a.id
+            JOIN creneaux c ON p.creneau_id = c.id
+            LEFT JOIN salles s ON p.salle_id = s.id
+            WHERE a.statut = 'valide'
+            HAVING nb_inscrits < ?
+            ORDER BY nb_inscrits ASC, c.ordre
+        `, [parseInt(seuil)]);
         
-        res.json({ success: true, message: 'Salle modifiée' });
+        res.json({ success: true, data: creneaux });
     } catch (error) {
-        console.error('Erreur modification salle:', error);
+        console.error('Erreur créneaux faibles:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
 
-module.exports = router;
+/**
+ * GET /api/gestion/eleves-par-creneau/:planningId
+ * Liste des élèves inscrits à un créneau spécifique
+ */
+router.get('/eleves-par-creneau/:planningId', async (req, res) => {
+    try {
+        const { planningId } = req.params;
+        
+        // Info sur le créneau
+        const planningInfo = await query(`
+            SELECT 
+                p.id as planning_id,
+                a.nom as atelier_nom,
+                a.nombre_places_max,
+                c.jour,
+                c.periode,
+                s.nom as salle_nom
+            FROM planning p
+            JOIN ateliers a ON p.atelier_id = a.id
+            JOIN creneaux c ON p.creneau_id = c.id
+            LEFT JOIN salles s ON p.salle_id = s.id
+            WHERE p.id = ?
+        `, [planningId]);
+        
+        if (planningInfo.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Créneau non trouvé'
+            });
+        }
+        
+        // Liste des élèves
+        const eleves = await query(`
+            SELECT 
+                i.id as inscription_id,
+                e.id as eleve_id,
+                u.nom,
+                u.prenom,
+                cl.nom as classe_nom,
+                i.inscription_manuelle,
+                i.statut
+            FROM inscriptions i
+            JOIN eleves e ON i.eleve_id = e.id
+            JOIN utilisateurs u ON e.utilisateur_id = u.id
+            JOIN classes cl ON e.classe_id = cl.id
+            WHERE i.planning_id = ? AND i.statut = 'confirmee'
+            ORDER BY cl.nom, u.nom, u.prenom
+        `, [planningId]);
+        
+        res.json({
+            success: true,
+            data: {
+                planning: planningInfo[0],
+                eleves: eleves,
+                total: eleves.length
+            }
+        });
+    } catch (error) {
+        console.error('Erreur liste élèves créneau:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * GET /api/gestion/tous-eleves-creneaux
+ * Vue complète de tous les élèves par créneau
+ */
+router.get('/tous-eleves-creneaux', async (req, res) => {
+    try {
+        const { jour, classe_id } = req.query;
+        
+        let whereClause = "WHERE i.statut = 'confirmee'";
+        let params = [];
+        
+        if (jour) {
+            whereClause += ' AND c.jour = ?';
+            params.push(jour);
+        }
+        
+        if (classe_id) {
+            whereClause += ' AND cl.id = ?';
+            params.push(classe_id);
+        }
+        
+        const inscriptions = await query(`
+            SELECT 
+                i.id as inscription_id,
+                e.id as eleve_id,
+                u.nom as eleve_nom,
+                u.prenom as eleve_prenom,
+                cl.nom as classe_nom,
+                p.id as planning_id,
+                a.nom as atelier_nom,
+                c.jour,
+                c.periode,
+                s.nom as salle_nom
+            FROM inscriptions i
+            JOIN eleves e ON i.eleve_id = e.id
+            JOIN utilisateurs u ON e.utilisateur_id = u.id
+            JOIN classes cl ON e.classe_id = cl.id
+            JOIN planning p ON i.planning_id = p.id
+            JOIN ateliers a ON p.atelier_id = a.id
+            JOIN creneaux c ON p.creneau_id = c.id
+            LEFT JOIN salles s ON p.salle_id = s.id
+            ${whereClause}
+            ORDER BY cl.nom, u.nom, u.prenom, c.ordre
+        `, params);
+        
+        res.json({ success: true, data: inscriptions });
+    } catch (error) {
+        console.error('Erreur tous élèves créneaux:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+// ========================================
+// PIQUET ET DÉGAGEMENT - ROUTES CORRIGÉES
+// ========================================
 
 /**
  * GET /api/gestion/piquet
- * Liste des enseignants de piquet
+ * Liste des enseignants de piquet/dégagement
  */
 router.get('/piquet', async (req, res) => {
     try {
@@ -543,10 +650,12 @@ router.get('/piquet', async (req, res) => {
                 c.jour,
                 c.periode,
                 c.heure_debut,
-                c.heure_fin
+                c.heure_fin,
+                s.nom as salle_nom
             FROM enseignants_piquet ep
             JOIN utilisateurs u ON ep.utilisateur_id = u.id
             JOIN creneaux c ON ep.creneau_id = c.id
+            LEFT JOIN salles s ON ep.salle_id = s.id
             ORDER BY c.ordre, u.nom
         `);
         
@@ -559,11 +668,13 @@ router.get('/piquet', async (req, res) => {
 
 /**
  * POST /api/gestion/piquet
- * Ajouter un enseignant de piquet
+ * Ajouter un enseignant de piquet/dégagement
  */
 router.post('/piquet', async (req, res) => {
     try {
-        const { utilisateur_id, creneau_id, type } = req.body;
+        const { utilisateur_id, creneau_id, type, salle_id } = req.body;
+        
+        console.log('Données reçues piquet:', { utilisateur_id, creneau_id, type, salle_id });
         
         if (!utilisateur_id || !creneau_id) {
             return res.status(400).json({
@@ -572,35 +683,66 @@ router.post('/piquet', async (req, res) => {
             });
         }
         
-        await query(`
-            INSERT INTO enseignants_piquet (utilisateur_id, creneau_id, type)
-            VALUES (?, ?, ?)
-        `, [utilisateur_id, creneau_id, type || 'piquet']);
-        
-        res.json({ success: true, message: 'Piquet ajouté' });
-    } catch (error) {
-        if (error.code === 'ER_DUP_ENTRY') {
-            return res.status(400).json({
+        // Vérifier que l'enseignant existe
+        const enseignant = await query('SELECT id, nom, prenom FROM utilisateurs WHERE id = ?', [utilisateur_id]);
+        if (enseignant.length === 0) {
+            return res.status(404).json({
                 success: false,
-                message: 'Cet enseignant est déjà de piquet sur ce créneau'
+                message: 'Enseignant non trouvé'
             });
         }
+        
+        // Vérifier que le créneau existe
+        const creneau = await query('SELECT id, jour, periode FROM creneaux WHERE id = ?', [creneau_id]);
+        if (creneau.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Créneau non trouvé'
+            });
+        }
+        
+        // Vérifier si déjà existant
+        const existing = await query(
+            'SELECT id FROM enseignants_piquet WHERE utilisateur_id = ? AND creneau_id = ?',
+            [utilisateur_id, creneau_id]
+        );
+        
+        if (existing.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Cet enseignant est déjà affecté sur ce créneau'
+            });
+        }
+        
+        await query(`
+            INSERT INTO enseignants_piquet (utilisateur_id, creneau_id, type, salle_id)
+            VALUES (?, ?, ?, ?)
+        `, [utilisateur_id, creneau_id, type || 'piquet', salle_id || null]);
+        
+        res.json({ 
+            success: true, 
+            message: `${type === 'degagement' ? 'Dégagement' : 'Piquet'} ajouté pour ${enseignant[0].prenom} ${enseignant[0].nom}` 
+        });
+    } catch (error) {
         console.error('Erreur ajout piquet:', error);
-        res.status(500).json({ success: false, message: 'Erreur serveur' });
+        res.status(500).json({ success: false, message: 'Erreur serveur: ' + error.message });
     }
 });
 
 /**
  * DELETE /api/gestion/piquet/:id
- * Supprimer un enseignant de piquet
+ * Supprimer un piquet/dégagement
  */
 router.delete('/piquet/:id', async (req, res) => {
     try {
         const { id } = req.params;
         await query('DELETE FROM enseignants_piquet WHERE id = ?', [id]);
-        res.json({ success: true, message: 'Piquet supprimé' });
+        res.json({ success: true, message: 'Entrée supprimée' });
     } catch (error) {
         console.error('Erreur suppression piquet:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
+
+// IMPORTANT: module.exports à la FIN du fichier
+module.exports = router;
