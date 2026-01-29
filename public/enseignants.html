@@ -3,111 +3,399 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enseignants - Semaine Spéciale | Collège des Trois-Sapins</title>
+    <title>Espace Enseignant - Semaine Spéciale</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
             min-height: 100vh;
             padding: 20px;
         }
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
+        .container { max-width: 1400px; margin: 0 auto; }
 
         .header {
             background: white;
-            padding: 25px 30px;
+            padding: 20px 25px;
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            margin-bottom: 30px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header h1 { color: #1e3a5f; font-size: 22px; }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary { background: #1e3a5f; color: white; }
+        .btn-primary:hover { background: #2d5a87; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-success:hover { background: #059669; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-secondary { background: #6b7280; color: white; }
+        .btn-print { background: #8b5cf6; color: white; }
+        .btn-print:hover { background: #7c3aed; }
+        .btn-sm { padding: 5px 12px; font-size: 12px; }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+            color: white;
+            padding: 15px 20px;
+            font-weight: 600;
+            font-size: 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        .header h1 {
-            color: #667eea;
-            font-size: 28px;
-            font-weight: 700;
+        .card-body { padding: 20px; }
+
+        /* Onglets */
+        .tabs-container {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            background: #f3f4f6;
+            padding: 5px;
+            border-radius: 10px;
         }
 
-        .btn {
+        .tab-btn {
             padding: 10px 20px;
             border: none;
-            border-radius: 8px;
+            background: transparent;
             cursor: pointer;
-            font-size: 14px;
             font-weight: 600;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            display: inline-block;
+            font-size: 14px;
+            border-radius: 8px;
+            transition: all 0.2s;
+            color: #6b7280;
         }
 
-        .btn-primary {
-            background: #667eea;
+        .tab-btn:hover { background: #e5e7eb; }
+        .tab-btn.active { background: #1e3a5f; color: white; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Horaire */
+        .horaire-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .horaire-table th {
+            background: #f3f4f6;
+            padding: 12px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 14px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .horaire-table td {
+            padding: 10px;
+            border: 1px solid #e5e7eb;
+            vertical-align: top;
+            min-width: 150px;
+            height: 80px;
+        }
+
+        .horaire-table .periode-label {
+            background: #f9fafb;
+            font-weight: 600;
+            text-align: center;
+            min-width: 70px;
+        }
+
+        .creneau-vide {
+            background: #f9fafb;
+            color: #9ca3af;
+            text-align: center;
+        }
+
+        .creneau-conge {
+            background: #f3f4f6;
+            color: #9ca3af;
+            text-align: center;
+        }
+
+        .atelier-card {
+            background: #dbeafe;
+            border-left: 4px solid #2563eb;
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .atelier-card .nom {
+            font-weight: 600;
+            color: #1e40af;
+            margin-bottom: 4px;
+        }
+
+        .atelier-card .salle {
+            color: #6b7280;
+            font-size: 11px;
+        }
+
+        .atelier-card .inscrits {
+            margin-top: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .atelier-card .inscrits .count {
+            background: #2563eb;
             color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
         }
 
-        .btn-primary:hover {
-            background: #5568d3;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-success {
+        .btn-liste {
             background: #10b981;
             color: white;
+            border: none;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            cursor: pointer;
         }
 
-        .btn-success:hover {
-            background: #059669;
+        /* Catalogue */
+        .filtres {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
         }
 
-        .btn-danger {
-            background: #ef4444;
-            color: white;
+        .filtre-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        .btn-danger:hover {
-            background: #dc2626;
+        .filtre-group label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
         }
 
-        .btn-secondary {
-            background: #6b7280;
-            color: white;
+        .filtre-group select, .filtre-group input {
+            padding: 8px 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 13px;
         }
 
-        .btn-secondary:hover {
-            background: #4b5563;
+        .atelier-item {
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            overflow: hidden;
         }
 
-        #loginPage, #dashboardPage {
+        .atelier-header {
+            padding: 15px;
+            background: #f9fafb;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .atelier-header:hover { background: #f3f4f6; }
+
+        .atelier-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .atelier-title h3 {
+            font-size: 15px;
+            color: #1f2937;
+            margin: 0;
+        }
+
+        .badge {
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .badge-duree { background: #dbeafe; color: #1e40af; }
+
+        .atelier-content {
             display: none;
+            padding: 15px;
+            border-top: 1px solid #e5e7eb;
         }
+
+        .atelier-item.open .atelier-content { display: block; }
+
+        .atelier-desc {
+            font-size: 13px;
+            color: #4b5563;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .atelier-enseignants {
+            font-size: 13px;
+            color: #1e3a5f;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .atelier-creneaux {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .creneau-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: #f3f4f6;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        /* Disponibilités */
+        .dispo-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .dispo-table th, .dispo-table td {
+            padding: 10px;
+            border: 1px solid #e5e7eb;
+            text-align: center;
+        }
+
+        .dispo-table th { background: #f3f4f6; font-weight: 600; }
+
+        .dispo-checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .dispo-validated {
+            background: #d1fae5;
+            border: 2px solid #10b981;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        /* Modal liste */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .modal {
+            background: white;
+            border-radius: 15px;
+            max-width: 700px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 18px;
+            color: #1e3a5f;
+        }
+
+        .modal-body { padding: 20px; }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6b7280;
+        }
+
+        .eleve-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .eleve-row:nth-child(odd) { background: #f9fafb; }
+
+        /* Login */
+        #loginPage, #dashboardPage { display: none; }
 
         .login-box {
+            max-width: 400px;
+            margin: 80px auto;
             background: white;
-            max-width: 450px;
-            margin: 100px auto;
             padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
 
         .login-box h2 {
+            color: #1e3a5f;
             text-align: center;
-            color: #667eea;
-            margin-bottom: 30px;
-            font-size: 32px;
+            margin-bottom: 10px;
         }
 
         .form-group {
@@ -117,292 +405,82 @@
         .form-group label {
             display: block;
             margin-bottom: 8px;
-            color: #333;
             font-weight: 600;
+            color: #374151;
         }
 
-        .form-group input, .form-group select, .form-group textarea {
+        .form-group input {
             width: 100%;
-            padding: 12px 15px;
+            padding: 12px;
             border: 2px solid #e5e7eb;
             border-radius: 8px;
-            font-size: 15px;
-            transition: border-color 0.3s ease;
-        }
-
-        .form-group textarea {
-            min-height: 100px;
-            resize: vertical;
-        }
-
-        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 30px;
-            flex-wrap: wrap;
-        }
-
-        .tab {
-            padding: 12px 25px;
-            background: white;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: 600;
-            color: #666;
-            transition: all 0.3s ease;
-        }
-
-        .tab.active {
-            background: #667eea;
-            color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
-        }
-
-        .tab-content {
-            display: none;
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .stat-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        }
-
-        .stat-card h3 {
             font-size: 14px;
-            font-weight: 600;
-            opacity: 0.9;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .stat-card .value {
-            font-size: 36px;
-            font-weight: 700;
-            margin-bottom: 5px;
-        }
-
-        .stat-card .label {
-            font-size: 14px;
-            opacity: 0.8;
         }
 
         .alert {
-            padding: 15px 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            font-weight: 500;
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            color: #92400e;
         }
 
         .alert-success {
             background: #d1fae5;
+            border-left: 4px solid #10b981;
             color: #065f46;
-            border: 2px solid #10b981;
         }
 
-        .alert-error {
-            background: #fee2e2;
-            color: #991b1b;
-            border: 2px solid #ef4444;
+        /* Print styles */
+        @media print {
+            body { background: white; padding: 0; }
+            .header, .tabs-container, .no-print { display: none !important; }
+            .card { box-shadow: none; border: 1px solid #ccc; }
+            .card-header { background: #1e3a5f !important; -webkit-print-color-adjust: exact; }
         }
 
-        .alert-info {
-            background: #dbeafe;
-            color: #1e40af;
-            border: 2px solid #3b82f6;
+        .print-page {
+            display: none;
         }
 
-        .table {
+        .print-page.active {
+            display: block;
+            background: white;
+            padding: 20px;
+        }
+
+        .print-page h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #1e3a5f;
+        }
+
+        .print-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
+            margin-bottom: 30px;
         }
 
-        .table th {
-            background: #f9fafb;
-            padding: 12px 15px;
+        .print-table th, .print-table td {
+            border: 1px solid #333;
+            padding: 8px;
             text-align: left;
-            font-weight: 600;
-            color: #374151;
-            border-bottom: 2px solid #e5e7eb;
         }
 
-        .table td {
-            padding: 12px 15px;
-            border-bottom: 1px solid #e5e7eb;
+        .print-table th { background: #f3f4f6; }
+
+        .print-liste {
+            page-break-after: always;
+            margin-bottom: 30px;
         }
 
-        .table tr:hover {
-            background: #f9fafb;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .badge-draft {
-            background: #e5e7eb;
-            color: #374151;
-        }
-
-        .badge-submitted {
-            background: #fef3c7;
-            color: #92400e;
-        }
-
-        .badge-validated {
-            background: #d1fae5;
-            color: #065f46;
-        }
-
-        .badge-refused {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .disponibilites-grid {
-            display: grid;
-            grid-template-columns: 150px repeat(5, 1fr);
-            gap: 10px;
-            margin-top: 20px;
-        }
-
-        .jour-header {
-            background: #667eea;
-            color: white;
-            padding: 15px;
-            border-radius: 8px;
-            text-align: center;
-            font-weight: 600;
-        }
-
-        .periode-label {
-            background: #f3f4f6;
-            padding: 15px;
-            border-radius: 8px;
-            font-weight: 600;
-            text-align: center;
-        }
-
-        .creneau-cell {
-            background: white;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: center;
-        }
-
-        .creneau-cell.disponible {
-            background: #d1fae5;
-            border-color: #10b981;
-        }
-
-        .creneau-cell.indisponible {
-            background: #fee2e2;
-            border-color: #ef4444;
-        }
-
-        .creneau-cell:hover {
-            transform: scale(1.05);
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal.active {
-            display: flex;
-        }
-
-        .modal-content {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            max-width: 600px;
-            width: 90%;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .modal-header h2 {
-            color: #667eea;
-        }
-
-        .close-modal {
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            color: #6b7280;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #667eea;
-            font-size: 18px;
-        }
-
-        @media (max-width: 768px) {
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .header {
-                flex-direction: column;
-                text-align: center;
-            }
-            
-            .disponibilites-grid {
-                grid-template-columns: 1fr;
-            }
+        .print-liste:last-child {
+            page-break-after: auto;
         }
     </style>
 </head>
@@ -410,195 +488,184 @@
     <!-- PAGE DE CONNEXION -->
     <div id="loginPage">
         <div class="login-box">
-            <h2>👨‍🏫 Espace Enseignants</h2>
-            <p style="text-align: center; color: #666; margin-bottom: 30px;">Collège des Trois-Sapins</p>
+            <h2>👨‍🏫 Espace Enseignant</h2>
+            <p style="text-align: center; color: #666; margin-bottom: 30px;">Semaine Spéciale</p>
             <form id="loginForm">
                 <div class="form-group">
-                    <label for="acronyme">Acronyme</label>
-                    <input type="text" id="acronyme" placeholder="DUP" required>
+                    <label>Acronyme</label>
+                    <input type="text" id="acronyme" placeholder="Votre acronyme" required>
                 </div>
                 <div class="form-group">
-                    <label for="password">Mot de passe</label>
+                    <label>Mot de passe</label>
                     <input type="password" id="password" placeholder="••••••••" required>
                 </div>
                 <button type="submit" class="btn btn-primary" style="width: 100%;">Se connecter</button>
             </form>
-            <div id="loginError" style="display: none; margin-top: 15px;"></div>
+            <div id="loginError" style="display: none; margin-top: 15px;" class="alert alert-warning"></div>
         </div>
     </div>
 
-    <!-- DASHBOARD ENSEIGNANT -->
+    <!-- DASHBOARD -->
     <div id="dashboardPage">
         <div class="container">
             <div class="header">
                 <div>
-                    <h1>👨‍🏫 Semaine Spéciale - Espace Enseignants</h1>
-                    <p style="color: #666; margin-top: 5px;">Collège des Trois-Sapins, Echallens</p>
+                    <h1>👨‍🏫 Espace Enseignant</h1>
+                    <p style="color: #666; font-size: 13px; margin-top: 3px;">Semaine Spéciale</p>
                 </div>
                 <div style="text-align: right;">
-                    <p><strong id="userName"></strong></p>
-                    <a href="catalogue.html" class="btn btn-primary" style="margin-right: 10px;">📚 Catalogue</a>
-                    <button class="btn btn-secondary" onclick="showChangePassword()" style="margin-right: 10px;">🔑 Mot de passe</button>
-                    <button class="btn btn-danger" onclick="logout()">Déconnexion</button>
-                </div>
-            </div>
-
-            <!-- ONGLETS -->
-            <div class="tabs">
-                <button class="tab active" onclick="showTab('dashboard')">📊 Tableau de bord</button>
-                <button class="tab" onclick="showTab('ateliers')">🎨 Mes Ateliers</button>
-                <button class="tab" onclick="showTab('disponibilites')">📅 Disponibilités</button>
-                <button class="tab" onclick="window.location.href='presence.html'" style="background: #10b981; color: white;">📋 Pointage Présences</button>
-            </div>
-
-            <!-- TAB: DASHBOARD -->
-            <div id="tabDashboard" class="tab-content active">
-                <h2 style="margin-bottom: 20px; color: #374151;">Vue d'ensemble</h2>
-                <div class="stats-grid" id="statsGrid">
-                    <div class="loading">Chargement...</div>
-                </div>
-
-                <div style="margin-top: 30px;">
-                    <h3 style="margin-bottom: 15px; color: #374151;">Actions rapides</h3>
-                    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                        <button class="btn btn-primary" onclick="openCreateAtelierModal()">➕ Créer un atelier</button>
-                        <button class="btn btn-success" onclick="showTab('disponibilites')">📅 Déclarer mes disponibilités</button>
-                        <button class="btn" style="background: #10b981; color: white;" onclick="window.location.href='presence.html'">📋 Pointer les présences</button>
-                        <button class="btn btn-secondary" onclick="window.open('/api/print/horaire/enseignant/' + currentUser.acronyme + '?token=' + token, '_blank')">🖨️ Mon horaire</button>
-                        <button class="btn" style="background: #8b5cf6; color: white;" onclick="window.location.href='catalogue.html'">📚 Catalogue des ateliers</button>
+                    <span id="userName" style="font-weight: 600;"></span>
+                    <div style="margin-top: 8px;">
+                        <button class="btn btn-print btn-sm" onclick="printHoraire()">🖨️ Horaire</button>
+                        <button class="btn btn-print btn-sm" onclick="printListes()">🖨️ Listes</button>
+                        <button class="btn btn-danger btn-sm" onclick="logout()">Déconnexion</button>
                     </div>
                 </div>
             </div>
 
-            <!-- TAB: ATELIERS -->
-            <div id="tabAteliers" class="tab-content">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="color: #374151;">Mes Ateliers</h2>
-                    <button class="btn btn-primary" onclick="openCreateAtelierModal()">➕ Créer un atelier</button>
-                </div>
+            <!-- Onglets -->
+            <div class="tabs-container no-print">
+                <button class="tab-btn active" onclick="showTab('horaire')">📅 Mon Horaire</button>
+                <button class="tab-btn" onclick="showTab('catalogue')">📚 Catalogue</button>
+                <button class="tab-btn" onclick="showTab('ateliers')">✏️ Mes Ateliers</button>
+                <button class="tab-btn" onclick="showTab('disponibilites')">🗓️ Disponibilités</button>
+            </div>
 
-                <div id="alertsAteliers"></div>
-                <div id="ateliersTable">
-                    <div class="loading">Chargement des ateliers...</div>
+            <!-- Tab: Mon Horaire -->
+            <div id="tab-horaire" class="tab-content active">
+                <div class="card">
+                    <div class="card-header">
+                        📅 Mon Horaire
+                    </div>
+                    <div class="card-body">
+                        <div id="horaireContainer">
+                            <p style="color:#666;">Chargement...</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- TAB: DISPONIBILITÉS -->
-            <div id="tabDisponibilites" class="tab-content">
-                <h2 style="margin-bottom: 20px; color: #374151;">Mes Disponibilités</h2>
-                
-                <div class="alert alert-info">
-                    📌 Cochez les créneaux durant lesquels vous êtes <strong>disponible</strong> pour animer un atelier pendant la semaine spéciale.
+            <!-- Tab: Catalogue -->
+            <div id="tab-catalogue" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        📚 Catalogue des Ateliers
+                    </div>
+                    <div class="card-body">
+                        <div class="filtres">
+                            <div class="filtre-group">
+                                <label>Recherche:</label>
+                                <input type="text" id="searchCatalogue" placeholder="Nom..." oninput="filterCatalogue()">
+                            </div>
+                            <div class="filtre-group">
+                                <label>Thème:</label>
+                                <select id="filtreThemeCatalogue" onchange="filterCatalogue()">
+                                    <option value="">Tous</option>
+                                </select>
+                            </div>
+                            <div class="filtre-group">
+                                <label>Durée:</label>
+                                <select id="filtreDureeCatalogue" onchange="filterCatalogue()">
+                                    <option value="">Toutes</option>
+                                    <option value="2">2 périodes</option>
+                                    <option value="4">4 périodes</option>
+                                    <option value="6">Journée (6p)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="catalogueContainer">
+                            <p style="color:#666;">Chargement...</p>
+                        </div>
+                    </div>
                 </div>
+            </div>
 
-                <div id="alertsDisponibilites"></div>
-
-                <div id="disponibilitesGrid" style="margin-top: 30px;">
-                    <div class="loading">Chargement des créneaux...</div>
+            <!-- Tab: Mes Ateliers -->
+            <div id="tab-ateliers" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <span>✏️ Mes Ateliers</span>
+                        <button class="btn btn-success btn-sm" onclick="showCreateAtelier()">+ Nouvel atelier</button>
+                    </div>
+                    <div class="card-body">
+                        <div id="mesAteliersContainer">
+                            <p style="color:#666;">Chargement...</p>
+                        </div>
+                    </div>
                 </div>
+            </div>
 
-                <div style="margin-top: 30px; text-align: center;">
-                    <button class="btn btn-success" onclick="saveDisponibilites()">💾 Enregistrer mes disponibilités</button>
+            <!-- Tab: Disponibilités -->
+            <div id="tab-disponibilites" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        🗓️ Mes Disponibilités
+                    </div>
+                    <div class="card-body">
+                        <div id="dispoValidated" class="dispo-validated" style="display:none;">
+                            ✅ Vos disponibilités ont été validées et ne peuvent plus être modifiées.
+                        </div>
+                        <div id="disponibilitesContainer">
+                            <p style="color:#666;">Chargement...</p>
+                        </div>
+                        <div id="dispoActions" style="margin-top:15px; text-align:right;">
+                            <button class="btn btn-success" onclick="saveDisponibilites()">💾 Enregistrer</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- MODAL: CRÉER/ÉDITER ATELIER -->
-    <div id="modalAtelier" class="modal">
-        <div class="modal-content">
+    <!-- Modal Liste Élèves -->
+    <div class="modal-overlay" id="modalListe">
+        <div class="modal">
             <div class="modal-header">
-                <h2 id="modalAtelierTitle">Créer un atelier</h2>
-                <button class="close-modal" onclick="closeAtelierModal()">×</button>
+                <h2 id="modalListeTitle">Liste des élèves</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
             </div>
-
-            <form id="formAtelier">
-                <input type="hidden" id="atelierIdEdit" value="">
-                
-                <div class="form-group">
-                    <label for="atelierNom">Nom de l'atelier *</label>
-                    <input type="text" id="atelierNom" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="atelierDescription">Description</label>
-                    <textarea id="atelierDescription"></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="atelierTheme">Thème</label>
-                    <select id="atelierTheme">
-                        <option value="">-- Aucun thème --</option>
-                    </select>
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div class="form-group">
-                        <label for="atelierDuree">Durée (périodes) *</label>
-                        <select id="atelierDuree" required>
-                            <option value="2">2 périodes (1 créneau)</option>
-                            <option value="4">4 périodes (2 créneaux)</option>
-                            <option value="6">6 périodes (journée)</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="atelierPlaces">Nombre de places max *</label>
-                        <input type="number" id="atelierPlaces" min="1" max="60" required>
-                    </div>
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div class="form-group">
-                        <label for="atelierBudget">Budget max (CHF)</label>
-                        <input type="number" id="atelierBudget" min="0" step="0.01" value="0">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="atelierTypeSalle">Type de salle demandée</label>
-                        <select id="atelierTypeSalle">
-                            <option value="">-- Aucune préférence --</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="atelierRemarques">Remarques (internes)</label>
-                    <textarea id="atelierRemarques"></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="atelierInfosEleves">Informations pour les élèves</label>
-                    <textarea id="atelierInfosEleves" placeholder="Ex: Matériel à apporter, lieu de rendez-vous, etc."></textarea>
-                </div>
-
-                <div style="display: flex; gap: 15px; margin-top: 20px;">
-                    <button type="submit" class="btn btn-primary" style="flex: 1;">💾 Enregistrer (brouillon)</button>
-                    <button type="button" class="btn btn-secondary" onclick="closeAtelierModal()">Annuler</button>
-                </div>
-            </form>
+            <div class="modal-body" id="modalListeBody">
+            </div>
         </div>
+    </div>
+
+    <!-- Page Impression Horaire -->
+    <div id="printHorairePage" class="print-page">
+        <h1>Mon Horaire - Semaine Spéciale</h1>
+        <p id="printEnseignantNom" style="text-align:center; margin-bottom:20px;"></p>
+        <div id="printHoraireContent"></div>
+    </div>
+
+    <!-- Page Impression Listes -->
+    <div id="printListesPage" class="print-page">
+        <div id="printListesContent"></div>
     </div>
 
     <script>
         const API_URL = '/api';
         let currentToken = null;
         let currentUser = null;
-        let disponibilites = [];
-        let typesSalles = [];
+        let catalogueData = [];
+        let themesData = [];
+        let disponibilitesValidees = false;
 
-        // Au chargement
+        const JOURS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
+        const PERIODES = ['P1-2', 'P3-4', 'P6-7'];
+
+        // Initialisation
         document.addEventListener('DOMContentLoaded', () => {
             const token = localStorage.getItem('token');
-            const user = localStorage.getItem('user');
-            
-            if (token && user) {
+            if (token) {
                 currentToken = token;
-                currentUser = JSON.parse(user);
-                
-                if (currentUser.role === 'enseignant' || currentUser.role === 'admin') {
-                    showDashboard();
-                } else {
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    if (payload.role === 'enseignant' || payload.role === 'admin') {
+                        currentUser = payload;
+                        showDashboard();
+                    } else {
+                        showLogin();
+                    }
+                } catch (e) {
                     showLogin();
                 }
             } else {
@@ -614,450 +681,454 @@
         function showDashboard() {
             document.getElementById('loginPage').style.display = 'none';
             document.getElementById('dashboardPage').style.display = 'block';
-            document.getElementById('userName').textContent = `${currentUser.prenom} ${currentUser.nom} (${currentUser.acronyme})`;
-            
-            loadStats();
-            loadAteliers();
-            loadDisponibilites();
-            loadTypesSalles();
-            loadThemes();
+            document.getElementById('userName').textContent = currentUser.prenom + ' ' + currentUser.nom;
+            loadAllData();
         }
 
         // Connexion
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const acronyme = document.getElementById('acronyme').value;
-            const password = document.getElementById('password').value;
-            
             try {
                 const response = await fetch(`${API_URL}/auth/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ acronyme, password })
+                    body: JSON.stringify({
+                        acronyme: document.getElementById('acronyme').value,
+                        password: document.getElementById('password').value
+                    })
                 });
                 
                 const data = await response.json();
                 
-                if (data.success) {
-                    if (data.data.user.role !== 'enseignant' && data.data.user.role !== 'admin') {
-                        showAlert('loginError', 'Accès réservé aux enseignants', 'error');
-                        return;
-                    }
-                    
-                    currentToken = data.data.token;
-                    currentUser = data.data.user;
-                    
-                    localStorage.setItem('token', currentToken);
-                    localStorage.setItem('user', JSON.stringify(currentUser));
-                    
+                if (data.success && (data.user.role === 'enseignant' || data.user.role === 'admin')) {
+                    localStorage.setItem('token', data.token);
+                    currentToken = data.token;
+                    currentUser = data.user;
                     showDashboard();
+                } else if (data.user?.role === 'eleve') {
+                    showError('Ce portail est réservé aux enseignants.');
                 } else {
-                    showAlert('loginError', data.message, 'error');
+                    showError(data.message || 'Erreur de connexion');
                 }
             } catch (error) {
-                showAlert('loginError', 'Erreur de connexion au serveur', 'error');
+                showError('Erreur de connexion au serveur');
             }
         });
 
+        function showError(msg) {
+            const el = document.getElementById('loginError');
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
+
         function logout() {
             localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            currentToken = null;
-            currentUser = null;
-            showLogin();
+            location.reload();
         }
 
+        // Onglets
         function showTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
             
-            document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
             event.target.classList.add('active');
-            
-            if (tabName === 'ateliers') loadAteliers();
-            if (tabName === 'disponibilites') loadDisponibilites();
+            document.getElementById('tab-' + tabName).classList.add('active');
         }
 
-        // Statistiques
-        async function loadStats() {
+        // Charger toutes les données
+        async function loadAllData() {
+            await loadHoraire();
+            await loadCatalogue();
+            await loadMesAteliers();
+            await loadDisponibilites();
+        }
+
+        // ===================== HORAIRE =====================
+        async function loadHoraire() {
             try {
-                const response = await fetch(`${API_URL}/enseignants/dashboard`, {
+                const response = await fetch(`${API_URL}/enseignants/mon-horaire`, {
                     headers: { 'Authorization': `Bearer ${currentToken}` }
                 });
-                
                 const data = await response.json();
                 
                 if (data.success) {
-                    displayStats(data.data);
+                    displayHoraire(data.data.ateliers, data.data.creneaux);
                 }
             } catch (error) {
-                console.error('Erreur stats:', error);
+                console.error('Erreur horaire:', error);
             }
         }
 
-        function displayStats(stats) {
-            const grid = document.getElementById('statsGrid');
-            
-            const brouillon = stats.ateliers.find(a => a.statut === 'brouillon')?.count || 0;
-            const soumis = stats.ateliers.find(a => a.statut === 'soumis')?.count || 0;
-            const valides = stats.ateliers.find(a => a.statut === 'valide')?.count || 0;
-            
-            grid.innerHTML = `
-                <div class="stat-card">
-                    <h3>Brouillons</h3>
-                    <div class="value">${brouillon}</div>
-                    <div class="label">À compléter</div>
-                </div>
-                <div class="stat-card">
-                    <h3>Soumis</h3>
-                    <div class="value">${soumis}</div>
-                    <div class="label">En attente validation</div>
-                </div>
-                <div class="stat-card">
-                    <h3>Validés</h3>
-                    <div class="value">${valides}</div>
-                    <div class="label">Prêts</div>
-                </div>
-                <div class="stat-card">
-                    <h3>Inscriptions</h3>
-                    <div class="value">${stats.inscriptions_total}</div>
-                    <div class="label">Élèves inscrits</div>
-                </div>
-                <div class="stat-card">
-                    <h3>Disponibilités</h3>
-                    <div class="value">${stats.disponibilites_declarees}/${stats.creneaux_total}</div>
-                    <div class="label">Créneaux déclarés</div>
-                </div>
-            `;
+        function displayHoraire(ateliers, creneaux) {
+            // Map par créneau
+            const creneauMap = {};
+            creneaux.forEach(c => {
+                creneauMap[`${c.jour}-${c.periode}`] = c;
+            });
+
+            // Map ateliers par créneau
+            const atelierParCreneau = {};
+            ateliers.forEach(a => {
+                atelierParCreneau[a.creneau_id] = a;
+                // Marquer les créneaux de continuation
+                for (let i = 1; i < (a.nombre_creneaux || 1); i++) {
+                    atelierParCreneau[a.creneau_id + i] = { ...a, isContinuation: true };
+                }
+            });
+
+            let html = '<table class="horaire-table"><thead><tr><th></th>';
+            JOURS.forEach(jour => {
+                html += `<th>${jour.charAt(0).toUpperCase() + jour.slice(1)}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+
+            PERIODES.forEach(periode => {
+                html += `<tr><td class="periode-label">${periode}</td>`;
+                
+                JOURS.forEach(jour => {
+                    if (jour === 'mercredi' && periode === 'P6-7') {
+                        html += '<td class="creneau-conge">Congé</td>';
+                        return;
+                    }
+                    
+                    const creneau = creneauMap[`${jour}-${periode}`];
+                    if (!creneau) {
+                        html += '<td>-</td>';
+                        return;
+                    }
+                    
+                    const atelier = atelierParCreneau[creneau.id];
+                    
+                    if (atelier) {
+                        if (atelier.isContinuation) {
+                            html += `<td style="background:#dbeafe; opacity:0.6; text-align:center;">⬆️</td>`;
+                        } else {
+                            html += `<td>
+                                <div class="atelier-card">
+                                    <div class="nom">${atelier.atelier_nom}</div>
+                                    <div class="salle">📍 ${atelier.salle_nom || '-'}</div>
+                                    <div class="inscrits">
+                                        <span class="count">${atelier.nb_inscrits}/${atelier.nombre_places_max}</span>
+                                        <button class="btn-liste" onclick="showListeEleves(${atelier.planning_id})">Liste</button>
+                                    </div>
+                                </div>
+                            </td>`;
+                        }
+                    } else {
+                        html += '<td class="creneau-vide">-</td>';
+                    }
+                });
+                
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            document.getElementById('horaireContainer').innerHTML = html;
         }
 
-        // Ateliers
-        async function loadAteliers() {
+        // ===================== LISTE ÉLÈVES =====================
+        async function showListeEleves(planningId) {
+            try {
+                const response = await fetch(`${API_URL}/enseignants/listes/${planningId}`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    const planning = data.data.planning;
+                    const eleves = data.data.eleves;
+                    
+                    document.getElementById('modalListeTitle').textContent = 
+                        `${planning.nom} - ${planning.jour} ${planning.periode}`;
+                    
+                    let html = `<p style="margin-bottom:15px;"><strong>Salle:</strong> ${planning.salle_nom || '-'} | <strong>Inscrits:</strong> ${eleves.length}/${planning.nombre_places_max}</p>`;
+                    
+                    if (eleves.length === 0) {
+                        html += '<p style="color:#666;">Aucun élève inscrit.</p>';
+                    } else {
+                        html += '<div style="max-height:400px; overflow-y:auto;">';
+                        let currentClasse = '';
+                        eleves.forEach((e, i) => {
+                            if (e.classe_nom !== currentClasse) {
+                                currentClasse = e.classe_nom;
+                                html += `<div style="background:#1e3a5f; color:white; padding:5px 10px; font-weight:600; margin-top:10px;">${currentClasse}</div>`;
+                            }
+                            html += `<div class="eleve-row">
+                                <span>${i+1}. ${e.nom} ${e.prenom}</span>
+                                <span style="color:#666;">☐</span>
+                            </div>`;
+                        });
+                        html += '</div>';
+                    }
+                    
+                    document.getElementById('modalListeBody').innerHTML = html;
+                    document.getElementById('modalListe').classList.add('active');
+                }
+            } catch (error) {
+                alert('Erreur lors du chargement de la liste');
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modalListe').classList.remove('active');
+        }
+
+        // ===================== CATALOGUE =====================
+        async function loadCatalogue() {
+            try {
+                const response = await fetch(`${API_URL}/enseignants/catalogue`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    catalogueData = data.data;
+                    
+                    // Extraire les thèmes
+                    const themesSet = new Set();
+                    catalogueData.forEach(a => {
+                        if (a.theme_nom) themesSet.add(a.theme_nom);
+                    });
+                    themesData = [...themesSet].sort();
+                    populateThemeFilter();
+                    
+                    displayCatalogue();
+                }
+            } catch (error) {
+                console.error('Erreur catalogue:', error);
+            }
+        }
+
+        function populateThemeFilter() {
+            const select = document.getElementById('filtreThemeCatalogue');
+            select.innerHTML = '<option value="">Tous les thèmes</option>';
+            themesData.forEach(theme => {
+                select.innerHTML += `<option value="${theme}">${theme}</option>`;
+            });
+        }
+
+        function filterCatalogue() {
+            displayCatalogue();
+        }
+
+        function displayCatalogue() {
+            const search = document.getElementById('searchCatalogue').value.toLowerCase();
+            const theme = document.getElementById('filtreThemeCatalogue').value;
+            const duree = document.getElementById('filtreDureeCatalogue').value;
+            
+            let filtered = catalogueData.filter(a => {
+                if (search && !a.nom.toLowerCase().includes(search)) return false;
+                if (theme && a.theme_nom !== theme) return false;
+                if (duree && a.duree !== parseInt(duree)) return false;
+                return true;
+            });
+            
+            if (filtered.length === 0) {
+                document.getElementById('catalogueContainer').innerHTML = '<p style="color:#666;">Aucun atelier trouvé.</p>';
+                return;
+            }
+            
+            let html = '';
+            filtered.forEach(atelier => {
+                const themeStyle = atelier.theme_couleur 
+                    ? `background: ${atelier.theme_couleur}20; color: ${atelier.theme_couleur};` 
+                    : 'background: #e5e7eb; color: #374151;';
+                
+                const dureeBadge = atelier.duree === 6 ? 'Journée' : `${atelier.duree}p`;
+                
+                html += `
+                    <div class="atelier-item" onclick="toggleAtelier(this)">
+                        <div class="atelier-header">
+                            <div class="atelier-title">
+                                <h3>${atelier.nom}</h3>
+                                <span class="badge badge-duree">${dureeBadge}</span>
+                                ${atelier.theme_nom ? `<span class="badge" style="${themeStyle}">${atelier.theme_icone || ''} ${atelier.theme_nom}</span>` : ''}
+                            </div>
+                            <span style="color:#6b7280;">▼</span>
+                        </div>
+                        <div class="atelier-content">
+                            <div class="atelier-enseignants">👨‍🏫 ${atelier.enseignants_noms || '-'}</div>
+                            ${atelier.description ? `<div class="atelier-desc">${atelier.description}</div>` : ''}
+                            <div class="atelier-creneaux">
+                                ${atelier.creneaux.map(c => `
+                                    <div class="creneau-row">
+                                        <span><strong>${c.jour.charAt(0).toUpperCase() + c.jour.slice(1)}</strong> ${c.periode} - 📍 ${c.salle_nom || '-'}</span>
+                                        <span>${c.nb_inscrits}/${atelier.nombre_places_max} inscrits</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('catalogueContainer').innerHTML = html;
+        }
+
+        function toggleAtelier(el) {
+            el.classList.toggle('open');
+        }
+
+        // ===================== MES ATELIERS =====================
+        async function loadMesAteliers() {
             try {
                 const response = await fetch(`${API_URL}/enseignants/ateliers`, {
                     headers: { 'Authorization': `Bearer ${currentToken}` }
                 });
-                
                 const data = await response.json();
                 
                 if (data.success) {
-                    displayAteliers(data.data);
+                    displayMesAteliers(data.data);
                 }
             } catch (error) {
-                console.error('Erreur ateliers:', error);
+                console.error('Erreur mes ateliers:', error);
             }
         }
 
-        function displayAteliers(ateliers) {
-            const container = document.getElementById('ateliersTable');
-            
+        function displayMesAteliers(ateliers) {
             if (ateliers.length === 0) {
-                container.innerHTML = '<div class="alert alert-info">Vous n\'avez pas encore créé d\'atelier. Cliquez sur "Créer un atelier" pour commencer !</div>';
+                document.getElementById('mesAteliersContainer').innerHTML = '<p style="color:#666;">Vous n\'avez pas encore créé d\'atelier.</p>';
                 return;
             }
             
-            let html = '<table class="table"><thead><tr><th>Nom</th><th>Durée</th><th>Places</th><th>Budget</th><th>Statut</th><th>Actions</th></tr></thead><tbody>';
+            let html = '<table style="width:100%; border-collapse:collapse;">';
+            html += '<thead><tr style="background:#f3f4f6;"><th style="padding:10px; text-align:left;">Nom</th><th>Durée</th><th>Places</th><th>Inscrits</th><th>Statut</th><th>Actions</th></tr></thead><tbody>';
             
             ateliers.forEach(a => {
-                const statusClass = {
-                    'brouillon': 'badge-draft',
-                    'soumis': 'badge-submitted',
-                    'valide': 'badge-validated',
-                    'refuse': 'badge-refused'
-                }[a.statut];
+                const statutColor = {
+                    'brouillon': '#6b7280',
+                    'soumis': '#f59e0b',
+                    'valide': '#10b981',
+                    'refuse': '#ef4444'
+                }[a.statut] || '#6b7280';
                 
-                const statusText = {
-                    'brouillon': 'Brouillon',
-                    'soumis': 'Soumis',
-                    'valide': 'Validé',
-                    'refuse': 'Refusé'
-                }[a.statut];
-                
-                html += `
-                    <tr>
-                        <td><strong>${a.nom}</strong></td>
-                        <td>${a.duree} périodes</td>
-                        <td>${a.nombre_inscrits}/${a.nombre_places_max}</td>
-                        <td>${a.budget_max !== null && a.budget_max !== undefined
-    ? Number(a.budget_max).toFixed(2) + ' CHF'
-    : '—'}</td>
-                        <td><span class="badge ${statusClass}">${statusText}</span></td>
-                        <td>
-                            ${a.statut === 'brouillon' ? `
-                                <button class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;" onclick="editAtelier(${a.id})">✏️ Modifier</button>
-                                <button class="btn btn-success" style="padding: 5px 10px; font-size: 12px;" onclick="submitAtelier(${a.id})">✅ Soumettre</button>
-                                <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="deleteAtelier(${a.id})">🗑️</button>
-                            ` : a.statut === 'refuse' ? `
-                                <button class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;" onclick="editAtelier(${a.id})">✏️ Modifier</button>
-                                <button class="btn btn-success" style="padding: 5px 10px; font-size: 12px;" onclick="submitAtelier(${a.id})">✅ Resoumettre</button>
-                            ` : a.statut === 'valide' ? `
-                                <button class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;" onclick="editAtelier(${a.id})">✏️ Modifier</button>
-                                <span style="font-size:11px;color:#666;">Modifications soumises à validation</span>
-                            ` : a.statut === 'soumis' ? `
-                                <span style="font-size:11px;color:#666;">En attente de validation</span>
-                            ` : ''}
-                        </td>
-                    </tr>
-                `;
+                html += `<tr style="border-bottom:1px solid #e5e7eb;">
+                    <td style="padding:10px;">${a.nom}</td>
+                    <td style="text-align:center;">${a.duree}p</td>
+                    <td style="text-align:center;">${a.nombre_places_max}</td>
+                    <td style="text-align:center;">${a.nombre_inscrits || 0}</td>
+                    <td style="text-align:center;"><span style="background:${statutColor}20; color:${statutColor}; padding:3px 10px; border-radius:10px; font-size:12px;">${a.statut}</span></td>
+                    <td style="text-align:center;">
+                        ${a.statut === 'brouillon' ? `<button class="btn btn-sm btn-success" onclick="submitAtelier(${a.id})">Soumettre</button>` : ''}
+                    </td>
+                </tr>`;
             });
             
             html += '</tbody></table>';
-            container.innerHTML = html;
+            document.getElementById('mesAteliersContainer').innerHTML = html;
         }
-
-        // Types de salles
-        async function loadTypesSalles() {
-            try {
-                const response = await fetch(`${API_URL}/enseignants/types-salles`, {
-                    headers: { 'Authorization': `Bearer ${currentToken}` }
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    typesSalles = data.data;
-                    const select = document.getElementById('atelierTypeSalle');
-                    data.data.forEach(type => {
-                        const option = document.createElement('option');
-                        option.value = type;
-                        option.textContent = type;
-                        select.appendChild(option);
-                    });
-                }
-            } catch (error) {
-                console.error('Erreur types salles:', error);
-            }
-        }
-
-        // Charger les thèmes
-        async function loadThemes() {
-            try {
-                const response = await fetch('/api/catalogue/themes');
-                const data = await response.json();
-                
-                if (data.success) {
-                    const select = document.getElementById('atelierTheme');
-                    select.innerHTML = '<option value="">-- Aucun thème --</option>';
-                    data.data.forEach(theme => {
-                        const option = document.createElement('option');
-                        option.value = theme.id;
-                        option.textContent = `${theme.icone} ${theme.nom}`;
-                        select.appendChild(option);
-                    });
-                }
-            } catch (error) {
-                console.error('Erreur thèmes:', error);
-            }
-        }
-
-        // Modal atelier
-        function openCreateAtelierModal() {
-            document.getElementById('modalAtelierTitle').textContent = 'Créer un atelier';
-            document.getElementById('formAtelier').reset();
-            document.getElementById('atelierIdEdit').value = '';
-            document.getElementById('modalAtelier').classList.add('active');
-        }
-
-        function closeAtelierModal() {
-            document.getElementById('modalAtelier').classList.remove('active');
-        }
-
-        async function editAtelier(id) {
-            try {
-                const response = await fetch(`${API_URL}/enseignants/ateliers/${id}`, {
-                    headers: { 'Authorization': `Bearer ${currentToken}` }
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    const a = data.data;
-                    document.getElementById('modalAtelierTitle').textContent = 'Modifier l\'atelier';
-                    document.getElementById('atelierIdEdit').value = a.id;
-                    document.getElementById('atelierNom').value = a.nom;
-                    document.getElementById('atelierDescription').value = a.description || '';
-                    document.getElementById('atelierTheme').value = a.theme_id || '';
-                    document.getElementById('atelierDuree').value = a.duree;
-                    document.getElementById('atelierPlaces').value = a.nombre_places_max;
-                    document.getElementById('atelierBudget').value = a.budget_max;
-                    document.getElementById('atelierTypeSalle').value = a.type_salle_demande || '';
-                    document.getElementById('atelierRemarques').value = a.remarques || '';
-                    document.getElementById('atelierInfosEleves').value = a.informations_eleves || '';
-                    
-                    document.getElementById('modalAtelier').classList.add('active');
-                }
-            } catch (error) {
-                alert('Erreur lors du chargement de l\'atelier');
-            }
-        }
-
-        // Soumettre formulaire atelier
-        document.getElementById('formAtelier').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const atelierId = document.getElementById('atelierIdEdit').value;
-            const isEdit = atelierId !== '';
-            
-            const atelierData = {
-                nom: document.getElementById('atelierNom').value,
-                description: document.getElementById('atelierDescription').value,
-                theme_id: document.getElementById('atelierTheme').value || null,
-                duree: parseInt(document.getElementById('atelierDuree').value),
-                nombre_places_max: parseInt(document.getElementById('atelierPlaces').value),
-                budget_max: parseFloat(document.getElementById('atelierBudget').value),
-                type_salle_demande: document.getElementById('atelierTypeSalle').value || null,
-                remarques: document.getElementById('atelierRemarques').value,
-                informations_eleves: document.getElementById('atelierInfosEleves').value
-            };
-            
-            try {
-                const url = isEdit ? `${API_URL}/enseignants/ateliers/${atelierId}` : `${API_URL}/enseignants/ateliers`;
-                const method = isEdit ? 'PUT' : 'POST';
-                
-                const response = await fetch(url, {
-                    method: method,
-                    headers: {
-                        'Authorization': `Bearer ${currentToken}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(atelierData)
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    closeAtelierModal();
-                    showAlert('alertsAteliers', data.message, 'success');
-                    loadAteliers();
-                    loadStats();
-                } else {
-                    alert(data.message);
-                }
-            } catch (error) {
-                alert('Erreur lors de l\'enregistrement');
-            }
-        });
 
         async function submitAtelier(id) {
-            if (!confirm('Êtes-vous sûr de vouloir soumettre cet atelier pour validation ?')) return;
+            if (!confirm('Soumettre cet atelier pour validation ?')) return;
             
             try {
                 const response = await fetch(`${API_URL}/enseignants/ateliers/${id}/soumettre`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${currentToken}` }
                 });
-                
                 const data = await response.json();
                 
                 if (data.success) {
-                    showAlert('alertsAteliers', data.message, 'success');
-                    loadAteliers();
-                    loadStats();
+                    alert('Atelier soumis pour validation');
+                    loadMesAteliers();
+                } else {
+                    alert(data.message || 'Erreur');
                 }
             } catch (error) {
-                alert('Erreur lors de la soumission');
+                alert('Erreur de connexion');
             }
         }
 
-        async function deleteAtelier(id) {
-            if (!confirm('Êtes-vous sûr de vouloir supprimer cet atelier ?')) return;
-            
-            try {
-                const response = await fetch(`${API_URL}/enseignants/ateliers/${id}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${currentToken}` }
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    showAlert('alertsAteliers', data.message, 'success');
-                    loadAteliers();
-                    loadStats();
-                }
-            } catch (error) {
-                alert('Erreur lors de la suppression');
-            }
+        function showCreateAtelier() {
+            alert('Fonctionnalité de création d\'atelier à implémenter');
         }
 
-        // Disponibilités
+        // ===================== DISPONIBILITÉS =====================
         async function loadDisponibilites() {
             try {
                 const response = await fetch(`${API_URL}/enseignants/disponibilites`, {
                     headers: { 'Authorization': `Bearer ${currentToken}` }
                 });
-                
                 const data = await response.json();
                 
                 if (data.success) {
-                    disponibilites = data.data;
-                    displayDisponibilites();
+                    disponibilitesValidees = data.valide || false;
+                    displayDisponibilites(data.data);
                 }
             } catch (error) {
                 console.error('Erreur disponibilités:', error);
             }
         }
 
-        function displayDisponibilites() {
-            const container = document.getElementById('disponibilitesGrid');
-            
-            // Grouper par jour
-            const jours = {
-                'lundi': [],
-                'mardi': [],
-                'mercredi': [],
-                'jeudi': [],
-                'vendredi': []
-            };
-            
-            disponibilites.forEach(d => {
-                jours[d.jour].push(d);
-            });
-            
-            let html = '<div style="display: grid; grid-template-columns: 150px repeat(5, 1fr); gap: 10px;">';
-            
-            // Headers jours
-            html += '<div></div>';
-            ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'].forEach(jour => {
-                html += `<div class="jour-header">${jour}</div>`;
-            });
-            
-            // Lignes de créneaux
-            const periodes = ['P1-2', 'P3-4', 'P6-7'];
-            
-            periodes.forEach(periode => {
-                html += `<div class="periode-label">${periode}</div>`;
-                
-                Object.keys(jours).forEach(jour => {
-                    const creneau = jours[jour].find(c => c.periode === periode);
-                    
-                    if (creneau) {
-                        const classes = creneau.disponible ? 'disponible' : 'indisponible';
-                        html += `
-                            <div class="creneau-cell ${classes}" onclick="toggleDisponibilite(${creneau.creneau_id})">
-                                ${creneau.disponible ? '✅ Disponible' : '❌ Indisponible'}
-                            </div>
-                        `;
-                    } else {
-                        html += '<div class="creneau-cell" style="background: #f9fafb; cursor: not-allowed;">-</div>';
-                    }
-                });
-            });
-            
-            html += '</div>';
-            container.innerHTML = html;
-        }
-
-        function toggleDisponibilite(creneauId) {
-            const index = disponibilites.findIndex(d => d.creneau_id === creneauId);
-            if (index !== -1) {
-                disponibilites[index].disponible = !disponibilites[index].disponible;
-                displayDisponibilites();
+        function displayDisponibilites(dispos) {
+            if (disponibilitesValidees) {
+                document.getElementById('dispoValidated').style.display = 'block';
+                document.getElementById('dispoActions').style.display = 'none';
+            } else {
+                document.getElementById('dispoValidated').style.display = 'none';
+                document.getElementById('dispoActions').style.display = 'block';
             }
+            
+            // Organiser par jour/période
+            const dispoMap = {};
+            dispos.forEach(d => {
+                dispoMap[`${d.jour}-${d.periode}`] = d;
+            });
+            
+            let html = '<table class="dispo-table"><thead><tr><th></th>';
+            JOURS.forEach(jour => {
+                html += `<th>${jour.charAt(0).toUpperCase() + jour.slice(1)}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+            
+            PERIODES.forEach(periode => {
+                html += `<tr><td style="font-weight:600;">${periode}</td>`;
+                
+                JOURS.forEach(jour => {
+                    if (jour === 'mercredi' && periode === 'P6-7') {
+                        html += '<td style="background:#f3f4f6; color:#9ca3af;">Congé</td>';
+                        return;
+                    }
+                    
+                    const d = dispoMap[`${jour}-${periode}`];
+                    const checked = d?.disponible ? 'checked' : '';
+                    const disabled = disponibilitesValidees ? 'disabled' : '';
+                    
+                    html += `<td>
+                        <input type="checkbox" class="dispo-checkbox" 
+                               data-jour="${jour}" data-periode="${periode}" 
+                               data-creneau="${d?.creneau_id || ''}"
+                               ${checked} ${disabled}>
+                    </td>`;
+                });
+                
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            document.getElementById('disponibilitesContainer').innerHTML = html;
         }
 
         async function saveDisponibilites() {
+            if (disponibilitesValidees) {
+                alert('Vos disponibilités ont déjà été validées.');
+                return;
+            }
+            
+            const checkboxes = document.querySelectorAll('.dispo-checkbox');
+            const disponibilites = [];
+            
+            checkboxes.forEach(cb => {
+                if (cb.dataset.creneau) {
+                    disponibilites.push({
+                        creneau_id: parseInt(cb.dataset.creneau),
+                        disponible: cb.checked,
+                        periodes_enseignees_normalement: 0
+                    });
+                }
+            });
+            
             try {
                 const response = await fetch(`${API_URL}/enseignants/disponibilites`, {
                     method: 'PUT',
@@ -1071,101 +1142,162 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    showAlert('alertsDisponibilites', data.message, 'success');
-                    loadStats();
-                }
-            } catch (error) {
-                showAlert('alertsDisponibilites', 'Erreur lors de l\'enregistrement', 'error');
-            }
-        }
-
-        function showAlert(containerId, message, type) {
-            const container = document.getElementById(containerId);
-            const alertClass = type === 'success' ? 'alert-success' : type === 'error' ? 'alert-error' : 'alert-info';
-            
-            container.innerHTML = `<div class="alert ${alertClass}">${message}</div>`;
-            
-            setTimeout(() => {
-                container.innerHTML = '';
-            }, 5000);
-        }
-
-        // === CHANGEMENT MOT DE PASSE ===
-        function showChangePassword() {
-            const modal = document.createElement('div');
-            modal.id = 'passwordModal';
-            modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;';
-            modal.innerHTML = `
-                <div style="background:white;padding:30px;border-radius:15px;max-width:400px;width:90%;">
-                    <h3 style="margin-bottom:20px;color:#667eea;">🔑 Changer mon mot de passe</h3>
-                    <div style="margin-bottom:15px;">
-                        <label style="display:block;margin-bottom:5px;font-weight:600;">Ancien mot de passe</label>
-                        <input type="password" id="oldPassword" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;">
-                    </div>
-                    <div style="margin-bottom:15px;">
-                        <label style="display:block;margin-bottom:5px;font-weight:600;">Nouveau mot de passe</label>
-                        <input type="password" id="newPassword" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;">
-                    </div>
-                    <div style="margin-bottom:20px;">
-                        <label style="display:block;margin-bottom:5px;font-weight:600;">Confirmer le nouveau</label>
-                        <input type="password" id="confirmPassword" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;">
-                    </div>
-                    <div id="passwordError" style="color:#ef4444;margin-bottom:15px;display:none;"></div>
-                    <div style="display:flex;gap:10px;">
-                        <button onclick="changePassword()" class="btn btn-primary" style="flex:1;">Changer</button>
-                        <button onclick="document.getElementById('passwordModal').remove()" class="btn btn-secondary" style="flex:1;">Annuler</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-        }
-
-        async function changePassword() {
-            const oldPassword = document.getElementById('oldPassword').value;
-            const newPassword = document.getElementById('newPassword').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-            const errorDiv = document.getElementById('passwordError');
-
-            if (!oldPassword || !newPassword || !confirmPassword) {
-                errorDiv.textContent = 'Tous les champs sont requis';
-                errorDiv.style.display = 'block';
-                return;
-            }
-
-            if (newPassword !== confirmPassword) {
-                errorDiv.textContent = 'Les mots de passe ne correspondent pas';
-                errorDiv.style.display = 'block';
-                return;
-            }
-
-            if (newPassword.length < 6) {
-                errorDiv.textContent = 'Le mot de passe doit contenir au moins 6 caractères';
-                errorDiv.style.display = 'block';
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/auth/change-password', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ oldPassword, newPassword })
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    document.getElementById('passwordModal').remove();
-                    showAlert('✅ Mot de passe modifié avec succès !', 'success');
+                    alert('Disponibilités enregistrées');
                 } else {
-                    errorDiv.textContent = result.message || 'Erreur lors du changement';
-                    errorDiv.style.display = 'block';
+                    alert(data.message || 'Erreur');
                 }
             } catch (error) {
-                errorDiv.textContent = 'Erreur de connexion';
-                errorDiv.style.display = 'block';
+                alert('Erreur de connexion');
+            }
+        }
+
+        // ===================== IMPRESSION =====================
+        async function printHoraire() {
+            try {
+                const response = await fetch(`${API_URL}/enseignants/impression/horaire`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    const { enseignant, horaire, creneaux } = data.data;
+                    
+                    document.getElementById('printEnseignantNom').textContent = 
+                        `${enseignant.prenom} ${enseignant.nom}`;
+                    
+                    // Construire la table d'horaire
+                    const creneauMap = {};
+                    creneaux.forEach(c => {
+                        creneauMap[`${c.jour}-${c.periode}`] = c;
+                    });
+                    
+                    const atelierParCreneau = {};
+                    horaire.forEach(a => {
+                        atelierParCreneau[a.creneau_id] = a;
+                    });
+                    
+                    let html = '<table class="print-table"><thead><tr><th></th>';
+                    JOURS.forEach(jour => {
+                        html += `<th>${jour.charAt(0).toUpperCase() + jour.slice(1)}</th>`;
+                    });
+                    html += '</tr></thead><tbody>';
+                    
+                    PERIODES.forEach(periode => {
+                        html += `<tr><td><strong>${periode}</strong></td>`;
+                        
+                        JOURS.forEach(jour => {
+                            if (jour === 'mercredi' && periode === 'P6-7') {
+                                html += '<td style="background:#eee;">Congé</td>';
+                                return;
+                            }
+                            
+                            const creneau = creneauMap[`${jour}-${periode}`];
+                            const atelier = creneau ? atelierParCreneau[creneau.id] : null;
+                            
+                            if (atelier) {
+                                html += `<td><strong>${atelier.atelier_nom}</strong><br>
+                                         📍 ${atelier.salle_nom || '-'}<br>
+                                         ${atelier.nb_inscrits}/${atelier.nombre_places_max}</td>`;
+                            } else {
+                                html += '<td>-</td>';
+                            }
+                        });
+                        
+                        html += '</tr>';
+                    });
+                    
+                    html += '</tbody></table>';
+                    document.getElementById('printHoraireContent').innerHTML = html;
+                    
+                    // Masquer dashboard, afficher page impression
+                    document.getElementById('dashboardPage').style.display = 'none';
+                    document.getElementById('printHorairePage').classList.add('active');
+                    
+                    window.print();
+                    
+                    // Restaurer après impression
+                    setTimeout(() => {
+                        document.getElementById('printHorairePage').classList.remove('active');
+                        document.getElementById('dashboardPage').style.display = 'block';
+                    }, 500);
+                }
+            } catch (error) {
+                alert('Erreur lors de la préparation de l\'impression');
+            }
+        }
+
+        async function printListes() {
+            try {
+                const response = await fetch(`${API_URL}/enseignants/impression/listes`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    const { enseignant, listes } = data.data;
+                    
+                    if (listes.length === 0) {
+                        alert('Aucune liste à imprimer.');
+                        return;
+                    }
+                    
+                    let html = '';
+                    
+                    listes.forEach(liste => {
+                        html += `<div class="print-liste">
+                            <h2 style="margin-bottom:5px;">${liste.atelier_nom}</h2>
+                            <p style="margin-bottom:15px;">
+                                <strong>${liste.jour.charAt(0).toUpperCase() + liste.jour.slice(1)}</strong> ${liste.periode} | 
+                                📍 ${liste.salle_nom || '-'} | 
+                                ${enseignant.prenom} ${enseignant.nom}
+                            </p>
+                            <table class="print-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width:40px;">#</th>
+                                        <th>Nom</th>
+                                        <th>Prénom</th>
+                                        <th style="width:80px;">Classe</th>
+                                        <th style="width:60px;">Présent</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+                        
+                        if (liste.eleves.length === 0) {
+                            html += '<tr><td colspan="5" style="text-align:center;">Aucun élève inscrit</td></tr>';
+                        } else {
+                            liste.eleves.forEach((e, i) => {
+                                html += `<tr>
+                                    <td>${i + 1}</td>
+                                    <td>${e.nom}</td>
+                                    <td>${e.prenom}</td>
+                                    <td>${e.classe_nom}</td>
+                                    <td style="text-align:center;">☐</td>
+                                </tr>`;
+                            });
+                        }
+                        
+                        html += `</tbody></table>
+                            <p style="margin-top:10px;"><strong>Total: ${liste.total} / ${liste.nombre_places_max}</strong></p>
+                        </div>`;
+                    });
+                    
+                    document.getElementById('printListesContent').innerHTML = html;
+                    
+                    // Masquer dashboard, afficher page impression
+                    document.getElementById('dashboardPage').style.display = 'none';
+                    document.getElementById('printListesPage').classList.add('active');
+                    
+                    window.print();
+                    
+                    // Restaurer après impression
+                    setTimeout(() => {
+                        document.getElementById('printListesPage').classList.remove('active');
+                        document.getElementById('dashboardPage').style.display = 'block';
+                    }, 500);
+                }
+            } catch (error) {
+                alert('Erreur lors de la préparation de l\'impression');
             }
         }
     </script>
