@@ -280,6 +280,46 @@
             gap: 8px;
         }
         
+        .atelier-creneaux-detail {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        
+        .creneau-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 10px;
+            background: #f3f4f6;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        
+        .creneau-salle {
+            color: #6b7280;
+            font-size: 12px;
+        }
+        
+        .creneau-places {
+            margin-left: auto;
+            font-weight: 600;
+            color: #10b981;
+        }
+        
+        .creneau-places.warning {
+            color: #f59e0b;
+        }
+        
+        .creneau-places.full {
+            color: #ef4444;
+        }
+        
+        .creneau-places small {
+            font-weight: normal;
+            color: #6b7280;
+        }
+        
         .creneau-badge {
             background: #e5e7eb;
             padding: 6px 12px;
@@ -577,21 +617,30 @@
                               atelier.duree === 4 ? '4 périodes (demi-journée)' : 
                               '6 périodes (journée)';
             
-            // Calculer le remplissage
-            const inscrits = atelier.nb_inscrits || 0;
-            const places = atelier.nombre_places_max;
-            const pourcent = Math.min(100, Math.round((inscrits / places) * 100));
-            const fillClass = pourcent >= 100 ? 'full' : pourcent >= 80 ? 'warning' : '';
-            
-            // Créneaux
+            // Créneaux avec places PAR CRÉNEAU
             let creneauxHtml = '';
+            let totalInscrits = 0;
+            let totalPlaces = 0;
+            
             if (atelier.creneaux && atelier.creneaux.length > 0) {
                 creneauxHtml = atelier.creneaux.map(c => {
                     const jourCourt = c.jour.substring(0, 3);
-                    return `<span class="creneau-badge">${jourCourt} ${c.periode} <span class="salle">· ${c.salle}</span></span>`;
+                    const inscrits = c.nb_inscrits || 0;
+                    const places = atelier.nombre_places_max;
+                    totalInscrits += inscrits;
+                    totalPlaces += places;
+                    const restantes = places - inscrits;
+                    const fillClass = restantes <= 0 ? 'full' : restantes <= 3 ? 'warning' : '';
+                    
+                    return `<div class="creneau-row">
+                        <span class="creneau-badge">${jourCourt} ${c.periode}</span>
+                        <span class="creneau-salle">📍 ${c.salle || '-'}</span>
+                        <span class="creneau-places ${fillClass}">${inscrits}/${places} <small>(${restantes} dispo)</small></span>
+                    </div>`;
                 }).join('');
             } else {
                 creneauxHtml = '<span class="creneau-badge">Horaire à définir</span>';
+                totalPlaces = atelier.nombre_places_max;
             }
             
             // Info admin
@@ -630,17 +679,8 @@
                     
                     <div class="atelier-info">
                         <div class="atelier-info-title">📅 Créneaux disponibles</div>
-                        <div class="atelier-creneaux">
+                        <div class="atelier-creneaux-detail">
                             ${creneauxHtml}
-                        </div>
-                    </div>
-                    
-                    <div class="atelier-places">
-                        <div class="places-info">
-                            <strong>${places - inscrits}</strong> places disponibles sur ${places}
-                        </div>
-                        <div class="places-bar">
-                            <div class="places-fill ${fillClass}" style="width: ${pourcent}%;"></div>
                         </div>
                     </div>
                     
