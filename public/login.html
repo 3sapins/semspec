@@ -90,6 +90,12 @@
             transform: translateY(0);
         }
 
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .alert {
             padding: 12px 16px;
             border-radius: 8px;
@@ -126,6 +132,16 @@
             font-size: 11px;
             color: #6b7280;
         }
+
+        .debug-info {
+            margin-top: 20px;
+            padding: 10px;
+            background: #f9fafb;
+            border-radius: 8px;
+            font-size: 11px;
+            color: #6b7280;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -137,7 +153,7 @@
 
         <div id="alert" class="alert"></div>
 
-        <form id="loginForm" onsubmit="login(event)">
+        <form id="loginForm">
             <div class="form-group">
                 <label for="identifiant">Identifiant</label>
                 <input type="text" id="identifiant" name="identifiant" placeholder="Votre acronyme ou 'admin'" required autofocus>
@@ -148,40 +164,90 @@
                 <input type="password" id="mot_de_passe" name="mot_de_passe" placeholder="Votre mot de passe" required>
             </div>
 
-            <button type="submit" class="btn">🔐 Se connecter</button>
+            <button type="submit" class="btn" id="submitBtn">🔐 Se connecter</button>
         </form>
 
         <div class="footer">
             <p>Plateforme de gestion des ateliers</p>
-            <span class="version">Version 5.3</span>
+            <span class="version">Version 5.4</span>
         </div>
+
+        <div class="debug-info" id="debugInfo"></div>
     </div>
 
     <script>
-        // Si déjà connecté, rediriger
-        const existingToken = localStorage.getItem('token');
-        if (existingToken) {
-            // Vérifier si le token est encore valide
-            fetch('/api/admin/stats', {
-                headers: { 'Authorization': `Bearer ${existingToken}` }
-            })
-            .then(r => {
-                if (r.ok) {
-                    window.location.href = 'index.html';
-                } else {
-                    localStorage.removeItem('token');
-                }
-            })
-            .catch(() => localStorage.removeItem('token'));
+        // Debug mode - afficher avec ?debug=1 dans l'URL
+        const debugMode = new URLSearchParams(window.location.search).get('debug') === '1';
+        if (debugMode) {
+            document.getElementById('debugInfo').style.display = 'block';
         }
 
+        function debug(msg) {
+            console.log('[LOGIN]', msg);
+            if (debugMode) {
+                const el = document.getElementById('debugInfo');
+                el.innerHTML += msg + '<br>';
+            }
+        }
+
+        // Vérifier si déjà connecté avec un token valide
+        async function checkExistingSession() {
+            const existingToken = localStorage.getItem('token');
+            debug('Token existant: ' + (existingToken ? 'OUI' : 'NON'));
+            
+            if (!existingToken) {
+                debug('Pas de token, affichage formulaire');
+                return;
+            }
+
+            try {
+                debug('Vérification token...');
+                const response = await fetch('/api/admin/stats', {
+                    headers: { 'Authorization': `Bearer ${existingToken}` }
+                });
+                
+                debug('Réponse vérification: ' + response.status);
+                
+                if (response.ok) {
+                    const user = JSON.parse(localStorage.getItem('user') || '{}');
+                    debug('Token valide, rôle: ' + user.role);
+                    
+                    // Rediriger selon le rôle
+                    let targetPage = 'index.html';
+                    if (user.role === 'enseignant') {
+                        targetPage = 'enseignants.html';
+                    } else if (user.role === 'eleve') {
+                        targetPage = 'eleves.html';
+                    }
+                    debug('Redirection vers: ' + targetPage);
+                    window.location.href = targetPage;
+                } else {
+                    debug('Token invalide, suppression');
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                }
+            } catch (error) {
+                debug('Erreur vérification: ' + error.message);
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+            }
+        }
+
+        // Fonction de connexion
         async function login(e) {
             e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const alertDiv = document.getElementById('alert');
             
             const identifiant = document.getElementById('identifiant').value.trim();
             const mot_de_passe = document.getElementById('mot_de_passe').value;
             
-            const alertDiv = document.getElementById('alert');
+            debug('Tentative connexion: ' + identifiant);
+            
+            // Désactiver le bouton pendant la requête
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ Connexion...';
             alertDiv.style.display = 'none';
 
             try {
@@ -191,15 +257,25 @@
                     body: JSON.stringify({ identifiant, mot_de_passe })
                 });
 
+                debug('Réponse serveur: ' + response.status);
                 const result = await response.json();
+                debug('Résultat: ' + JSON.stringify(result).substring(0, 100));
 
                 if (result.success && result.data && result.data.token) {
-                    // Stocker le token
+                    // Stocker le token et user
                     localStorage.setItem('token', result.data.token);
                     localStorage.setItem('user', JSON.stringify(result.data.user));
                     
-                    console.log('Token sauvegardé:', result.data.token.substring(0, 20) + '...');
-                    console.log('User:', result.data.user);
+                    debug('Token sauvegardé!');
+                    debug('User: ' + JSON.stringify(result.data.user));
+                    
+                    // Vérifier que c'est bien sauvegardé
+                    const savedToken = localStorage.getItem('token');
+                    debug('Vérification sauvegarde: ' + (savedToken ? 'OK' : 'ÉCHEC'));
+                    
+                    if (!savedToken) {
+                        throw new Error('Impossible de sauvegarder le token dans localStorage');
+                    }
                     
                     // Message de succès
                     alertDiv.className = 'alert alert-success';
@@ -215,22 +291,39 @@
                         targetPage = 'eleves.html';
                     }
                     
-                    console.log('Redirection vers:', targetPage);
+                    debug('Redirection vers: ' + targetPage);
                     
-                    // Redirection immédiate
-                    window.location.replace(targetPage);
+                    // Petit délai pour voir le message, puis redirection
+                    setTimeout(() => {
+                        window.location.href = targetPage;
+                    }, 500);
+                    
                 } else {
+                    debug('Échec: ' + result.message);
                     alertDiv.className = 'alert alert-error';
                     alertDiv.textContent = '❌ ' + (result.message || 'Identifiants incorrects');
                     alertDiv.style.display = 'block';
+                    
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '🔐 Se connecter';
                 }
             } catch (error) {
-                console.error('Erreur:', error);
+                debug('Erreur: ' + error.message);
+                console.error('Erreur login:', error);
                 alertDiv.className = 'alert alert-error';
-                alertDiv.textContent = '❌ Erreur de connexion au serveur';
+                alertDiv.textContent = '❌ Erreur de connexion au serveur: ' + error.message;
                 alertDiv.style.display = 'block';
+                
+                submitBtn.disabled = false;
+                submitBtn.textContent = '🔐 Se connecter';
             }
         }
+
+        // Attacher le handler au formulaire
+        document.getElementById('loginForm').addEventListener('submit', login);
+        
+        // Vérifier session existante au chargement
+        checkExistingSession();
     </script>
 </body>
 </html>

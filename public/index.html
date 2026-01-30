@@ -144,14 +144,33 @@
             color: #991b1b;
             border-left: 4px solid #ef4444;
         }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            font-size: 24px;
+            color: #667eea;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="loading-overlay" id="loadingOverlay">
+        ⏳ Vérification de la session...
+    </div>
+
+    <div class="container" id="mainContent" style="display: none;">
         <div class="header">
             <div>
                 <h1>🎓 Administration Semaine Spéciale</h1>
-                <p class="user-info">Connecté en tant qu'administrateur</p>
+                <p class="user-info" id="userInfo">Connecté en tant qu'administrateur</p>
             </div>
             <button onclick="logout()" class="btn btn-secondary">Déconnexion</button>
         </div>
@@ -161,19 +180,19 @@
         <!-- Statistiques -->
         <div class="stats-grid" id="statsGrid">
             <div class="stat-card">
-                <div class="stat-value" id="statAteliers">0</div>
+                <div class="stat-value" id="statAteliers">-</div>
                 <div class="stat-label">Ateliers</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value" id="statInscriptions">0</div>
+                <div class="stat-value" id="statInscriptions">-</div>
                 <div class="stat-label">Inscriptions</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value" id="statEleves">0</div>
+                <div class="stat-value" id="statEleves">-</div>
                 <div class="stat-label">Élèves</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value" id="statEnseignants">0</div>
+                <div class="stat-value" id="statEnseignants">-</div>
                 <div class="stat-label">Enseignants</div>
             </div>
         </div>
@@ -293,28 +312,61 @@
     </div>
 
     <script>
-        const token = localStorage.getItem('token');
-        console.log('Token trouvé:', token ? token.substring(0, 20) + '...' : 'AUCUN');
-        
-        if (!token) {
-            console.log('Pas de token, redirection vers login');
-            window.location.replace('login.html');
-        }
+        let token = null;
 
-        // Vérifier que le token est valide en faisant une requête test
-        fetch('/api/admin/stats', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        }).then(response => {
-            console.log('Réponse stats:', response.status);
-            if (!response.ok) {
-                console.log('Token invalide, redirection vers login');
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                window.location.replace('login.html');
+        // Vérification d'authentification au chargement
+        async function checkAuth() {
+            console.log('[INDEX] Vérification authentification...');
+            
+            token = localStorage.getItem('token');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            
+            console.log('[INDEX] Token:', token ? 'présent' : 'absent');
+            console.log('[INDEX] User:', user);
+
+            if (!token) {
+                console.log('[INDEX] Pas de token, redirection login');
+                window.location.href = 'login.html';
+                return false;
             }
-        }).catch(err => {
-            console.error('Erreur vérification token:', err);
-        });
+
+            // Vérifier que le token est valide
+            try {
+                const response = await fetch('/api/admin/stats', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                console.log('[INDEX] Réponse vérification:', response.status);
+                
+                if (!response.ok) {
+                    console.log('[INDEX] Token invalide (status ' + response.status + '), redirection login');
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    window.location.href = 'login.html';
+                    return false;
+                }
+
+                // Token valide - afficher la page
+                console.log('[INDEX] Token valide, affichage page');
+                document.getElementById('loadingOverlay').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                
+                // Afficher info utilisateur
+                if (user.prenom && user.nom) {
+                    document.getElementById('userInfo').textContent = 
+                        `Connecté: ${user.prenom} ${user.nom} (${user.role})`;
+                }
+                
+                return true;
+
+            } catch (error) {
+                console.error('[INDEX] Erreur vérification:', error);
+                // En cas d'erreur réseau, on laisse quand même accès si token existe
+                document.getElementById('loadingOverlay').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                return true;
+            }
+        }
 
         // Charger statistiques
         async function loadStats() {
@@ -327,7 +379,7 @@
                 const ateliersValides = (ateliers.data || []).filter(a => a.statut === 'valide').length;
                 document.getElementById('statAteliers').textContent = ateliersValides;
 
-                // Élèves (vraie requête)
+                // Élèves
                 try {
                     const respEleves = await fetch('/api/gestion/eleves', {
                         headers: { 'Authorization': `Bearer ${token}` }
@@ -338,7 +390,7 @@
                     document.getElementById('statEleves').textContent = '-';
                 }
 
-                // Enseignants (vraie requête)
+                // Enseignants
                 try {
                     const respEnseignants = await fetch('/api/gestion/enseignants', {
                         headers: { 'Authorization': `Bearer ${token}` }
@@ -349,19 +401,17 @@
                     document.getElementById('statEnseignants').textContent = '-';
                 }
 
-                // Inscriptions (depuis planning)
+                // Inscriptions
                 try {
                     const respPlanning = await fetch('/api/planning/grid', {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
                     const planning = await respPlanning.json();
-                    // Compter inscriptions totales (éviter doublons d'ateliers multi-blocs)
                     let inscriptionsSet = new Set();
                     Object.values(planning.data || {}).forEach(jour => {
                         Object.values(jour).forEach(periode => {
                             Object.values(periode).forEach(atelier => {
                                 if (atelier && !atelier.suite_atelier) {
-                                    // Utiliser atelier_id comme clé pour éviter doublons
                                     inscriptionsSet.add(`${atelier.atelier_id}_${atelier.nombre_inscrits}`);
                                 }
                             });
@@ -399,7 +449,6 @@
 
                 let html = '<div style="display: grid; gap: 15px;">';
                 result.data.forEach(atelier => {
-                    const statusClass = atelier.statut === 'valide' ? 'success' : atelier.statut === 'refuse' ? 'error' : 'warning';
                     const statusText = atelier.statut === 'valide' ? '✅ Validé' : atelier.statut === 'refuse' ? '❌ Refusé' : '⏳ En attente';
                     
                     html += `
@@ -408,7 +457,7 @@
                                 <div style="flex: 1;">
                                     <h3 style="color: #1f2937; margin-bottom: 10px;">${atelier.nom}</h3>
                                     <p style="color: #6b7280; font-size: 14px; margin-bottom: 8px;">
-                                        👨‍🏫 ${atelier.enseignant_prenom} ${atelier.enseignant_nom} (${atelier.enseignant_acronyme})
+                                        👨‍🏫 ${atelier.enseignant_prenom || ''} ${atelier.enseignant_nom || ''} (${atelier.enseignant_acronyme || ''})
                                         ${atelier.enseignant2_acronyme ? ` + ${atelier.enseignant2_acronyme}` : ''}
                                         ${atelier.enseignant3_acronyme ? ` + ${atelier.enseignant3_acronyme}` : ''}
                                     </p>
@@ -488,12 +537,11 @@
 
         async function toggleInscriptions() {
             try {
-                // D'abord, récupérer l'état actuel
                 const configResponse = await fetch('/api/admin/configuration', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const configResult = await configResponse.json();
-                const inscriptionsConfig = configResult.data.find(c => c.cle === 'inscriptions_ouvertes');
+                const inscriptionsConfig = configResult.data?.find(c => c.cle === 'inscriptions_ouvertes');
                 const actuellementOuvert = inscriptionsConfig?.valeur === 'true';
                 
                 const action = actuellementOuvert ? 'FERMER' : 'OUVRIR';
@@ -568,14 +616,17 @@
 
         function logout() {
             localStorage.removeItem('token');
+            localStorage.removeItem('user');
             window.location.href = 'login.html';
         }
 
-        // Charger au démarrage
-        loadStats();
-        loadAteliers();
+        // Initialisation
+        checkAuth().then(isAuthenticated => {
+            if (isAuthenticated) {
+                loadStats();
+                loadAteliers();
+            }
+        });
     </script>
-    <!-- Script auto-boutons modifier -->
-    <script src="auto-boutons-modifier.js"></script>
 </body>
 </html>
