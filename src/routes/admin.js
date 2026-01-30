@@ -5,6 +5,29 @@ const { authMiddleware, adminMiddleware, enseignantMiddleware } = require('../mi
 
 router.use(authMiddleware);
 
+// ========== STATS (pour vérification token admin) ==========
+router.get('/stats', adminMiddleware, async (req, res) => {
+    try {
+        const [ateliers] = await query('SELECT COUNT(*) as total FROM ateliers');
+        const [enseignants] = await query('SELECT COUNT(*) as total FROM utilisateurs WHERE role = "enseignant"');
+        const [eleves] = await query('SELECT COUNT(*) as total FROM utilisateurs WHERE role = "eleve"');
+        const [inscriptions] = await query('SELECT COUNT(*) as total FROM inscriptions');
+        
+        res.json({ 
+            success: true, 
+            data: {
+                ateliers: ateliers.total || 0,
+                enseignants: enseignants.total || 0,
+                eleves: eleves.total || 0,
+                inscriptions: inscriptions.total || 0
+            }
+        });
+    } catch (error) {
+        console.error('Erreur stats:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
 // ========== THEMES (public) ==========
 router.get('/themes', async (req, res) => {
     try {
