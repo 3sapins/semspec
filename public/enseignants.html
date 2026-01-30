@@ -767,13 +767,15 @@
                 creneauMap[`${c.jour}-${c.periode}`] = c;
             });
 
-            // Map ateliers par créneau
+            // Map ateliers par créneau (premier créneau uniquement)
             const atelierParCreneau = {};
+            const skipCreneaux = new Set(); // Créneaux à sauter (suite d'un atelier)
+            
             ateliers.forEach(a => {
                 atelierParCreneau[a.creneau_id] = a;
-                // Marquer les créneaux de continuation
+                // Marquer les créneaux de suite à sauter
                 for (let i = 1; i < (a.nombre_creneaux || 1); i++) {
-                    atelierParCreneau[a.creneau_id + i] = { ...a, isContinuation: true };
+                    skipCreneaux.add(a.creneau_id + i);
                 }
             });
 
@@ -783,7 +785,7 @@
             });
             html += '</tr></thead><tbody>';
 
-            PERIODES.forEach(periode => {
+            PERIODES.forEach((periode, periodeIndex) => {
                 html += `<tr><td class="periode-label">${periode}</td>`;
                 
                 JOURS.forEach(jour => {
@@ -798,23 +800,35 @@
                         return;
                     }
                     
+                    // Si ce créneau est une suite, on le saute (le rowspan précédent le couvre)
+                    if (skipCreneaux.has(creneau.id)) {
+                        return; // Ne rien ajouter, la cellule fusionnée le couvre
+                    }
+                    
                     const atelier = atelierParCreneau[creneau.id];
                     
                     if (atelier) {
-                        if (atelier.isContinuation) {
-                            html += `<td style="background:#dbeafe; opacity:0.6; text-align:center;">⬆️</td>`;
-                        } else {
-                            html += `<td>
-                                <div class="atelier-card">
-                                    <div class="nom">${atelier.atelier_nom}</div>
-                                    <div class="salle">📍 ${atelier.salle_nom || '-'}</div>
-                                    <div class="inscrits">
-                                        <span class="count">${atelier.nb_inscrits}/${atelier.nombre_places_max}</span>
-                                        <button class="btn-liste" onclick="showListeEleves(${atelier.planning_id})">Liste</button>
-                                    </div>
+                        const nbCreneaux = atelier.nombre_creneaux || 1;
+                        const rowspanAttr = nbCreneaux > 1 ? ` rowspan="${nbCreneaux}"` : '';
+                        
+                        // Couleur de fond selon durée
+                        let bgColor = 'background: #f0fdf4;'; // Vert clair par défaut
+                        if (nbCreneaux === 2) bgColor = 'background: linear-gradient(180deg, #dbeafe 0%, #bfdbfe 100%);';
+                        else if (nbCreneaux >= 3) bgColor = 'background: linear-gradient(180deg, #c7d2fe 0%, #a5b4fc 100%);';
+                        
+                        const dureeLabel = nbCreneaux > 1 ? `<div style="font-size:10px; margin-top:5px; padding:2px 6px; background:rgba(255,255,255,0.5); border-radius:4px; display:inline-block;">⏱️ ${atelier.duree || nbCreneaux*2}p</div>` : '';
+                        
+                        html += `<td${rowspanAttr} style="${bgColor} vertical-align:top;">
+                            <div class="atelier-card" style="${nbCreneaux > 1 ? 'min-height:' + (nbCreneaux * 60) + 'px;' : ''}">
+                                <div class="nom">${atelier.atelier_nom}</div>
+                                <div class="salle">📍 ${atelier.salle_nom || '-'}</div>
+                                <div class="inscrits">
+                                    <span class="count">${atelier.nb_inscrits}/${atelier.nombre_places_max}</span>
+                                    <button class="btn-liste" onclick="showListeEleves(${atelier.planning_id})">Liste</button>
                                 </div>
-                            </td>`;
-                        }
+                                ${dureeLabel}
+                            </div>
+                        </td>`;
                     } else {
                         html += '<td class="creneau-vide">-</td>';
                     }
