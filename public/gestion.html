@@ -52,6 +52,7 @@
             <button class="tab active" onclick="switchTab('listes')">📋 Listes</button>
             <button class="tab" onclick="switchTab('ajouter')">➕ Ajouter</button>
             <button class="tab" onclick="switchTab('inscrire')">✍️ Inscrire</button>
+            <button class="tab" onclick="switchTab('inscriptions-eleves')">🎓 Inscr. Élèves</button>
             <button class="tab" onclick="switchTab('piquet')">👮 Piquet</button>
             <button class="tab" onclick="switchTab('eleves-creneaux')">👁️ Élèves/Créneaux</button>
             <button class="tab" onclick="switchTab('creneaux-faibles')">⚠️ Faibles</button>
@@ -148,6 +149,52 @@
 
         <!-- PIQUET -->
         <div id="piquet" class="tab-content">
+
+        <!-- INSCRIPTIONS ÉLÈVES -->
+        <div id="inscriptions-eleves" class="tab-content">
+            <h2 style="margin-bottom: 20px;">🎓 Gestion Inscriptions Élèves</h2>
+            <div class="card">
+                <div class="form-group">
+                    <label>🔍 Rechercher un élève</label>
+                    <input type="text" id="searchEleve" placeholder="Nom ou prénom..." oninput="rechercherEleveAdmin()">
+                </div>
+                <div id="resultatsRechercheEleve" style="max-height:200px;overflow-y:auto;border:1px solid #eee;border-radius:8px;margin-bottom:20px;"></div>
+            </div>
+            <div id="eleveInscriptionsContainer" style="display:none;">
+                <div class="card">
+                    <div id="eleveInfoHeader" style="margin-bottom:20px;"></div>
+                    <div style="display:flex;gap:10px;margin-bottom:20px;">
+                        <button class="btn btn-danger" id="btnDevalider" onclick="devaliderEleve()">🔓 Dé-valider</button>
+                        <button class="btn btn-primary" onclick="showAjouterInscription()">➕ Ajouter inscription</button>
+                    </div>
+                    <h3 style="margin-bottom:15px;">Inscriptions actuelles</h3>
+                    <div id="eleveInscriptionsListe"></div>
+                </div>
+            </div>
+            <!-- Modal ajouter inscription -->
+            <div id="modalAjouterInscr" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;justify-content:center;align-items:center;">
+                <div style="background:white;padding:30px;border-radius:15px;max-width:500px;width:90%;">
+                    <h3 style="color:#667eea;margin-bottom:20px;">➕ Ajouter une inscription</h3>
+                    <div class="form-group">
+                        <label>🔍 Rechercher créneau</label>
+                        <input type="text" id="searchCreneauAdmin" placeholder="Nom atelier..." oninput="filterCreneauxAdmin()">
+                    </div>
+                    <div class="form-group">
+                        <label>Créneau</label>
+                        <select id="adminInscriptionCreneau"></select>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="adminNotifier" checked> Notifier l'élève</label>
+                    </div>
+                    <div style="display:flex;gap:10px;justify-content:flex-end;">
+                        <button class="btn btn-secondary" onclick="hideAjouterInscription()">Annuler</button>
+                        <button class="btn btn-success" onclick="ajouterInscriptionAdmin()">Ajouter</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PIQUET (ancien) -->
             <h2 style="margin-bottom: 20px;">👮 Piquet / Dégagement</h2>
             <div class="grid">
                 <div class="card">
@@ -533,6 +580,214 @@
                 html += '</tbody></table>';
                 container.innerHTML = html;
             } catch (e) { container.innerHTML = '<p style="color:red;">Erreur</p>'; }
+        }
+
+        // ========== GESTION INSCRIPTIONS ÉLÈVES ==========
+        let currentEleveId = null;
+        let allPlanningsAdmin = [];
+        
+        async function rechercherEleveAdmin() {
+            const terme = document.getElementById('searchEleve').value.trim();
+            const container = document.getElementById('resultatsRechercheEleve');
+            
+            if (terme.length < 2) {
+                container.innerHTML = '<p style="padding:10px;color:#666;">Tapez au moins 2 caractères</p>';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/recherche-eleve?q=${encodeURIComponent(terme)}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                
+                if (result.data.length === 0) {
+                    container.innerHTML = '<p style="padding:10px;color:#666;">Aucun élève trouvé</p>';
+                    return;
+                }
+                
+                let html = '';
+                result.data.forEach(e => {
+                    const valideBadge = e.inscriptions_validees 
+                        ? '<span class="badge badge-green" style="margin-left:5px;">✓ Validé</span>' 
+                        : '<span class="badge badge-yellow" style="margin-left:5px;">Non validé</span>';
+                    html += `<div style="padding:10px;border-bottom:1px solid #eee;cursor:pointer;display:flex;justify-content:space-between;align-items:center;" onclick="chargerInscriptionsEleve(${e.eleve_id})">
+                        <span><strong>${e.nom} ${e.prenom}</strong> <small>(${e.classe_nom})</small></span>
+                        ${valideBadge}
+                    </div>`;
+                });
+                container.innerHTML = html;
+            } catch (e) {
+                container.innerHTML = '<p style="padding:10px;color:red;">Erreur</p>';
+            }
+        }
+        
+        async function chargerInscriptionsEleve(eleveId) {
+            currentEleveId = eleveId;
+            
+            try {
+                const response = await fetch(`${API_BASE}/eleve/${eleveId}/inscriptions`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                
+                if (!result.success) {
+                    showAlert('❌ ' + result.message, 'error');
+                    return;
+                }
+                
+                const { eleve, inscriptions } = result.data;
+                
+                // Header
+                const valideBadge = eleve.inscriptions_validees 
+                    ? '<span class="badge badge-green">✓ Inscriptions validées</span>' 
+                    : '<span class="badge badge-yellow">Non validées</span>';
+                document.getElementById('eleveInfoHeader').innerHTML = `
+                    <h3>${eleve.prenom} ${eleve.nom}</h3>
+                    <p>Classe: <strong>${eleve.classe_nom}</strong> ${valideBadge}</p>
+                    ${eleve.date_validation ? `<p style="font-size:12px;color:#666;">Validé le: ${new Date(eleve.date_validation).toLocaleDateString('fr-CH')}</p>` : ''}
+                `;
+                
+                // Bouton dé-valider
+                document.getElementById('btnDevalider').style.display = eleve.inscriptions_validees ? 'inline-block' : 'none';
+                
+                // Liste inscriptions
+                if (inscriptions.length === 0) {
+                    document.getElementById('eleveInscriptionsListe').innerHTML = '<p style="color:#666;">Aucune inscription</p>';
+                } else {
+                    let html = '<table><thead><tr><th>Atelier</th><th>Jour</th><th>Période</th><th>Salle</th><th></th></tr></thead><tbody>';
+                    inscriptions.forEach(i => {
+                        const jour = i.jour.charAt(0).toUpperCase() + i.jour.slice(1);
+                        const manuelBadge = i.inscription_manuelle ? ' <span class="badge badge-blue">Admin</span>' : '';
+                        html += `<tr>
+                            <td><strong>${i.atelier_nom}</strong>${manuelBadge}</td>
+                            <td>${jour}</td>
+                            <td>${i.periode}</td>
+                            <td>${i.salle_nom || '-'}</td>
+                            <td><button class="btn btn-danger btn-sm" onclick="supprimerInscription(${i.inscription_id}, '${i.atelier_nom.replace(/'/g, "\\'")}')">🗑️</button></td>
+                        </tr>`;
+                    });
+                    html += '</tbody></table>';
+                    document.getElementById('eleveInscriptionsListe').innerHTML = html;
+                }
+                
+                document.getElementById('eleveInscriptionsContainer').style.display = 'block';
+                
+                // Charger les créneaux pour modal
+                await loadPlanningsAdmin();
+            } catch (e) {
+                showAlert('❌ Erreur', 'error');
+            }
+        }
+        
+        async function loadPlanningsAdmin() {
+            try {
+                const response = await fetch(`${API_BASE}/ateliers-planifies`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const result = await response.json();
+                allPlanningsAdmin = result.data || [];
+                updatePlanningsAdminSelect(allPlanningsAdmin);
+            } catch (e) { console.error(e); }
+        }
+        
+        function updatePlanningsAdminSelect(plannings) {
+            const select = document.getElementById('adminInscriptionCreneau');
+            select.innerHTML = '<option value="">-- Sélectionner --</option>';
+            plannings.forEach(p => {
+                const jour = p.jour.charAt(0).toUpperCase() + p.jour.slice(1);
+                const places = p.nombre_places_max - p.nb_inscrits;
+                select.innerHTML += `<option value="${p.planning_id}">${p.atelier_nom} - ${jour} ${p.periode} (${places} places)</option>`;
+            });
+        }
+        
+        function filterCreneauxAdmin() {
+            const term = document.getElementById('searchCreneauAdmin').value.toLowerCase().trim();
+            if (term.length === 0) {
+                updatePlanningsAdminSelect(allPlanningsAdmin);
+                return;
+            }
+            const filtered = allPlanningsAdmin.filter(p => p.atelier_nom.toLowerCase().includes(term));
+            updatePlanningsAdminSelect(filtered);
+        }
+        
+        function showAjouterInscription() {
+            document.getElementById('modalAjouterInscr').style.display = 'flex';
+        }
+        
+        function hideAjouterInscription() {
+            document.getElementById('modalAjouterInscr').style.display = 'none';
+        }
+        
+        async function ajouterInscriptionAdmin() {
+            const planningId = document.getElementById('adminInscriptionCreneau').value;
+            const notifier = document.getElementById('adminNotifier').checked;
+            
+            if (!planningId) {
+                showAlert('❌ Sélectionnez un créneau', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/eleve/${currentEleveId}/inscription`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ planning_id: parseInt(planningId), notifier })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert('✅ ' + result.message, 'success');
+                    hideAjouterInscription();
+                    chargerInscriptionsEleve(currentEleveId);
+                } else {
+                    showAlert('❌ ' + result.message, 'error');
+                }
+            } catch (e) {
+                showAlert('❌ Erreur', 'error');
+            }
+        }
+        
+        async function supprimerInscription(inscriptionId, atelierNom) {
+            if (!confirm(`Supprimer l'inscription à "${atelierNom}" ?\nL'élève sera notifié.`)) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/inscription/${inscriptionId}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ notifier: true })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert('✅ Inscription supprimée', 'success');
+                    chargerInscriptionsEleve(currentEleveId);
+                } else {
+                    showAlert('❌ ' + result.message, 'error');
+                }
+            } catch (e) {
+                showAlert('❌ Erreur', 'error');
+            }
+        }
+        
+        async function devaliderEleve() {
+            if (!confirm('Dé-valider les inscriptions de cet élève ?\nIl pourra à nouveau modifier ses inscriptions.')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/eleve/${currentEleveId}/devalider`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ notifier: true })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert('✅ Inscriptions dé-validées', 'success');
+                    chargerInscriptionsEleve(currentEleveId);
+                } else {
+                    showAlert('❌ ' + result.message, 'error');
+                }
+            } catch (e) {
+                showAlert('❌ Erreur', 'error');
+            }
         }
     </script>
 </body>
