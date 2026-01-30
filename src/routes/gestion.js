@@ -426,4 +426,206 @@ router.delete('/piquet/:id', async (req, res) => {
     }
 });
 
+// ========== GESTION INSCRIPTIONS ÉLÈVES (ADMIN) ==========
+
+/**
+ * GET /api/gestion/recherche-eleve
+ * Rechercher un élève
+ */
+router.get('/recherche-eleve', async (req, res) => {
+    try {
+        const { q } = req.query;
+        if (!q || q.length < 2) {
+            return res.json({ success: true, data: [] });
+        }
+        
+        const eleves = await query(`
+            SELECT e.id as eleve_id, u.id as utilisateur_id, u.nom, u.prenom, 
+                c.nom as classe_nom, e.inscriptions_validees
+            FROM eleves e
+            JOIN utilisateurs u ON e.utilisateur_id = u.id
+            JOIN classes c ON e.classe_id = c.id
+            WHERE u.nom LIKE ? OR u.prenom LIKE ?
+            ORDER BY u.nom, u.prenom
+            LIMIT 20
+        `, [`%${q}%`, `%${q}%`]);
+        
+        res.json({ success: true, data: eleves });
+    } catch (error) {
+        console.error('Erreur recherche:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * GET /api/gestion/eleve/:eleveId/inscriptions
+ * Inscriptions d'un élève
+ */
+router.get('/eleve/:eleveId/inscriptions', async (req, res) => {
+    try {
+        const { eleveId } = req.params;
+        
+        // Info élève
+        const eleve = await query(`
+            SELECT e.id, e.inscriptions_validees, e.date_validation,
+                u.nom, u.prenom, c.nom as classe_nom
+            FROM eleves e
+            JOIN utilisateurs u ON e.utilisateur_id = u.id
+            JOIN classes c ON e.classe_id = c.id
+            WHERE e.id = ?
+        `, [eleveId]);
+        
+        if (eleve.length === 0) {
+            return res.status(404).json({ success: false, message: 'Élève non trouvé' });
+        }
+        
+        // Inscriptions
+        const inscriptions = await query(`
+            SELECT i.id as inscription_id, i.planning_id, i.statut, i.inscription_manuelle,
+                a.id as atelier_id, a.nom as atelier_nom, a.duree,
+                c.jour, c.periode, s.nom as salle_nom
+            FROM inscriptions i
+            JOIN planning p ON i.planning_id = p.id
+            JOIN ateliers a ON p.atelier_id = a.id
+            JOIN creneaux c ON p.creneau_id = c.id
+            LEFT JOIN salles s ON p.salle_id = s.id
+            WHERE i.eleve_id = ? AND i.statut = 'confirmee'
+            ORDER BY c.ordre
+        `, [eleveId]);
+        
+        res.json({ success: true, data: { eleve: eleve[0], inscriptions } });
+    } catch (error) {
+        console.error('Erreur inscriptions élève:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * DELETE /api/gestion/inscription/:inscriptionId
+ * Supprimer une inscription (admin)
+ */
+router.delete('/inscription/:inscriptionId', async (req, res) => {
+    try {
+        const { inscriptionId } = req.params;
+        const { notifier, message } = req.body;
+        
+        // Récupérer l'inscription
+        const inscription = await query(`
+            SELECT i.*, e.id as eleve_id, a.nom as atelier_nom
+            FROM inscriptions i
+            JOIN eleves e ON i.eleve_id = e.id
+            JOIN planning p ON i.planning_id = p.id
+            JOIN ateliers a ON p.atelier_id = a.id
+            WHERE i.id = ?
+        `, [inscriptionId]);
+        
+        if (inscription.length === 0) {
+            return res.status(404).json({ success: false, message: 'Inscription non trouvée' });
+        }
+        
+        // Supprimer
+        await query('DELETE FROM inscriptions WHERE id = ?', [inscriptionId]);
+        
+        // Créer notification si demandé
+        if (notifier) {
+            await query(`
+                INSERT INTO notifications_eleves (eleve_id, type, message)
+                VALUES (?, 'modification', ?)
+            `, [inscription[0].eleve_id, message || `Votre inscription à "${inscription[0].atelier_nom}" a été modifiée par l'administration.`]);
+        }
+        
+        res.json({ success: true, message: 'Inscription supprimée' });
+    } catch (error) {
+        console.error('Erreur suppression inscription:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * PUT /api/gestion/eleve/:eleveId/devalider
+ * Dé-valider les inscriptions d'un élève (lui permettre de modifier)
+ */
+router.put('/eleve/:eleveId/devalider', async (req, res) => {
+    try {
+        const { eleveId } = req.params;
+        const { notifier, message } = req.body;
+        
+        const eleve = await query('SELECT id, inscriptions_validees FROM eleves WHERE id = ?', [eleveId]);
+        if (eleve.length === 0) {
+            return res.status(404).json({ success: false, message: 'Élève non trouvé' });
+        }
+        
+        await query('UPDATE eleves SET inscriptions_validees = FALSE, date_validation = NULL WHERE id = ?', [eleveId]);
+        
+        // Notification
+        if (notifier !== false) {
+            await query(`
+                INSERT INTO notifications_eleves (eleve_id, type, message)
+                VALUES (?, 'devalidation', ?)
+            `, [eleveId, message || 'Vos inscriptions ont été dé-validées. Vous pouvez à nouveau les modifier.']);
+        }
+        
+        res.json({ success: true, message: 'Inscriptions dé-validées' });
+    } catch (error) {
+        console.error('Erreur dé-validation:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * POST /api/gestion/eleve/:eleveId/inscription
+ * Ajouter une inscription pour un élève (admin)
+ */
+router.post('/eleve/:eleveId/inscription', async (req, res) => {
+    try {
+        const { eleveId } = req.params;
+        const { planning_id, notifier } = req.body;
+        
+        // Vérifier élève
+        const eleve = await query('SELECT id FROM eleves WHERE id = ?', [eleveId]);
+        if (eleve.length === 0) {
+            return res.status(404).json({ success: false, message: 'Élève non trouvé' });
+        }
+        
+        // Vérifier planning
+        const planning = await query(`
+            SELECT p.*, a.nom as atelier_nom, a.nombre_places_max, c.jour, c.periode
+            FROM planning p
+            JOIN ateliers a ON p.atelier_id = a.id
+            JOIN creneaux c ON p.creneau_id = c.id
+            WHERE p.id = ?
+        `, [planning_id]);
+        
+        if (planning.length === 0) {
+            return res.status(404).json({ success: false, message: 'Créneau non trouvé' });
+        }
+        
+        // Vérifier si déjà inscrit
+        const existing = await query('SELECT id FROM inscriptions WHERE eleve_id = ? AND planning_id = ?', [eleveId, planning_id]);
+        if (existing.length > 0) {
+            return res.status(400).json({ success: false, message: 'Déjà inscrit à ce créneau' });
+        }
+        
+        // Inscrire
+        await query(`
+            INSERT INTO inscriptions (eleve_id, atelier_id, planning_id, statut, inscription_manuelle)
+            VALUES (?, ?, ?, 'confirmee', TRUE)
+        `, [eleveId, planning[0].atelier_id, planning_id]);
+        
+        // Notification
+        if (notifier !== false) {
+            const jour = planning[0].jour.charAt(0).toUpperCase() + planning[0].jour.slice(1);
+            await query(`
+                INSERT INTO notifications_eleves (eleve_id, type, message)
+                VALUES (?, 'inscription', ?)
+            `, [eleveId, `Vous avez été inscrit(e) à "${planning[0].atelier_nom}" (${jour} ${planning[0].periode}) par l'administration.`]);
+        }
+        
+        res.json({ success: true, message: `Inscrit à "${planning[0].atelier_nom}"` });
+    } catch (error) {
+        console.error('Erreur inscription admin:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
 module.exports = router;

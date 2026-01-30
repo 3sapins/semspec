@@ -36,7 +36,7 @@ router.get('/ateliers', adminMiddleware, async (req, res) => {
             LEFT JOIN themes t ON a.theme_id = t.id
             LEFT JOIN utilisateurs u ON a.enseignant_acronyme = u.acronyme
             ${whereClause}
-            ORDER BY a.created_at DESC
+            ORDER BY a.id DESC
         `, params);
         
         res.json({ success: true, data: ateliers });
