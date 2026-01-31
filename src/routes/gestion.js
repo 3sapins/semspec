@@ -1067,4 +1067,358 @@ router.put('/classes/inscriptions/toutes', async (req, res) => {
     }
 });
 
+// ========== IMPORTS CSV ==========
+
+/**
+ * POST /api/gestion/import/eleves
+ * Importer des élèves depuis CSV
+ * Format attendu: nom,prenom,classe
+ */
+router.post('/import/eleves', async (req, res) => {
+    try {
+        const { data } = req.body; // Array d'objets [{nom, prenom, classe}, ...]
+        
+        if (!data || !Array.isArray(data) || data.length === 0) {
+            return res.status(400).json({ success: false, message: 'Données CSV requises' });
+        }
+        
+        const results = { success: 0, errors: [], created: [] };
+        
+        // Charger toutes les classes
+        const classes = await query('SELECT id, nom FROM classes');
+        const classeMap = {};
+        classes.forEach(c => { classeMap[c.nom.toLowerCase().trim()] = c.id; });
+        
+        // Fonction pour normaliser les strings (enlever accents)
+        const normalizeString = (str) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '');
+        
+        for (const row of data) {
+            try {
+                const nom = (row.nom || '').trim();
+                const prenom = (row.prenom || '').trim();
+                const classeNom = (row.classe || '').trim();
+                
+                if (!nom || !prenom || !classeNom) {
+                    results.errors.push(`Ligne ignorée: données manquantes (${nom}, ${prenom}, ${classeNom})`);
+                    continue;
+                }
+                
+                // Trouver la classe
+                const classeId = classeMap[classeNom.toLowerCase()];
+                if (!classeId) {
+                    results.errors.push(`Classe "${classeNom}" non trouvée pour ${prenom} ${nom}`);
+                    continue;
+                }
+                
+                // Générer login unique
+                const baseLogin = normalizeString(prenom) + normalizeString(nom);
+                let login = baseLogin;
+                let counter = 1;
+                while (true) {
+                    const existing = await query('SELECT id FROM utilisateurs WHERE acronyme = ?', [login]);
+                    if (existing.length === 0) break;
+                    counter++;
+                    login = baseLogin + counter;
+                }
+                
+                // Créer l'utilisateur et l'élève
+                const hashedPassword = await bcrypt.hash(login, 10);
+                const userResult = await query(
+                    "INSERT INTO utilisateurs (acronyme, nom, prenom, mot_de_passe, role) VALUES (?, ?, ?, ?, 'eleve')",
+                    [login, nom, prenom, hashedPassword]
+                );
+                await query('INSERT INTO eleves (utilisateur_id, classe_id) VALUES (?, ?)', [userResult.insertId, classeId]);
+                
+                results.success++;
+                results.created.push({ nom, prenom, classe: classeNom, login });
+                
+            } catch (e) {
+                results.errors.push(`Erreur pour ${row.prenom} ${row.nom}: ${e.message}`);
+            }
+        }
+        
+        res.json({ 
+            success: true, 
+            message: `${results.success} élèves importés`,
+            data: results
+        });
+        
+    } catch (error) {
+        console.error('Erreur import élèves:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur: ' + error.message });
+    }
+});
+
+/**
+ * POST /api/gestion/import/enseignants
+ * Importer des enseignants depuis CSV
+ * Format attendu: acronyme,nom,prenom,email,charge_max
+ */
+router.post('/import/enseignants', async (req, res) => {
+    try {
+        const { data } = req.body;
+        
+        if (!data || !Array.isArray(data) || data.length === 0) {
+            return res.status(400).json({ success: false, message: 'Données CSV requises' });
+        }
+        
+        const results = { success: 0, errors: [], created: [] };
+        
+        for (const row of data) {
+            try {
+                const acronyme = (row.acronyme || '').trim().toUpperCase();
+                const nom = (row.nom || '').trim();
+                const prenom = (row.prenom || '').trim();
+                const email = (row.email || '').trim() || null;
+                const chargeMax = parseInt(row.charge_max) || 0;
+                
+                if (!acronyme || !nom || !prenom) {
+                    results.errors.push(`Ligne ignorée: données manquantes (${acronyme}, ${nom}, ${prenom})`);
+                    continue;
+                }
+                
+                // Vérifier si l'acronyme existe déjà
+                const existing = await query('SELECT id FROM utilisateurs WHERE acronyme = ?', [acronyme]);
+                if (existing.length > 0) {
+                    results.errors.push(`Acronyme "${acronyme}" existe déjà`);
+                    continue;
+                }
+                
+                // Mot de passe = acronyme en minuscules
+                const hashedPassword = await bcrypt.hash(acronyme.toLowerCase(), 10);
+                await query(
+                    "INSERT INTO utilisateurs (acronyme, nom, prenom, email, mot_de_passe, role, charge_max) VALUES (?, ?, ?, ?, ?, 'enseignant', ?)",
+                    [acronyme, nom, prenom, email, hashedPassword, chargeMax]
+                );
+                
+                results.success++;
+                results.created.push({ acronyme, nom, prenom });
+                
+            } catch (e) {
+                results.errors.push(`Erreur pour ${row.acronyme}: ${e.message}`);
+            }
+        }
+        
+        res.json({ 
+            success: true, 
+            message: `${results.success} enseignants importés`,
+            data: results
+        });
+        
+    } catch (error) {
+        console.error('Erreur import enseignants:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur: ' + error.message });
+    }
+});
+
+/**
+ * POST /api/gestion/import/ateliers
+ * Importer des ateliers depuis CSV
+ * Format attendu: nom,description,enseignant_acronyme,enseignant2_acronyme,enseignant3_acronyme,theme,duree,places,type_salle,budget,statut
+ */
+router.post('/import/ateliers', async (req, res) => {
+    try {
+        const { data } = req.body;
+        
+        if (!data || !Array.isArray(data) || data.length === 0) {
+            return res.status(400).json({ success: false, message: 'Données CSV requises' });
+        }
+        
+        const results = { success: 0, errors: [], created: [] };
+        
+        // Charger les thèmes et enseignants
+        const themes = await query('SELECT id, nom FROM themes');
+        const themeMap = {};
+        themes.forEach(t => { themeMap[t.nom.toLowerCase().trim()] = t.id; });
+        
+        const enseignants = await query("SELECT acronyme FROM utilisateurs WHERE role = 'enseignant'");
+        const enseignantSet = new Set(enseignants.map(e => e.acronyme.toUpperCase()));
+        
+        for (const row of data) {
+            try {
+                const nom = (row.nom || '').trim();
+                const description = (row.description || '').trim() || null;
+                const ensAcronyme = (row.enseignant_acronyme || row.enseignant || '').trim().toUpperCase();
+                const ens2Acronyme = (row.enseignant2_acronyme || row.enseignant2 || '').trim().toUpperCase() || null;
+                const ens3Acronyme = (row.enseignant3_acronyme || row.enseignant3 || '').trim().toUpperCase() || null;
+                const themeNom = (row.theme || '').trim();
+                const duree = parseInt(row.duree) || 2;
+                const places = parseInt(row.places || row.nombre_places_max) || 20;
+                const typeSalle = (row.type_salle || row.type_salle_demande || '').trim() || null;
+                const budget = parseFloat(row.budget || row.budget_max) || 0;
+                const statut = (row.statut || 'soumis').toLowerCase().trim();
+                const remarques = (row.remarques || '').trim() || null;
+                const infosEleves = (row.informations_eleves || row.infos_eleves || '').trim() || null;
+                
+                if (!nom) {
+                    results.errors.push(`Ligne ignorée: nom manquant`);
+                    continue;
+                }
+                
+                if (!ensAcronyme) {
+                    results.errors.push(`Atelier "${nom}": enseignant manquant`);
+                    continue;
+                }
+                
+                // Vérifier que l'enseignant existe
+                if (!enseignantSet.has(ensAcronyme)) {
+                    results.errors.push(`Atelier "${nom}": enseignant "${ensAcronyme}" non trouvé`);
+                    continue;
+                }
+                
+                // Vérifier enseignants secondaires
+                if (ens2Acronyme && !enseignantSet.has(ens2Acronyme)) {
+                    results.errors.push(`Atelier "${nom}": enseignant2 "${ens2Acronyme}" non trouvé`);
+                    continue;
+                }
+                if (ens3Acronyme && !enseignantSet.has(ens3Acronyme)) {
+                    results.errors.push(`Atelier "${nom}": enseignant3 "${ens3Acronyme}" non trouvé`);
+                    continue;
+                }
+                
+                // Trouver le thème
+                const themeId = themeNom ? (themeMap[themeNom.toLowerCase()] || null) : null;
+                
+                // Valider le statut
+                const validStatuts = ['brouillon', 'soumis', 'valide', 'refuse', 'annule'];
+                const finalStatut = validStatuts.includes(statut) ? statut : 'soumis';
+                
+                // Valider la durée
+                const validDurees = [2, 4, 6];
+                const finalDuree = validDurees.includes(duree) ? duree : 2;
+                
+                // Créer l'atelier
+                await query(`
+                    INSERT INTO ateliers (nom, description, enseignant_acronyme, enseignant2_acronyme, enseignant3_acronyme,
+                        theme_id, duree, nombre_places_max, type_salle_demande, budget_max, statut, remarques, informations_eleves)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `, [nom, description, ensAcronyme, ens2Acronyme, ens3Acronyme, themeId, finalDuree, places, typeSalle, budget, finalStatut, remarques, infosEleves]);
+                
+                results.success++;
+                results.created.push({ nom, enseignant: ensAcronyme, statut: finalStatut });
+                
+            } catch (e) {
+                if (e.code === 'ER_DUP_ENTRY') {
+                    results.errors.push(`Atelier "${row.nom}" existe déjà`);
+                } else {
+                    results.errors.push(`Erreur pour "${row.nom}": ${e.message}`);
+                }
+            }
+        }
+        
+        res.json({ 
+            success: true, 
+            message: `${results.success} ateliers importés`,
+            data: results
+        });
+        
+    } catch (error) {
+        console.error('Erreur import ateliers:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur: ' + error.message });
+    }
+});
+
+/**
+ * POST /api/gestion/import/classes
+ * Importer des classes depuis CSV
+ * Format attendu: nom,niveau
+ */
+router.post('/import/classes', async (req, res) => {
+    try {
+        const { data } = req.body;
+        
+        if (!data || !Array.isArray(data) || data.length === 0) {
+            return res.status(400).json({ success: false, message: 'Données CSV requises' });
+        }
+        
+        const results = { success: 0, errors: [], created: [] };
+        
+        for (const row of data) {
+            try {
+                const nom = (row.nom || '').trim();
+                const niveau = (row.niveau || '').trim() || null;
+                
+                if (!nom) {
+                    results.errors.push(`Ligne ignorée: nom manquant`);
+                    continue;
+                }
+                
+                await query('INSERT INTO classes (nom, niveau) VALUES (?, ?)', [nom, niveau]);
+                results.success++;
+                results.created.push({ nom, niveau });
+                
+            } catch (e) {
+                if (e.code === 'ER_DUP_ENTRY') {
+                    results.errors.push(`Classe "${row.nom}" existe déjà`);
+                } else {
+                    results.errors.push(`Erreur pour "${row.nom}": ${e.message}`);
+                }
+            }
+        }
+        
+        res.json({ 
+            success: true, 
+            message: `${results.success} classes importées`,
+            data: results
+        });
+        
+    } catch (error) {
+        console.error('Erreur import classes:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur: ' + error.message });
+    }
+});
+
+/**
+ * POST /api/gestion/import/salles
+ * Importer des salles depuis CSV
+ * Format attendu: nom,capacite,type_salle,batiment
+ */
+router.post('/import/salles', async (req, res) => {
+    try {
+        const { data } = req.body;
+        
+        if (!data || !Array.isArray(data) || data.length === 0) {
+            return res.status(400).json({ success: false, message: 'Données CSV requises' });
+        }
+        
+        const results = { success: 0, errors: [], created: [] };
+        
+        for (const row of data) {
+            try {
+                const nom = (row.nom || '').trim();
+                const capacite = parseInt(row.capacite) || 25;
+                const typeSalle = (row.type_salle || row.type || '').trim() || null;
+                const batiment = (row.batiment || '').trim() || null;
+                
+                if (!nom) {
+                    results.errors.push(`Ligne ignorée: nom manquant`);
+                    continue;
+                }
+                
+                await query('INSERT INTO salles (nom, capacite, type_salle, batiment, disponible) VALUES (?, ?, ?, ?, TRUE)', 
+                    [nom, capacite, typeSalle, batiment]);
+                results.success++;
+                results.created.push({ nom, capacite, type: typeSalle });
+                
+            } catch (e) {
+                if (e.code === 'ER_DUP_ENTRY') {
+                    results.errors.push(`Salle "${row.nom}" existe déjà`);
+                } else {
+                    results.errors.push(`Erreur pour "${row.nom}": ${e.message}`);
+                }
+            }
+        }
+        
+        res.json({ 
+            success: true, 
+            message: `${results.success} salles importées`,
+            data: results
+        });
+        
+    } catch (error) {
+        console.error('Erreur import salles:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur: ' + error.message });
+    }
+});
+
 module.exports = router;
