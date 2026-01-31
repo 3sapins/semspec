@@ -956,4 +956,237 @@ router.get('/absences', async (req, res) => {
     }
 });
 
+// ============================================================
+// IMPRESSION ENSEIGNANT - HORAIRE PERSONNEL
+// ============================================================
+
+/**
+ * GET /api/print/horaire/enseignant
+ * Horaire personnel de l'enseignant connecté
+ */
+router.get('/horaire/enseignant', async (req, res) => {
+    try {
+        const user = req.user;
+        
+        if (user.role !== 'enseignant' && user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Accès non autorisé' });
+        }
+        
+        const acronyme = user.acronyme;
+        
+        // Info enseignant
+        const ensInfo = await query(
+            'SELECT nom, prenom, acronyme FROM utilisateurs WHERE acronyme = ?',
+            [acronyme]
+        );
+        
+        if (ensInfo.length === 0) {
+            return res.status(404).json({ success: false, message: 'Enseignant non trouvé' });
+        }
+        
+        const enseignant = ensInfo[0];
+        
+        // Ateliers
+        const ateliers = await query(`
+            SELECT 
+                p.id as planning_id,
+                a.nom as atelier_nom,
+                a.duree,
+                c.jour,
+                c.periode,
+                c.ordre,
+                s.nom as salle_nom,
+                (SELECT COUNT(*) FROM inscriptions WHERE planning_id = p.id AND statut = 'confirmee') as nb_inscrits,
+                a.nombre_places_max
+            FROM planning p
+            JOIN ateliers a ON p.atelier_id = a.id
+            JOIN creneaux c ON p.creneau_id = c.id
+            LEFT JOIN salles s ON p.salle_id = s.id
+            WHERE a.enseignant_acronyme = ? OR a.enseignant2_acronyme = ? OR a.enseignant3_acronyme = ?
+            ORDER BY c.ordre
+        `, [acronyme, acronyme, acronyme]);
+        
+        // Piquets
+        const piquets = await query(`
+            SELECT 
+                c.jour,
+                c.periode,
+                c.ordre,
+                ep.type
+            FROM enseignants_piquet ep
+            JOIN creneaux c ON ep.creneau_id = c.id
+            WHERE ep.utilisateur_id = ?
+        `, [user.id]);
+        
+        // Générer HTML
+        let html = generateHtmlHeader(`📅 Mon Horaire`, `${enseignant.prenom} ${enseignant.nom} (${enseignant.acronyme})`);
+        
+        html += `<table><thead><tr>
+            <th style="width:120px;">Créneau</th>
+            <th>Activité</th>
+            <th style="width:100px;">Salle</th>
+            <th style="width:80px;">Inscrits</th>
+        </tr></thead><tbody>`;
+        
+        // Combiner ateliers et piquets
+        const activites = [
+            ...ateliers.map(a => ({
+                ...a,
+                type: 'atelier'
+            })),
+            ...piquets.map(p => ({
+                jour: p.jour,
+                periode: p.periode,
+                ordre: p.ordre,
+                atelier_nom: p.type === 'piquet' ? '🟡 PIQUET' : '🟢 DÉGAGEMENT',
+                salle_nom: '-',
+                nb_inscrits: '-',
+                nombre_places_max: '-',
+                type: 'piquet'
+            }))
+        ].sort((a, b) => a.ordre - b.ordre);
+        
+        if (activites.length === 0) {
+            html += '<tr><td colspan="4" style="text-align:center; color:#666;">Aucune activité planifiée</td></tr>';
+        } else {
+            activites.forEach(a => {
+                const jourCap = a.jour.charAt(0).toUpperCase() + a.jour.slice(1);
+                const style = a.type === 'piquet' ? 'background:#fef3c7;' : '';
+                html += `<tr style="${style}">
+                    <td><strong>${jourCap}</strong><br>${a.periode}</td>
+                    <td>${a.atelier_nom}${a.duree > 2 ? ` <small>(${a.duree}p)</small>` : ''}</td>
+                    <td>${a.salle_nom || '-'}</td>
+                    <td style="text-align:center;">${a.nb_inscrits}${a.nombre_places_max !== '-' ? '/' + a.nombre_places_max : ''}</td>
+                </tr>`;
+            });
+        }
+        
+        html += '</tbody></table>';
+        html += generateHtmlFooter();
+        
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+        
+    } catch (error) {
+        console.error('Erreur impression horaire enseignant:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * GET /api/print/listes/enseignant
+ * Toutes les listes de présence de l'enseignant
+ */
+router.get('/listes/enseignant', async (req, res) => {
+    try {
+        const user = req.user;
+        
+        if (user.role !== 'enseignant' && user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Accès non autorisé' });
+        }
+        
+        const acronyme = user.acronyme;
+        
+        // Info enseignant
+        const ensInfo = await query(
+            'SELECT nom, prenom, acronyme FROM utilisateurs WHERE acronyme = ?',
+            [acronyme]
+        );
+        
+        const enseignant = ensInfo[0] || { nom: '', prenom: '', acronyme: '' };
+        
+        // Ateliers planifiés
+        const plannings = await query(`
+            SELECT 
+                p.id as planning_id,
+                a.id as atelier_id,
+                a.nom as atelier_nom,
+                a.nombre_places_max,
+                c.jour,
+                c.periode,
+                c.ordre,
+                s.nom as salle_nom
+            FROM planning p
+            JOIN ateliers a ON p.atelier_id = a.id
+            JOIN creneaux c ON p.creneau_id = c.id
+            LEFT JOIN salles s ON p.salle_id = s.id
+            WHERE a.enseignant_acronyme = ? OR a.enseignant2_acronyme = ? OR a.enseignant3_acronyme = ?
+            ORDER BY c.ordre
+        `, [acronyme, acronyme, acronyme]);
+        
+        // Générer HTML
+        let html = generateHtmlHeader(`📋 Listes de Présence`, `${enseignant.prenom} ${enseignant.nom}`);
+        
+        if (plannings.length === 0) {
+            html += '<p style="text-align:center; color:#666;">Aucun atelier planifié.</p>';
+        } else {
+            for (let i = 0; i < plannings.length; i++) {
+                const p = plannings[i];
+                
+                if (i > 0) {
+                    html += '<div class="page-break"></div>';
+                }
+                
+                // Élèves de ce créneau
+                const eleves = await query(`
+                    SELECT u.nom, u.prenom, cl.nom as classe_nom
+                    FROM inscriptions i
+                    JOIN eleves e ON i.eleve_id = e.id
+                    JOIN utilisateurs u ON e.utilisateur_id = u.id
+                    JOIN classes cl ON e.classe_id = cl.id
+                    WHERE i.planning_id = ? AND i.statut = 'confirmee'
+                    ORDER BY cl.nom, u.nom, u.prenom
+                `, [p.planning_id]);
+                
+                const jourCap = p.jour.charAt(0).toUpperCase() + p.jour.slice(1);
+                
+                html += `
+                <div class="info-box">
+                    <p><strong>${p.atelier_nom}</strong></p>
+                    <p>${jourCap} ${p.periode} | 📍 ${p.salle_nom || '-'}</p>
+                    <p>Inscrits: ${eleves.length} / ${p.nombre_places_max}</p>
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:30px;">#</th>
+                            <th>Nom</th>
+                            <th>Prénom</th>
+                            <th style="width:80px;">Classe</th>
+                            <th style="width:60px;">✓</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                `;
+                
+                if (eleves.length === 0) {
+                    html += '<tr><td colspan="5" style="text-align:center; color:#666;">Aucun élève inscrit</td></tr>';
+                } else {
+                    eleves.forEach((e, idx) => {
+                        html += `<tr>
+                            <td>${idx + 1}</td>
+                            <td>${e.nom}</td>
+                            <td>${e.prenom}</td>
+                            <td>${e.classe_nom}</td>
+                            <td><span class="checkbox"></span></td>
+                        </tr>`;
+                    });
+                }
+                
+                html += '</tbody></table>';
+            }
+        }
+        
+        html += generateHtmlFooter();
+        
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+        
+    } catch (error) {
+        console.error('Erreur impression listes enseignant:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
 module.exports = router;
