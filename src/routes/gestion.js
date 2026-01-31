@@ -628,4 +628,116 @@ router.post('/eleve/:eleveId/inscription', async (req, res) => {
     }
 });
 
+// ========== RESET MOT DE PASSE ==========
+
+/**
+ * PUT /api/gestion/enseignant/:id/reset-password
+ * Réinitialiser le mot de passe d'un enseignant
+ */
+router.put('/enseignant/:id/reset-password', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const users = await query('SELECT acronyme, nom, prenom FROM utilisateurs WHERE id = ? AND role = "enseignant"', [id]);
+        if (users.length === 0) {
+            return res.status(404).json({ success: false, message: 'Enseignant non trouvé' });
+        }
+        
+        const user = users[0];
+        const newPassword = user.acronyme.toLowerCase(); // Mot de passe = acronyme en minuscules
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        
+        await query('UPDATE utilisateurs SET mot_de_passe = ? WHERE id = ?', [hashedPassword, id]);
+        
+        await query('INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
+            [req.user.id, 'RESET_PASSWORD', `Reset mdp enseignant ${user.acronyme}`]);
+        
+        res.json({ 
+            success: true, 
+            message: `Mot de passe réinitialisé pour ${user.prenom} ${user.nom}`,
+            new_password: newPassword
+        });
+    } catch (error) {
+        console.error('Erreur reset password:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * PUT /api/gestion/eleve/:id/reset-password
+ * Réinitialiser le mot de passe d'un élève
+ */
+router.put('/eleve/:eleveId/reset-password', async (req, res) => {
+    try {
+        const { eleveId } = req.params;
+        
+        const eleves = await query(`
+            SELECT e.id, u.id as utilisateur_id, u.acronyme, u.nom, u.prenom 
+            FROM eleves e 
+            JOIN utilisateurs u ON e.utilisateur_id = u.id 
+            WHERE e.id = ?
+        `, [eleveId]);
+        
+        if (eleves.length === 0) {
+            return res.status(404).json({ success: false, message: 'Élève non trouvé' });
+        }
+        
+        const eleve = eleves[0];
+        const newPassword = 'eleve2026'; // Mot de passe par défaut pour les élèves
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        
+        await query('UPDATE utilisateurs SET mot_de_passe = ? WHERE id = ?', [hashedPassword, eleve.utilisateur_id]);
+        
+        await query('INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
+            [req.user.id, 'RESET_PASSWORD', `Reset mdp élève ${eleve.prenom} ${eleve.nom}`]);
+        
+        res.json({ 
+            success: true, 
+            message: `Mot de passe réinitialisé pour ${eleve.prenom} ${eleve.nom}`,
+            new_password: newPassword
+        });
+    } catch (error) {
+        console.error('Erreur reset password élève:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * PUT /api/gestion/reset-all-passwords
+ * Réinitialiser tous les mots de passe (enseignants et élèves)
+ */
+router.put('/reset-all-passwords', async (req, res) => {
+    try {
+        const { type } = req.body; // 'enseignants', 'eleves', ou 'tous'
+        
+        let countEns = 0, countEleves = 0;
+        
+        if (type === 'enseignants' || type === 'tous') {
+            const enseignants = await query('SELECT id, acronyme FROM utilisateurs WHERE role = "enseignant"');
+            for (const ens of enseignants) {
+                const hashedPassword = await bcrypt.hash(ens.acronyme.toLowerCase(), 10);
+                await query('UPDATE utilisateurs SET mot_de_passe = ? WHERE id = ?', [hashedPassword, ens.id]);
+                countEns++;
+            }
+        }
+        
+        if (type === 'eleves' || type === 'tous') {
+            const hashedPassword = await bcrypt.hash('eleve2026', 10);
+            const result = await query('UPDATE utilisateurs SET mot_de_passe = ? WHERE role = "eleve"', [hashedPassword]);
+            countEleves = result.affectedRows || 0;
+        }
+        
+        await query('INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
+            [req.user.id, 'RESET_ALL_PASSWORDS', `Reset mdp: ${countEns} enseignants, ${countEleves} élèves`]);
+        
+        res.json({ 
+            success: true, 
+            message: `Mots de passe réinitialisés: ${countEns} enseignants, ${countEleves} élèves`
+        });
+    } catch (error) {
+        console.error('Erreur reset all passwords:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
 module.exports = router;

@@ -6,6 +6,27 @@ const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 router.use(authMiddleware, adminMiddleware);
 
 /**
+ * DELETE /api/planning/reset/all
+ * Réinitialiser tout le planning (DOIT être avant les routes avec :id)
+ */
+router.delete('/reset/all', async (req, res) => {
+    try {
+        // Supprimer d'abord les inscriptions liées au planning
+        await query('DELETE FROM inscriptions WHERE planning_id IS NOT NULL');
+        // Puis supprimer le planning
+        await query('DELETE FROM planning');
+        
+        await query('INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
+            [req.user.id, 'RESET_PLANNING', 'Réinitialisation complète du planning']);
+        
+        res.json({ success: true, message: 'Planning réinitialisé' });
+    } catch (error) {
+        console.error('Erreur reset planning:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
  * GET /api/planning/creneaux
  */
 router.get('/creneaux', async (req, res) => {
@@ -30,6 +51,27 @@ router.get('/ateliers-non-places', async (req, res) => {
             LEFT JOIN utilisateurs u ON a.enseignant_acronyme = u.acronyme
             LEFT JOIN planning p ON a.id = p.atelier_id
             WHERE a.statut = 'valide' AND p.id IS NULL
+            ORDER BY a.nom
+        `);
+        res.json({ success: true, data: ateliers });
+    } catch (error) {
+        console.error('Erreur:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * GET /api/planning/ateliers-valides
+ * Liste de TOUS les ateliers validés (même déjà placés) pour permettre plusieurs itérations
+ */
+router.get('/ateliers-valides', async (req, res) => {
+    try {
+        const ateliers = await query(`
+            SELECT a.*, u.nom as enseignant_nom, u.prenom as enseignant_prenom,
+                (SELECT COUNT(*) FROM planning WHERE atelier_id = a.id) as nb_iterations
+            FROM ateliers a
+            LEFT JOIN utilisateurs u ON a.enseignant_acronyme = u.acronyme
+            WHERE a.statut = 'valide'
             ORDER BY a.nom
         `);
         res.json({ success: true, data: ateliers });
@@ -155,6 +197,7 @@ router.post('/allouer', async (req, res) => {
 
 /**
  * POST /api/planning/placer-manuel
+ * Permet de placer un atelier validé (même s'il a déjà des placements - plusieurs itérations)
  */
 router.post('/placer-manuel', async (req, res) => {
     try {
@@ -176,48 +219,75 @@ router.post('/placer-manuel', async (req, res) => {
             return res.status(404).json({ success: false, message: 'Salle non trouvée' });
         }
         
-        const creneaux = await query('SELECT * FROM creneaux WHERE id = ?', [creneau_id]);
-        if (creneaux.length === 0) {
+        // Récupérer tous les créneaux pour calculer correctement les créneaux consécutifs
+        const tousCreneaux = await query('SELECT * FROM creneaux ORDER BY ordre');
+        const creneauDebut = tousCreneaux.find(c => c.id === parseInt(creneau_id));
+        if (!creneauDebut) {
             return res.status(404).json({ success: false, message: 'Créneau non trouvé' });
         }
         
-        const existant = await query('SELECT id FROM planning WHERE atelier_id = ?', [atelier_id]);
-        if (existant.length > 0) {
-            return res.status(400).json({ success: false, message: 'Cet atelier est déjà placé' });
+        // Calculer les IDs des créneaux à occuper (basé sur l'ordre, pas l'ID)
+        const indexDebut = tousCreneaux.findIndex(c => c.id === parseInt(creneau_id));
+        const creneauxToCheck = [];
+        for (let i = 0; i < nombreCreneaux; i++) {
+            if (indexDebut + i < tousCreneaux.length) {
+                creneauxToCheck.push(tousCreneaux[indexDebut + i].id);
+            }
         }
         
-        // Vérifier conflits salle
-        const creneauxToCheck = [];
-        for (let i = 0; i < nombreCreneaux; i++) creneauxToCheck.push(creneau_id + i);
+        if (creneauxToCheck.length < nombreCreneaux) {
+            return res.status(400).json({ success: false, message: 'Pas assez de créneaux disponibles à partir de ce point' });
+        }
         
+        // Vérifier que les créneaux sont sur le même jour
+        const jourDebut = creneauDebut.jour;
+        const creneauxMemeJour = creneauxToCheck.every(id => {
+            const c = tousCreneaux.find(cr => cr.id === id);
+            return c && c.jour === jourDebut;
+        });
+        if (!creneauxMemeJour) {
+            return res.status(400).json({ success: false, message: 'L\'atelier ne peut pas déborder sur plusieurs jours' });
+        }
+        
+        // Vérifier conflits salle (exclure l'atelier lui-même s'il a déjà des placements)
         const conflitSalle = await query(`
             SELECT a.nom as atelier_nom FROM planning p
             JOIN ateliers a ON p.atelier_id = a.id
-            WHERE p.salle_id = ? AND p.creneau_id IN (?)
-        `, [salle_id, creneauxToCheck]);
+            WHERE p.salle_id = ? AND p.creneau_id IN (?) AND p.atelier_id != ?
+        `, [salle_id, creneauxToCheck, atelier_id]);
         
         if (conflitSalle.length > 0) {
             return res.status(400).json({ success: false, message: `Conflit: salle occupée par "${conflitSalle[0].atelier_nom}"` });
         }
         
-        // Vérifier conflits enseignant
+        // Vérifier conflits enseignant (exclure l'atelier lui-même)
         const conflitEnseignant = await query(`
             SELECT a.nom as atelier_nom FROM planning p
             JOIN ateliers a ON p.atelier_id = a.id
-            WHERE a.enseignant_acronyme = ? AND p.creneau_id IN (?)
-        `, [atelier.enseignant_acronyme, creneauxToCheck]);
+            WHERE (a.enseignant_acronyme = ? OR a.enseignant2_acronyme = ? OR a.enseignant3_acronyme = ?)
+              AND p.creneau_id IN (?) AND p.atelier_id != ?
+        `, [atelier.enseignant_acronyme, atelier.enseignant_acronyme, atelier.enseignant_acronyme, creneauxToCheck, atelier_id]);
         
         if (conflitEnseignant.length > 0) {
             return res.status(400).json({ success: false, message: `Conflit: enseignant déjà sur "${conflitEnseignant[0].atelier_nom}"` });
         }
         
+        // Vérifier si l'atelier n'est pas déjà placé exactement au même créneau
+        const memeCreneauExiste = await query('SELECT id FROM planning WHERE atelier_id = ? AND creneau_id = ?', [atelier_id, creneau_id]);
+        if (memeCreneauExiste.length > 0) {
+            return res.status(400).json({ success: false, message: 'Cet atelier est déjà placé sur ce créneau' });
+        }
+        
         await query(`INSERT INTO planning (atelier_id, salle_id, creneau_id, nombre_creneaux, valide) VALUES (?, ?, ?, ?, TRUE)`,
             [atelier_id, salle_id, creneau_id, nombreCreneaux]);
         
-        await query('INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
-            [req.user.id, 'PLACEMENT_MANUEL', `Atelier "${atelier.nom}" placé`]);
+        // Compter le nombre d'itérations
+        const iterations = await query('SELECT COUNT(*) as nb FROM planning WHERE atelier_id = ?', [atelier_id]);
         
-        res.json({ success: true, message: `Atelier "${atelier.nom}" placé avec succès` });
+        await query('INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
+            [req.user.id, 'PLACEMENT_MANUEL', `Atelier "${atelier.nom}" placé (itération ${iterations[0].nb})`]);
+        
+        res.json({ success: true, message: `Atelier "${atelier.nom}" placé avec succès (itération ${iterations[0].nb})` });
     } catch (error) {
         console.error('Erreur placement manuel:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
@@ -357,19 +427,6 @@ router.delete('/:id', async (req, res) => {
         const { id } = req.params;
         await query('DELETE FROM planning WHERE id = ?', [id]);
         res.json({ success: true, message: 'Placement supprimé' });
-    } catch (error) {
-        console.error('Erreur:', error);
-        res.status(500).json({ success: false, message: 'Erreur serveur' });
-    }
-});
-
-/**
- * DELETE /api/planning/reset/all
- */
-router.delete('/reset/all', async (req, res) => {
-    try {
-        await query('DELETE FROM planning');
-        res.json({ success: true, message: 'Planning réinitialisé' });
     } catch (error) {
         console.error('Erreur:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
