@@ -49,6 +49,114 @@ router.post('/enseignants', async (req, res) => {
     }
 });
 
+// Modifier un enseignant
+router.put('/enseignant/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { nom, prenom, email, charge_max } = req.body;
+        
+        await query(`UPDATE utilisateurs SET 
+            nom = COALESCE(?, nom), 
+            prenom = COALESCE(?, prenom), 
+            email = ?,
+            charge_max = ?
+            WHERE id = ? AND role = 'enseignant'`,
+            [nom, prenom, email || null, parseInt(charge_max) || 0, id]);
+        
+        res.json({ success: true, message: 'Enseignant modifié' });
+    } catch (error) {
+        console.error('Erreur modification enseignant:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+// Récupérer les disponibilités d'un enseignant
+router.get('/enseignant/:id/disponibilites', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Récupérer l'acronyme
+        const user = await query('SELECT acronyme FROM utilisateurs WHERE id = ?', [id]);
+        if (user.length === 0) {
+            return res.status(404).json({ success: false, message: 'Enseignant non trouvé' });
+        }
+        const acronyme = user[0].acronyme;
+        
+        // Récupérer les disponibilités
+        const disponibilites = await query(`
+            SELECT creneau_id, disponible 
+            FROM disponibilites_enseignants 
+            WHERE enseignant_acronyme = ?
+        `, [acronyme]);
+        
+        res.json({ success: true, data: disponibilites });
+    } catch (error) {
+        console.error('Erreur disponibilités:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+// Modifier une disponibilité
+router.put('/enseignant/:id/disponibilite', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { creneau_id, disponible } = req.body;
+        
+        // Récupérer l'acronyme
+        const user = await query('SELECT acronyme FROM utilisateurs WHERE id = ?', [id]);
+        if (user.length === 0) {
+            return res.status(404).json({ success: false, message: 'Enseignant non trouvé' });
+        }
+        const acronyme = user[0].acronyme;
+        
+        // Upsert la disponibilité
+        await query(`
+            INSERT INTO disponibilites_enseignants (enseignant_acronyme, creneau_id, disponible)
+            VALUES (?, ?, ?)
+            ON DUPLICATE KEY UPDATE disponible = ?
+        `, [acronyme, creneau_id, disponible, disponible]);
+        
+        res.json({ success: true, message: 'Disponibilité mise à jour' });
+    } catch (error) {
+        console.error('Erreur modification disponibilité:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+// Modifier toutes les disponibilités d'un enseignant
+router.put('/enseignant/:id/disponibilites/all', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { disponible } = req.body;
+        
+        // Récupérer l'acronyme
+        const user = await query('SELECT acronyme FROM utilisateurs WHERE id = ?', [id]);
+        if (user.length === 0) {
+            return res.status(404).json({ success: false, message: 'Enseignant non trouvé' });
+        }
+        const acronyme = user[0].acronyme;
+        
+        // Récupérer tous les créneaux
+        const creneaux = await query('SELECT id FROM creneaux');
+        
+        // Supprimer les anciennes disponibilités
+        await query('DELETE FROM disponibilites_enseignants WHERE enseignant_acronyme = ?', [acronyme]);
+        
+        // Insérer les nouvelles
+        for (const c of creneaux) {
+            await query(`
+                INSERT INTO disponibilites_enseignants (enseignant_acronyme, creneau_id, disponible)
+                VALUES (?, ?, ?)
+            `, [acronyme, c.id, disponible]);
+        }
+        
+        res.json({ success: true, message: `Toutes les disponibilités mises à ${disponible ? 'disponible' : 'indisponible'}` });
+    } catch (error) {
+        console.error('Erreur modification disponibilités:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
 // ========== ELEVES ==========
 router.get('/eleves', async (req, res) => {
     try {
@@ -57,7 +165,8 @@ router.get('/eleves', async (req, res) => {
         let params = [];
         if (classe_id) { whereClause = 'WHERE e.classe_id = ?'; params.push(classe_id); }
         const eleves = await query(`
-            SELECT u.id as utilisateur_id, e.id, e.numero_eleve, u.nom, u.prenom, c.id as classe_id, c.nom as classe_nom
+            SELECT u.id as utilisateur_id, e.id, e.numero_eleve, u.nom, u.prenom, u.acronyme as login, 
+                c.id as classe_id, c.nom as classe_nom
             FROM eleves e
             JOIN utilisateurs u ON e.utilisateur_id = u.id
             JOIN classes c ON e.classe_id = c.id
