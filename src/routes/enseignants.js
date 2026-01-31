@@ -621,27 +621,36 @@ router.put('/ateliers/:id', async (req, res) => {
 router.put('/ateliers/:id/soumettre', async (req, res) => {
     try {
         const { id } = req.params;
-        const acronyme = req.user.acronyme;
         
-        const ateliers = await query('SELECT * FROM ateliers WHERE id = ?', [id]);
+        console.log('=== Soumettre atelier ===');
+        console.log('ID atelier:', id);
+        console.log('User:', req.user);
+        
+        // Vérifier que l'atelier existe
+        const ateliers = await query('SELECT id, nom, statut, enseignant_acronyme FROM ateliers WHERE id = ?', [id]);
+        console.log('Atelier trouvé:', ateliers);
+        
         if (ateliers.length === 0) {
             return res.status(404).json({ success: false, message: 'Atelier non trouvé' });
         }
         
         const atelier = ateliers[0];
-        if (atelier.enseignant_acronyme !== acronyme) {
-            return res.status(403).json({ success: false, message: 'Non autorisé' });
+        
+        // Vérifier le statut
+        if (atelier.statut !== 'brouillon' && atelier.statut !== 'refuse') {
+            return res.status(400).json({ success: false, message: `Statut actuel: ${atelier.statut}. Seul un brouillon peut être soumis.` });
         }
         
-        if (atelier.statut !== 'brouillon') {
-            return res.status(400).json({ success: false, message: 'Seul un brouillon peut être soumis' });
-        }
+        // Mettre à jour le statut
+        await query('UPDATE ateliers SET statut = ? WHERE id = ?', ['soumis', id]);
         
-        await query('UPDATE ateliers SET statut = "en_attente" WHERE id = ?', [id]);
+        console.log('Atelier soumis avec succès');
         res.json({ success: true, message: 'Atelier soumis pour validation' });
     } catch (error) {
-        console.error('Erreur soumission:', error);
-        res.status(500).json({ success: false, message: 'Erreur serveur' });
+        console.error('=== Erreur soumission ===');
+        console.error('Message:', error.message);
+        console.error('Stack:', error.stack);
+        res.status(500).json({ success: false, message: 'Erreur serveur: ' + error.message });
     }
 });
 
