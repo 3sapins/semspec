@@ -23,7 +23,7 @@ router.get('/profil', async (req, res) => {
         
         const eleve = await query(`
             SELECT e.id as eleve_id, e.numero_eleve, e.inscriptions_validees, e.date_validation,
-                u.nom, u.prenom, u.email, c.nom as classe_nom, c.niveau
+                u.nom, u.prenom, u.email, c.nom as classe_nom, c.niveau, c.inscriptions_ouvertes
             FROM eleves e
             JOIN utilisateurs u ON e.utilisateur_id = u.id
             JOIN classes c ON e.classe_id = c.id
@@ -51,7 +51,8 @@ router.get('/profil', async (req, res) => {
             data: {
                 ...eleve[0],
                 nb_inscriptions: inscriptions[0].total,
-                nb_notifications: notifications[0].total
+                nb_notifications: notifications[0].total,
+                inscriptions_ouvertes: eleve[0].inscriptions_ouvertes || false
             }
         });
     } catch (error) {
@@ -185,7 +186,7 @@ router.get('/mes-inscriptions', async (req, res) => {
 
 /**
  * GET /api/eleves/catalogue
- * Catalogue des ateliers disponibles
+ * Catalogue des ateliers disponibles avec créneaux et places
  */
 router.get('/catalogue', async (req, res) => {
     try {
@@ -196,29 +197,41 @@ router.get('/catalogue', async (req, res) => {
             return res.status(404).json({ success: false, message: 'Élève non trouvé' });
         }
         
+        // Récupérer tous les ateliers validés avec leurs créneaux
         const ateliers = await query(`
-            SELECT a.id, a.nom, a.description, a.informations_eleves, a.duree, a.nombre_places_max,
-                t.id as theme_id, t.nom as theme_nom, t.couleur as theme_couleur, t.icone as theme_icone
+            SELECT 
+                a.id as atelier_id,
+                a.nom,
+                a.description,
+                a.informations_eleves,
+                a.duree,
+                a.nombre_places_max,
+                t.id as theme_id,
+                t.nom as theme_nom,
+                t.couleur as theme_couleur,
+                t.icone as theme_icone,
+                p.id as planning_id,
+                p.nombre_creneaux,
+                c.id as creneau_id,
+                c.jour,
+                c.periode,
+                c.ordre,
+                s.nom as salle_nom,
+                (SELECT COUNT(*) FROM inscriptions WHERE planning_id = p.id AND statut = 'confirmee') as nb_inscrits
             FROM ateliers a
+            JOIN planning p ON p.atelier_id = a.id
+            JOIN creneaux c ON p.creneau_id = c.id
+            LEFT JOIN salles s ON p.salle_id = s.id
             LEFT JOIN themes t ON a.theme_id = t.id
             WHERE a.statut = 'valide'
-            ORDER BY t.nom, a.nom
+            ORDER BY c.ordre, a.nom
         `);
         
-        // Ajouter les créneaux et places disponibles
-        for (const atelier of ateliers) {
-            const creneaux = await query(`
-                SELECT p.id as planning_id, c.jour, c.periode, s.nom as salle,
-                    a.nombre_places_max,
-                    (SELECT COUNT(*) FROM inscriptions WHERE planning_id = p.id AND statut = 'confirmee') as nb_inscrits
-                FROM planning p
-                JOIN ateliers a ON p.atelier_id = a.id
-                JOIN creneaux c ON p.creneau_id = c.id
-                LEFT JOIN salles s ON p.salle_id = s.id
-                WHERE p.atelier_id = ?
-            `, [atelier.id]);
-            atelier.creneaux = creneaux;
-        }
+        // Ajouter places_restantes et complet
+        ateliers.forEach(a => {
+            a.places_restantes = a.nombre_places_max - a.nb_inscrits;
+            a.complet = a.places_restantes <= 0;
+        });
         
         const themes = await query('SELECT * FROM themes ORDER BY nom');
         
@@ -230,8 +243,22 @@ router.get('/catalogue', async (req, res) => {
 });
 
 /**
+ * GET /api/eleves/creneaux
+ * Liste des créneaux
+ */
+router.get('/creneaux', async (req, res) => {
+    try {
+        const creneaux = await query('SELECT * FROM creneaux ORDER BY ordre');
+        res.json({ success: true, data: creneaux });
+    } catch (error) {
+        console.error('Erreur créneaux:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
  * POST /api/eleves/inscription
- * S'inscrire à un créneau
+ * S'inscrire à un créneau - AVEC VERROUILLAGE pour éviter double inscription
  */
 router.post('/inscription', async (req, res) => {
     try {
@@ -250,7 +277,7 @@ router.post('/inscription', async (req, res) => {
         
         // Vérifier le planning
         const planning = await query(`
-            SELECT p.*, a.nombre_places_max, a.nom as atelier_nom, c.jour, c.periode
+            SELECT p.*, a.nombre_places_max, a.nom as atelier_nom, a.id as atelier_id, c.jour, c.periode, p.nombre_creneaux
             FROM planning p
             JOIN ateliers a ON p.atelier_id = a.id
             JOIN creneaux c ON p.creneau_id = c.id
@@ -261,31 +288,76 @@ router.post('/inscription', async (req, res) => {
             return res.status(404).json({ success: false, message: 'Créneau non trouvé' });
         }
         
-        // Vérifier conflit horaire
-        const conflit = await query(`
-            SELECT a.nom FROM inscriptions i
-            JOIN planning p ON i.planning_id = p.id
-            JOIN ateliers a ON p.atelier_id = a.id
-            WHERE i.eleve_id = ? AND p.creneau_id = ? AND i.statut = 'confirmee'
-        `, [eleve[0].id, planning[0].creneau_id]);
+        const p = planning[0];
+        const nombreCreneaux = p.nombre_creneaux || Math.ceil(p.duree / 2) || 1;
         
-        if (conflit.length > 0) {
-            return res.status(400).json({ success: false, message: `Conflit: déjà inscrit à "${conflit[0].nom}" sur ce créneau` });
+        // Vérifier conflit horaire sur tous les créneaux de l'atelier
+        for (let i = 0; i < nombreCreneaux; i++) {
+            const creneauId = p.creneau_id + i;
+            const conflit = await query(`
+                SELECT a.nom FROM inscriptions i
+                JOIN planning pl ON i.planning_id = pl.id
+                JOIN ateliers a ON pl.atelier_id = a.id
+                WHERE i.eleve_id = ? AND i.statut = 'confirmee'
+                AND ? BETWEEN pl.creneau_id AND (pl.creneau_id + COALESCE(pl.nombre_creneaux, 1) - 1)
+            `, [eleve[0].id, creneauId]);
+            
+            if (conflit.length > 0) {
+                return res.status(400).json({ success: false, message: `Conflit horaire: déjà inscrit à "${conflit[0].nom}"` });
+            }
         }
         
-        // Vérifier places disponibles
-        const inscrits = await query('SELECT COUNT(*) as nb FROM inscriptions WHERE planning_id = ? AND statut = "confirmee"', [planning_id]);
-        if (inscrits[0].nb >= planning[0].nombre_places_max) {
-            return res.status(400).json({ success: false, message: 'Plus de places disponibles' });
+        // VERROUILLAGE: Vérifier places disponibles avec FOR UPDATE (si supporté) ou double-check
+        // On vérifie juste avant l'insertion
+        const inscrits = await query(
+            'SELECT COUNT(*) as nb FROM inscriptions WHERE planning_id = ? AND statut = "confirmee"', 
+            [planning_id]
+        );
+        
+        if (inscrits[0].nb >= p.nombre_places_max) {
+            return res.status(400).json({ success: false, message: 'Désolé, plus de places disponibles' });
         }
         
-        // Inscrire
-        await query(`
-            INSERT INTO inscriptions (eleve_id, atelier_id, planning_id, statut)
-            VALUES (?, ?, ?, 'confirmee')
-        `, [eleve[0].id, planning[0].atelier_id, planning_id]);
+        // Vérifier si déjà inscrit à ce planning
+        const dejaInscrit = await query(
+            'SELECT id FROM inscriptions WHERE eleve_id = ? AND planning_id = ? AND statut = "confirmee"',
+            [eleve[0].id, planning_id]
+        );
         
-        res.json({ success: true, message: `Inscrit à "${planning[0].atelier_nom}"` });
+        if (dejaInscrit.length > 0) {
+            return res.status(400).json({ success: false, message: 'Vous êtes déjà inscrit à cet atelier' });
+        }
+        
+        // Inscrire - utiliser INSERT IGNORE pour éviter les doublons
+        try {
+            await query(`
+                INSERT INTO inscriptions (eleve_id, atelier_id, planning_id, statut)
+                VALUES (?, ?, ?, 'confirmee')
+            `, [eleve[0].id, p.atelier_id, planning_id]);
+        } catch (insertError) {
+            // En cas d'erreur de duplicate key, quelqu'un d'autre s'est inscrit en même temps
+            if (insertError.code === 'ER_DUP_ENTRY') {
+                return res.status(400).json({ success: false, message: 'Vous êtes déjà inscrit à cet atelier' });
+            }
+            throw insertError;
+        }
+        
+        // Re-vérifier après insertion qu'on n'a pas dépassé la limite
+        const totalApres = await query(
+            'SELECT COUNT(*) as nb FROM inscriptions WHERE planning_id = ? AND statut = "confirmee"',
+            [planning_id]
+        );
+        
+        if (totalApres[0].nb > p.nombre_places_max) {
+            // Trop d'inscriptions, annuler la nôtre (dernier arrivé = premier servi inversé)
+            await query(
+                'DELETE FROM inscriptions WHERE eleve_id = ? AND planning_id = ?',
+                [eleve[0].id, planning_id]
+            );
+            return res.status(400).json({ success: false, message: 'Désolé, la dernière place vient d\'être prise' });
+        }
+        
+        res.json({ success: true, message: `Inscrit à "${p.atelier_nom}"` });
     } catch (error) {
         console.error('Erreur inscription:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });

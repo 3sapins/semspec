@@ -454,27 +454,21 @@ router.get('/disponibilites', async (req, res) => {
         const creneaux = await query('SELECT * FROM creneaux ORDER BY ordre');
         
         const disponibilites = await query(
-            'SELECT * FROM disponibilites_enseignants WHERE enseignant_acronyme = ?',
+            'SELECT creneau_id, disponible FROM disponibilites_enseignants WHERE enseignant_acronyme = ?',
             [acronyme]
         );
         
-        const validation = disponibilites.length > 0 ? disponibilites[0].valide : false;
-        
         const dispoMap = {};
         disponibilites.forEach(d => {
-            dispoMap[d.creneau_id] = {
-                disponible: d.disponible,
-                periodes_enseignees_normalement: d.periodes_enseignees_normalement
-            };
+            dispoMap[d.creneau_id] = d.disponible;
         });
         
         const result = creneaux.map(c => ({
             ...c,
-            disponible: dispoMap[c.id]?.disponible || false,
-            periodes_enseignees_normalement: dispoMap[c.id]?.periodes_enseignees_normalement || 0
+            disponible: dispoMap[c.id] || false
         }));
         
-        res.json({ success: true, data: { creneaux: result, valide: validation } });
+        res.json({ success: true, data: { creneaux: result, valide: false } });
     } catch (error) {
         console.error('Erreur disponibilités:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
@@ -483,7 +477,7 @@ router.get('/disponibilites', async (req, res) => {
 
 /**
  * PUT /api/enseignants/disponibilites
- * CORRIGÉ - Sans transaction
+ * CORRIGÉ - Schéma simple sans colonne valide
  */
 router.put('/disponibilites', async (req, res) => {
     try {
@@ -496,16 +490,6 @@ router.put('/disponibilites', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Format invalide' });
         }
         
-        // Vérifier si déjà validées
-        const existantes = await query(
-            'SELECT valide FROM disponibilites_enseignants WHERE enseignant_acronyme = ? LIMIT 1',
-            [acronyme]
-        );
-        
-        if (existantes.length > 0 && existantes[0].valide) {
-            return res.status(403).json({ success: false, message: 'Disponibilités validées, non modifiables' });
-        }
-        
         // Supprimer les anciennes
         await query('DELETE FROM disponibilites_enseignants WHERE enseignant_acronyme = ?', [acronyme]);
         
@@ -513,9 +497,9 @@ router.put('/disponibilites', async (req, res) => {
         for (const dispo of disponibilites) {
             await query(`
                 INSERT INTO disponibilites_enseignants 
-                (enseignant_acronyme, creneau_id, disponible, periodes_enseignees_normalement, valide)
-                VALUES (?, ?, ?, ?, FALSE)
-            `, [acronyme, dispo.creneau_id, dispo.disponible ? 1 : 0, dispo.periodes_enseignees_normalement || 0]);
+                (enseignant_acronyme, creneau_id, disponible)
+                VALUES (?, ?, ?)
+            `, [acronyme, dispo.creneau_id, dispo.disponible ? 1 : 0]);
         }
         
         res.json({ success: true, message: 'Disponibilités enregistrées' });
@@ -563,7 +547,7 @@ router.post('/ateliers', async (req, res) => {
         const acronyme = req.user.acronyme;
         const { nom, description, informations_eleves, duree, nombre_places_max, theme_id,
             besoin_salle_specifique, type_salle_demande, materiel_necessaire, budget_max,
-            lieu_externe, deplacement_prevu, enseignant2_acronyme, enseignant3_acronyme } = req.body;
+            lieu_externe, deplacement_prevu, enseignant2_acronyme, enseignant3_acronyme, remarques } = req.body;
         
         if (!nom || !duree || !nombre_places_max) {
             return res.status(400).json({ success: false, message: 'Nom, durée et places requis' });
@@ -573,12 +557,12 @@ router.post('/ateliers', async (req, res) => {
             INSERT INTO ateliers (nom, description, informations_eleves, duree, nombre_places_max,
                 theme_id, besoin_salle_specifique, type_salle_demande, materiel_necessaire,
                 budget_max, lieu_externe, deplacement_prevu, enseignant_acronyme,
-                enseignant2_acronyme, enseignant3_acronyme, statut)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'brouillon')
+                enseignant2_acronyme, enseignant3_acronyme, remarques, statut)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'brouillon')
         `, [nom, description, informations_eleves, duree, nombre_places_max, theme_id || null,
             besoin_salle_specifique || false, type_salle_demande, materiel_necessaire,
             budget_max || 0, lieu_externe, deplacement_prevu || false, acronyme,
-            enseignant2_acronyme || null, enseignant3_acronyme || null]);
+            enseignant2_acronyme || null, enseignant3_acronyme || null, remarques || null]);
         
         res.json({ success: true, message: 'Atelier créé', data: { id: result.insertId } });
     } catch (error) {
@@ -607,19 +591,19 @@ router.put('/ateliers/:id', async (req, res) => {
         
         const { nom, description, informations_eleves, duree, nombre_places_max, theme_id,
             besoin_salle_specifique, type_salle_demande, materiel_necessaire, budget_max,
-            lieu_externe, deplacement_prevu, enseignant2_acronyme, enseignant3_acronyme } = req.body;
+            lieu_externe, deplacement_prevu, enseignant2_acronyme, enseignant3_acronyme, remarques } = req.body;
         
         await query(`
             UPDATE ateliers SET nom = ?, description = ?, informations_eleves = ?, duree = ?,
                 nombre_places_max = ?, theme_id = ?, besoin_salle_specifique = ?,
                 type_salle_demande = ?, materiel_necessaire = ?, budget_max = ?,
                 lieu_externe = ?, deplacement_prevu = ?, enseignant2_acronyme = ?,
-                enseignant3_acronyme = ?, statut = 'brouillon'
+                enseignant3_acronyme = ?, remarques = ?, statut = 'brouillon'
             WHERE id = ?
         `, [nom, description, informations_eleves, duree, nombre_places_max, theme_id || null,
             besoin_salle_specifique || false, type_salle_demande, materiel_necessaire,
             budget_max || 0, lieu_externe, deplacement_prevu || false,
-            enseignant2_acronyme || null, enseignant3_acronyme || null, id]);
+            enseignant2_acronyme || null, enseignant3_acronyme || null, remarques || null, id]);
         
         res.json({ success: true, message: 'Atelier modifié (retour en brouillon)' });
     } catch (error) {
