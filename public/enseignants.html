@@ -655,7 +655,8 @@
                                 <div style="text-align:right;">
                                     <span style="font-size:13px; opacity:0.8;">Disponibilités sélectionnées :</span>
                                     <span id="nbDispoSelectionnees" style="font-size:18px; font-weight:bold; margin-left:5px;">0</span>
-                                    <span style="font-size:13px; opacity:0.8;"> créneaux</span>
+                                    <span style="font-size:13px; opacity:0.8;"> périodes</span>
+                                    <span style="font-size:11px; opacity:0.6; margin-left:5px;">(<span id="nbCreneauxSelectionnes">0</span> créneaux)</span>
                                 </div>
                             </div>
                         </div>
@@ -1625,8 +1626,10 @@
         }
 
         function updateDispoCount() {
-            const checked = document.querySelectorAll('.dispo-checkbox:checked').length;
-            document.getElementById('nbDispoSelectionnees').textContent = checked;
+            const nbCreneaux = document.querySelectorAll('.dispo-checkbox:checked').length;
+            const nbPeriodes = nbCreneaux * 2;
+            document.getElementById('nbDispoSelectionnees').textContent = nbPeriodes;
+            document.getElementById('nbCreneauxSelectionnes').textContent = nbCreneaux;
         }
 
         function displayDisponibilites(creneaux) {
