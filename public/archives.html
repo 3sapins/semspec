@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Archives | Semaine Spéciale</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { background: white; padding: 25px 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        h1 { color: #667eea; font-size: 28px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.3s; text-decoration: none; display: inline-block; }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-secondary { background: #e5e7eb; color: #374151; }
+        .btn-danger { background: #ef4444; color: white; }
+        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .archives-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }
+        .archive-card { background: white; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); overflow: hidden; transition: transform 0.3s; cursor: pointer; }
+        .archive-card:hover { transform: translateY(-5px); }
+        .archive-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; }
+        .archive-header h2 { font-size: 22px; margin-bottom: 5px; }
+        .archive-header .year { font-size: 14px; opacity: 0.9; }
+        .archive-body { padding: 20px; }
+        .stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f3f4f6; }
+        .stat-row:last-child { border-bottom: none; }
+        .stat-label { color: #6b7280; }
+        .stat-value { font-weight: 600; color: #1f2937; }
+        .note-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-weight: 600; }
+        .note-good { background: #d1fae5; color: #065f46; }
+        .note-medium { background: #fef3c7; color: #92400e; }
+        .note-low { background: #fee2e2; color: #991b1b; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        th { background: #f9fafb; font-weight: 600; }
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 15px; max-width: 900px; width: 90%; max-height: 85vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-close { background: none; border: none; font-size: 28px; cursor: pointer; color: #6b7280; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #6b7280; }
+        .empty-state-icon { font-size: 64px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 Archives des Semaines Spéciales</h1>
+            <a href="index.html" class="btn btn-secondary">← Retour Admin</a>
+        </div>
+
+        <div id="archivesContainer">
+            <p>Chargement...</p>
+        </div>
+    </div>
+
+    <!-- Modal détails archive -->
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle"></h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api/archives';
+        const token = localStorage.getItem('token');
+
+        if (!token) {
+            window.location.href = 'login.html';
+        }
+
+        document.addEventListener('DOMContentLoaded', loadArchives);
+
+        async function loadArchives() {
+            try {
+                const response = await fetch(API_URL, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                if (data.success && data.data.length > 0) {
+                    displayArchives(data.data);
+                } else {
+                    document.getElementById('archivesContainer').innerHTML = `
+                        <div class="card empty-state">
+                            <div class="empty-state-icon">📭</div>
+                            <h2>Aucune archive</h2>
+                            <p>Les archives seront créées lors de la clôture d'une semaine spéciale.</p>
+                            <p style="margin-top:15px;"><a href="gestion.html" class="btn btn-primary">Aller à Gestion</a></p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                document.getElementById('archivesContainer').innerHTML = '<div class="card"><p style="color:red;">Erreur de chargement</p></div>';
+            }
+        }
+
+        function displayArchives(archives) {
+            let html = '<div class="archives-grid">';
+            
+            archives.forEach(archive => {
+                const noteMoyenne = archive.stats_note_moyenne ? parseFloat(archive.stats_note_moyenne).toFixed(1) : '-';
+                const noteClass = archive.stats_note_moyenne >= 4.5 ? 'note-good' : (archive.stats_note_moyenne >= 3 ? 'note-medium' : 'note-low');
+                
+                html += `
+                    <div class="archive-card" onclick="showArchiveDetails(${archive.id})">
+                        <div class="archive-header">
+                            <h2>${archive.nom}</h2>
+                            <div class="year">📅 ${archive.annee}</div>
+                        </div>
+                        <div class="archive-body">
+                            <div class="stat-row">
+                                <span class="stat-label">🎨 Ateliers</span>
+                                <span class="stat-value">${archive.stats_nb_ateliers}</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">🎓 Élèves participants</span>
+                                <span class="stat-value">${archive.stats_nb_eleves}</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">👨‍🏫 Enseignants</span>
+                                <span class="stat-value">${archive.stats_nb_enseignants}</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">📝 Inscriptions</span>
+                                <span class="stat-value">${archive.stats_nb_inscriptions}</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">⭐ Note moyenne</span>
+                                <span class="stat-value">
+                                    ${archive.stats_note_moyenne ? `<span class="note-badge ${noteClass}">${noteMoyenne}/6</span>` : '-'}
+                                </span>
+                            </div>
+                            ${archive.commentaire ? `<p style="margin-top:15px; font-size:13px; color:#6b7280;">${archive.commentaire}</p>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            document.getElementById('archivesContainer').innerHTML = html;
+        }
+
+        async function showArchiveDetails(archiveId) {
+            try {
+                const response = await fetch(`${API_URL}/${archiveId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    const { archive, ateliers } = data.data;
+                    
+                    document.getElementById('modalTitle').textContent = archive.nom + ' (' + archive.annee + ')';
+                    
+                    let html = `
+                        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:15px; margin-bottom:25px;">
+                            <div style="background:#f0f9ff; padding:15px; border-radius:10px; text-align:center;">
+                                <div style="font-size:28px; font-weight:bold; color:#0369a1;">${archive.stats_nb_ateliers}</div>
+                                <div style="font-size:12px; color:#6b7280;">Ateliers</div>
+                            </div>
+                            <div style="background:#f0fdf4; padding:15px; border-radius:10px; text-align:center;">
+                                <div style="font-size:28px; font-weight:bold; color:#15803d;">${archive.stats_nb_eleves}</div>
+                                <div style="font-size:12px; color:#6b7280;">Élèves</div>
+                            </div>
+                            <div style="background:#fefce8; padding:15px; border-radius:10px; text-align:center;">
+                                <div style="font-size:28px; font-weight:bold; color:#a16207;">${archive.stats_nb_inscriptions}</div>
+                                <div style="font-size:12px; color:#6b7280;">Inscriptions</div>
+                            </div>
+                            <div style="background:#fdf4ff; padding:15px; border-radius:10px; text-align:center;">
+                                <div style="font-size:28px; font-weight:bold; color:#a21caf;">${archive.stats_note_moyenne ? parseFloat(archive.stats_note_moyenne).toFixed(1) : '-'}</div>
+                                <div style="font-size:12px; color:#6b7280;">Note moyenne</div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    if (ateliers.length > 0) {
+                        html += '<h3 style="margin-bottom:15px;">📋 Liste des ateliers</h3>';
+                        html += '<table><thead><tr><th>Atelier</th><th>Enseignant(s)</th><th>Thème</th><th>Durée</th><th>Inscrits</th><th>Note</th></tr></thead><tbody>';
+                        
+                        ateliers.forEach(a => {
+                            const noteHtml = a.note_moyenne 
+                                ? `<span class="note-badge ${a.note_moyenne >= 4.5 ? 'note-good' : (a.note_moyenne >= 3 ? 'note-medium' : 'note-low')}">${parseFloat(a.note_moyenne).toFixed(1)}</span>`
+                                : '-';
+                            
+                            html += `<tr>
+                                <td><strong>${a.nom}</strong></td>
+                                <td>${a.enseignant_noms || '-'}</td>
+                                <td>${a.theme_nom ? `<span style="display:inline-block; width:10px; height:10px; background:${a.theme_couleur}; border-radius:50%; margin-right:5px;"></span>${a.theme_nom}` : '-'}</td>
+                                <td>${a.duree}p</td>
+                                <td>${a.nombre_inscrits}/${a.nombre_places_max}</td>
+                                <td>${noteHtml} ${a.nb_evaluations > 0 ? `<small>(${a.nb_evaluations})</small>` : ''}</td>
+                            </tr>`;
+                        });
+                        
+                        html += '</tbody></table>';
+                    }
+                    
+                    html += `
+                        <div style="margin-top:25px; padding-top:20px; border-top:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:13px; color:#6b7280;">Clôturée le ${new Date(archive.date_cloture).toLocaleDateString('fr-CH')}</span>
+                            <button class="btn btn-danger" onclick="deleteArchive(${archive.id}, '${archive.nom}')">🗑️ Supprimer l'archive</button>
+                        </div>
+                    `;
+                    
+                    document.getElementById('modalBody').innerHTML = html;
+                    document.getElementById('detailModal').style.display = 'flex';
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Erreur de chargement');
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('detailModal').style.display = 'none';
+        }
+
+        async function deleteArchive(id, nom) {
+            if (!confirm(`Supprimer définitivement l'archive "${nom}" ?\n\nCette action est irréversible.`)) return;
+            if (!confirm('Êtes-vous vraiment sûr ?')) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    closeModal();
+                    loadArchives();
+                } else {
+                    alert('Erreur: ' + data.message);
+                }
+            } catch (error) {
+                alert('Erreur de connexion');
+            }
+        }
+
+        // Fermer modal en cliquant dehors
+        document.getElementById('detailModal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+    </script>
+</body>
+</html>

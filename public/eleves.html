@@ -574,6 +574,27 @@
                     </div>
                 </div>
             </div>
+
+            <!-- ÉVALUATIONS -->
+            <div class="card" id="evaluationsCard" style="display:none;">
+                <div class="card-header">⭐ Évaluer mes ateliers</div>
+                <div class="card-body">
+                    <p style="margin-bottom:15px; color:#6b7280;">Donne ton avis sur les ateliers auxquels tu as participé.</p>
+                    <div id="evaluationsContainer">
+                        <div class="loading">Chargement...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HISTORIQUE -->
+            <div class="card">
+                <div class="card-header">📚 Mes années précédentes</div>
+                <div class="card-body">
+                    <div id="historiqueContainer">
+                        <p style="color:#6b7280;">Chargement...</p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1144,6 +1165,178 @@
             })
             .catch(() => alert('Erreur'));
         }
+
+        // ========== ÉVALUATIONS ==========
+        async function loadEvaluations() {
+            try {
+                const response = await fetch(`${API_URL}/evaluations/eleve/mes-evaluations`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    const { evaluations_ouvertes, mes_evaluations, ateliers_a_evaluer } = data.data;
+                    
+                    // Afficher la section si évaluations ouvertes
+                    if (evaluations_ouvertes && ateliers_a_evaluer.length > 0) {
+                        document.getElementById('evaluationsCard').style.display = 'block';
+                        displayEvaluations(ateliers_a_evaluer, mes_evaluations);
+                    } else if (mes_evaluations && mes_evaluations.length > 0) {
+                        document.getElementById('evaluationsCard').style.display = 'block';
+                        displayMesEvaluations(mes_evaluations, evaluations_ouvertes);
+                    }
+                }
+            } catch (error) {
+                console.error('Erreur évaluations:', error);
+            }
+        }
+
+        function displayEvaluations(ateliers, mesEvaluations) {
+            if (ateliers.length === 0) {
+                document.getElementById('evaluationsContainer').innerHTML = '<p style="color:#6b7280;">Tu as déjà évalué tous tes ateliers. Merci !</p>';
+                return;
+            }
+            
+            let html = '<div style="display:grid; gap:15px;">';
+            ateliers.forEach(a => {
+                html += `
+                    <div style="background:#f9fafb; padding:15px; border-radius:10px;">
+                        <h4 style="margin:0 0 10px 0;">${a.nom}</h4>
+                        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                            <label style="font-weight:600;">Note :</label>
+                            <div class="note-selector" id="noteSelector_${a.id}">
+                                ${[1,2,3,4,5,6].map(n => `
+                                    <button type="button" class="note-btn" data-note="${n}" onclick="selectNote(${a.id}, ${n})">${n}</button>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div style="margin-top:10px;">
+                            <textarea id="commentaire_${a.id}" placeholder="Ton commentaire (optionnel)..." rows="2" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;"></textarea>
+                        </div>
+                        <button class="btn-inscription" style="margin-top:10px; background:#667eea; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;" onclick="submitEvaluation(${a.id})">
+                            Envoyer mon avis
+                        </button>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            // Ajouter les styles pour les boutons de note
+            html += `
+                <style>
+                    .note-selector { display: flex; gap: 5px; }
+                    .note-btn { width: 36px; height: 36px; border: 2px solid #ddd; border-radius: 50%; background: white; cursor: pointer; font-weight: bold; transition: all 0.2s; }
+                    .note-btn:hover { border-color: #667eea; }
+                    .note-btn.selected { background: #667eea; color: white; border-color: #667eea; }
+                </style>
+            `;
+            
+            document.getElementById('evaluationsContainer').innerHTML = html;
+        }
+
+        function displayMesEvaluations(evaluations, ouvertes) {
+            let html = ouvertes ? '' : '<p style="color:#f59e0b; margin-bottom:15px;">⏸️ Les évaluations sont actuellement fermées.</p>';
+            html += '<p style="margin-bottom:15px;">Tes évaluations :</p><ul style="list-style:none; padding:0;">';
+            evaluations.forEach(e => {
+                html += `<li style="padding:8px 0; border-bottom:1px solid #eee;">
+                    <strong>${e.atelier_nom}</strong> - Note: <span style="background:#667eea; color:white; padding:2px 8px; border-radius:10px;">${e.note}/6</span>
+                    ${e.commentaire ? `<br><small style="color:#6b7280;">"${e.commentaire}"</small>` : ''}
+                </li>`;
+            });
+            html += '</ul>';
+            document.getElementById('evaluationsContainer').innerHTML = html;
+        }
+
+        let selectedNotes = {};
+        function selectNote(atelierId, note) {
+            selectedNotes[atelierId] = note;
+            document.querySelectorAll(`#noteSelector_${atelierId} .note-btn`).forEach(btn => {
+                btn.classList.toggle('selected', parseInt(btn.dataset.note) === note);
+            });
+        }
+
+        async function submitEvaluation(atelierId) {
+            const note = selectedNotes[atelierId];
+            if (!note) {
+                alert('Merci de sélectionner une note (1-6)');
+                return;
+            }
+            const commentaire = document.getElementById(`commentaire_${atelierId}`).value;
+            
+            try {
+                const response = await fetch(`${API_URL}/evaluations/eleve/evaluer`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+                    body: JSON.stringify({ atelier_id: atelierId, note, commentaire })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('✅ Merci pour ton avis !');
+                    loadEvaluations();
+                } else {
+                    alert('❌ ' + data.message);
+                }
+            } catch (error) {
+                alert('Erreur de connexion');
+            }
+        }
+
+        // ========== HISTORIQUE ==========
+        async function loadHistorique() {
+            try {
+                const response = await fetch(`${API_URL}/evaluations/eleve/historique`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                const data = await response.json();
+                
+                if (data.success && data.data.length > 0) {
+                    displayHistorique(data.data);
+                } else {
+                    document.getElementById('historiqueContainer').innerHTML = '<p style="color:#6b7280;">Pas d\'historique disponible.</p>';
+                }
+            } catch (error) {
+                document.getElementById('historiqueContainer').innerHTML = '<p style="color:#6b7280;">Pas d\'historique disponible.</p>';
+            }
+        }
+
+        function displayHistorique(historique) {
+            // Grouper par année
+            const parAnnee = {};
+            historique.forEach(h => {
+                if (!parAnnee[h.annee]) parAnnee[h.annee] = [];
+                parAnnee[h.annee].push(h);
+            });
+            
+            let html = '';
+            Object.keys(parAnnee).sort((a,b) => b - a).forEach(annee => {
+                html += `<div style="margin-bottom:20px;">
+                    <h4 style="color:#667eea; margin-bottom:10px;">📅 ${parAnnee[annee][0].archive_nom || 'Année ' + annee}</h4>
+                    <div style="background:#f9fafb; border-radius:10px; overflow:hidden;">`;
+                
+                parAnnee[annee].forEach(h => {
+                    html += `<div style="padding:12px 15px; border-bottom:1px solid #e5e7eb;">
+                        <strong>${h.atelier_nom}</strong>
+                        <div style="font-size:13px; color:#6b7280;">
+                            ${h.creneaux_texte} ${h.salle_nom ? '• ' + h.salle_nom : ''}
+                        </div>
+                        ${h.note_donnee ? `<div style="margin-top:5px;">Ta note: <span style="background:#667eea; color:white; padding:1px 6px; border-radius:8px; font-size:12px;">${h.note_donnee}/6</span></div>` : ''}
+                    </div>`;
+                });
+                
+                html += '</div></div>';
+            });
+            
+            document.getElementById('historiqueContainer').innerHTML = html;
+        }
+
+        // Charger évaluations et historique au démarrage
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                loadEvaluations();
+                loadHistorique();
+            }, 500);
+        });
     </script>
 </body>
 </html>

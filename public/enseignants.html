@@ -533,6 +533,7 @@
                 <button class="tab-btn" onclick="showTab('disponibilites')">🗓️ Disponibilités</button>
                 <button class="tab-btn" onclick="showTab('catalogue')">📚 Catalogue</button>
                 <button class="tab-btn" onclick="showTab('horaires-eleves')">👥 Horaires Élèves</button>
+                <button class="tab-btn" onclick="showTab('evaluations')">⭐ Évaluations</button>
             </div>
 
             <!-- Tab: Mon Horaire -->
@@ -680,6 +681,21 @@
                         </div>
                         <div id="dispoActions" style="margin-top:15px; text-align:right;">
                             <button class="btn btn-success" onclick="saveDisponibilites()">💾 Enregistrer</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ÉVALUATIONS -->
+            <div id="tab-evaluations" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        ⭐ Évaluations de mes ateliers
+                    </div>
+                    <div class="card-body">
+                        <div id="evalStatsEnseignant" style="margin-bottom:20px;"></div>
+                        <div id="evaluationsEnseignantContainer">
+                            <p style="color:#666;">Chargement...</p>
                         </div>
                     </div>
                 </div>
@@ -896,6 +912,11 @@
             
             event.target.classList.add('active');
             document.getElementById('tab-' + tabName).classList.add('active');
+            
+            // Charger les évaluations si c'est l'onglet sélectionné
+            if (tabName === 'evaluations') {
+                loadEvaluationsEnseignant();
+            }
         }
 
         // Charger toutes les données
@@ -2158,6 +2179,73 @@
         function printListes() {
             // Ouvrir la page d'impression via l'API print
             window.open(`/api/print/listes/enseignant?token=${currentToken}`, '_blank');
+        }
+
+        // ===================== ÉVALUATIONS =====================
+        async function loadEvaluationsEnseignant() {
+            try {
+                const response = await fetch(`${API_URL}/evaluations/enseignant/mes-ateliers`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayEvaluationsEnseignant(data.data);
+                }
+            } catch (error) {
+                console.error('Erreur évaluations:', error);
+                document.getElementById('evaluationsEnseignantContainer').innerHTML = '<p style="color:red;">Erreur de chargement</p>';
+            }
+        }
+
+        function displayEvaluationsEnseignant(data) {
+            const { evaluations, stats } = data;
+            
+            // Stats par atelier
+            let statsHtml = '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:15px; margin-bottom:20px;">';
+            stats.forEach(s => {
+                const noteMoy = s.note_moyenne ? parseFloat(s.note_moyenne).toFixed(1) : '-';
+                const noteColor = s.note_moyenne >= 4.5 ? '#10b981' : (s.note_moyenne >= 3 ? '#f59e0b' : '#ef4444');
+                statsHtml += `
+                    <div style="background:#f9fafb; padding:15px; border-radius:10px;">
+                        <h4 style="margin:0 0 10px 0; font-size:14px;">${s.nom}</h4>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="color:#6b7280; font-size:13px;">${s.nb_evaluations} avis</span>
+                            <span style="background:${noteColor}; color:white; padding:3px 10px; border-radius:15px; font-weight:bold;">${noteMoy}/6</span>
+                        </div>
+                    </div>
+                `;
+            });
+            statsHtml += '</div>';
+            document.getElementById('evalStatsEnseignant').innerHTML = statsHtml;
+            
+            // Liste des évaluations
+            if (evaluations.length === 0) {
+                document.getElementById('evaluationsEnseignantContainer').innerHTML = '<p style="color:#6b7280;">Aucune évaluation reçue pour le moment.</p>';
+                return;
+            }
+            
+            let html = '<table style="width:100%; border-collapse:collapse;">';
+            html += '<thead><tr style="background:#f9fafb;"><th style="padding:12px; text-align:left;">Atelier</th><th style="padding:12px; text-align:left;">Élève</th><th style="padding:12px; text-align:left;">Classe</th><th style="padding:12px; text-align:center;">Note</th><th style="padding:12px; text-align:left;">Commentaire</th><th style="padding:12px;">Date</th></tr></thead>';
+            html += '<tbody>';
+            
+            evaluations.forEach(e => {
+                const noteColor = e.note >= 5 ? '#10b981' : (e.note >= 3 ? '#f59e0b' : '#ef4444');
+                const date = new Date(e.date_evaluation).toLocaleDateString('fr-CH');
+                html += `<tr style="border-bottom:1px solid #e5e7eb;">
+                    <td style="padding:12px;">${e.atelier_nom}</td>
+                    <td style="padding:12px;">${e.eleve_prenom} ${e.eleve_nom}</td>
+                    <td style="padding:12px;">${e.classe_nom}</td>
+                    <td style="padding:12px; text-align:center;">
+                        <span style="background:${noteColor}; color:white; padding:3px 10px; border-radius:15px; font-weight:bold;">${e.note}/6</span>
+                    </td>
+                    <td style="padding:12px; max-width:300px; font-size:13px; color:#4b5563;">${e.commentaire || '-'}</td>
+                    <td style="padding:12px; font-size:12px; color:#6b7280;">${date}</td>
+                </tr>`;
+            });
+            
+            html += '</tbody></table>';
+            document.getElementById('evaluationsEnseignantContainer').innerHTML = html;
         }
     </script>
 </body>

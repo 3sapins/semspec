@@ -52,10 +52,12 @@
             <button class="tab active" onclick="switchTab('listes')">📋 Listes</button>
             <button class="tab" onclick="switchTab('quotas')">📊 Quotas</button>
             <button class="tab" onclick="switchTab('inscriptions-classes')">🔐 Inscriptions</button>
+            <button class="tab" onclick="switchTab('evaluations')">⭐ Évaluations</button>
             <button class="tab" onclick="switchTab('inscrire')">✍️ Inscrire</button>
             <button class="tab" onclick="switchTab('piquet')">👮 Piquet</button>
             <button class="tab" onclick="switchTab('eleves-creneaux')">👁️ Élèves/Créneaux</button>
             <button class="tab" onclick="switchTab('creneaux-faibles')">⚠️ Faibles</button>
+            <button class="tab" style="background:#ef4444; color:white;" onclick="switchTab('cloturer')">🏁 Clôturer</button>
         </div>
 
         <!-- LISTES -->
@@ -70,6 +72,81 @@
                 <button class="btn btn-primary" onclick="loadListe('types_salles')">🏷️ Types de Salles</button>
             </div>
             <div id="listeContainer"></div>
+        </div>
+
+        <!-- EVALUATIONS -->
+        <div id="evaluations" class="tab-content">
+            <h2 style="margin-bottom: 20px;">⭐ Gestion des Évaluations</h2>
+            
+            <div style="background:#f9fafb; padding:20px; border-radius:10px; margin-bottom:20px;">
+                <h3 style="margin-bottom:15px;">Paramètres globaux</h3>
+                <div style="display:flex; align-items:center; gap:15px; margin-bottom:15px;">
+                    <label style="font-weight:600;">Évaluations :</label>
+                    <button id="btnEvalOuvertes" class="btn btn-success" onclick="toggleEvaluationsGlobal(true)">🔓 Ouvrir</button>
+                    <button id="btnEvalFermees" class="btn btn-danger" onclick="toggleEvaluationsGlobal(false)">🔒 Fermer</button>
+                    <span id="evalStatus" style="margin-left:10px; font-weight:bold;"></span>
+                </div>
+                <p style="color:#6b7280; font-size:13px;">Quand ouvertes, les élèves peuvent noter et commenter les ateliers auxquels ils ont participé.</p>
+            </div>
+            
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px;">
+                <div style="background:#f9fafb; padding:20px; border-radius:10px;">
+                    <h4 style="margin-bottom:10px;">📊 Statistiques</h4>
+                    <div id="evalStatsContainer">Chargement...</div>
+                </div>
+                <div style="background:#f9fafb; padding:20px; border-radius:10px;">
+                    <h4 style="margin-bottom:10px;">🏆 Top ateliers</h4>
+                    <div id="evalTopContainer">Chargement...</div>
+                </div>
+            </div>
+            
+            <h3 style="margin-bottom:15px;">Dernières évaluations</h3>
+            <div id="evalListContainer">Chargement...</div>
+        </div>
+
+        <!-- CLOTURER -->
+        <div id="cloturer" class="tab-content">
+            <h2 style="margin-bottom: 20px;">🏁 Clôturer la Semaine Spéciale</h2>
+            
+            <div style="background:#fee2e2; border:2px solid #ef4444; padding:20px; border-radius:10px; margin-bottom:20px;">
+                <h3 style="color:#991b1b; margin-bottom:10px;">⚠️ Action irréversible</h3>
+                <p style="color:#991b1b;">La clôture va :</p>
+                <ul style="color:#991b1b; margin:10px 0 0 20px;">
+                    <li>Créer une archive de tous les ateliers et inscriptions</li>
+                    <li>Conserver les évaluations dans l'archive</li>
+                    <li>Vider le planning et les inscriptions</li>
+                    <li>Remettre tous les ateliers en brouillon</li>
+                </ul>
+            </div>
+            
+            <div style="background:#f9fafb; padding:20px; border-radius:10px; margin-bottom:20px;">
+                <div style="margin-bottom:15px;">
+                    <label style="display:block; font-weight:600; margin-bottom:5px;">Année *</label>
+                    <input type="number" id="clotureAnnee" value="2026" min="2020" max="2100" style="padding:10px; border:2px solid #e5e7eb; border-radius:8px; width:150px;">
+                </div>
+                <div style="margin-bottom:15px;">
+                    <label style="display:block; font-weight:600; margin-bottom:5px;">Nom de l'archive</label>
+                    <input type="text" id="clotureNom" placeholder="Semaine Spéciale 2026" style="padding:10px; border:2px solid #e5e7eb; border-radius:8px; width:100%; max-width:400px;">
+                </div>
+                <div style="margin-bottom:15px;">
+                    <label style="display:block; font-weight:600; margin-bottom:5px;">Notes (optionnel)</label>
+                    <textarea id="clotureNotes" rows="3" placeholder="Commentaires sur cette édition..." style="padding:10px; border:2px solid #e5e7eb; border-radius:8px; width:100%;"></textarea>
+                </div>
+                <div style="margin-bottom:15px;">
+                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                        <input type="checkbox" id="clotureReset" checked style="width:20px; height:20px;">
+                        <span>Réinitialiser pour la nouvelle année (recommandé)</span>
+                    </label>
+                </div>
+            </div>
+            
+            <button class="btn btn-danger" style="padding:15px 30px; font-size:16px;" onclick="cloturerSemaine()">
+                🏁 Clôturer et Archiver
+            </button>
+            
+            <div style="margin-top:20px;">
+                <a href="archives.html" class="btn btn-secondary">📚 Voir les archives existantes</a>
+            </div>
         </div>
 
         <!-- QUOTAS -->
@@ -1513,7 +1590,170 @@
             originalSwitchTab(tabName);
             if (tabName === 'quotas') loadQuota();
             if (tabName === 'inscriptions-classes') loadClassesInscriptions();
+            if (tabName === 'evaluations') loadEvaluationsAdmin();
+            if (tabName === 'cloturer') initCloturer();
         };
+
+        // ========== EVALUATIONS ==========
+        async function loadEvaluationsAdmin() {
+            // Charger le statut global
+            try {
+                const paramResp = await fetch('/api/admin/parametres', { headers: { 'Authorization': `Bearer ${token}` } });
+                const paramData = await paramResp.json();
+                const evalOuvertes = paramData.data?.find(p => p.cle === 'evaluations_ouvertes')?.valeur === 'true';
+                updateEvalStatus(evalOuvertes);
+            } catch (e) {
+                console.error('Erreur paramètres:', e);
+            }
+            
+            // Charger les stats
+            try {
+                const statsResp = await fetch('/api/evaluations/admin/stats', { headers: { 'Authorization': `Bearer ${token}` } });
+                const statsData = await statsResp.json();
+                
+                if (statsData.success) {
+                    const s = statsData.data.stats;
+                    document.getElementById('evalStatsContainer').innerHTML = `
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                            <div><strong>${s.total_evaluations || 0}</strong> évaluations</div>
+                            <div><strong>${s.nb_eleves_evaluateurs || 0}</strong> élèves</div>
+                            <div><strong>${s.nb_ateliers_evalues || 0}</strong> ateliers</div>
+                            <div>Moyenne: <strong>${s.moyenne_generale ? parseFloat(s.moyenne_generale).toFixed(1) : '-'}/6</strong></div>
+                        </div>
+                    `;
+                    
+                    // Top ateliers
+                    const top = statsData.data.topAteliers || [];
+                    if (top.length > 0) {
+                        document.getElementById('evalTopContainer').innerHTML = top.map((a, i) => `
+                            <div style="padding:5px 0; border-bottom:1px solid #e5e7eb;">
+                                <span style="color:#667eea; font-weight:bold;">#${i+1}</span> ${a.nom} 
+                                <span style="float:right; color:#f59e0b;">${parseFloat(a.moyenne).toFixed(1)}/6 (${a.nb})</span>
+                            </div>
+                        `).join('');
+                    } else {
+                        document.getElementById('evalTopContainer').innerHTML = '<p style="color:#9ca3af;">Pas assez de données</p>';
+                    }
+                }
+            } catch (e) {
+                console.error('Erreur stats:', e);
+            }
+            
+            // Charger les dernières évaluations
+            try {
+                const evalResp = await fetch('/api/evaluations/admin/toutes', { headers: { 'Authorization': `Bearer ${token}` } });
+                const evalData = await evalResp.json();
+                
+                if (evalData.success && evalData.data.length > 0) {
+                    let html = '<table><thead><tr><th>Élève</th><th>Atelier</th><th>Note</th><th>Commentaire</th><th>Date</th><th>Actions</th></tr></thead><tbody>';
+                    evalData.data.slice(0, 50).forEach(e => {
+                        const stars = '★'.repeat(e.note) + '☆'.repeat(6 - e.note);
+                        const visibleBadge = e.visible ? '' : '<span class="badge badge-red">Masqué</span>';
+                        html += `<tr>
+                            <td>${e.eleve_prenom} ${e.eleve_nom}</td>
+                            <td>${e.atelier_nom || 'Archivé'}</td>
+                            <td style="color:#f59e0b;">${stars}</td>
+                            <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${e.commentaire || '-'}</td>
+                            <td>${e.date_formatee} ${visibleBadge}</td>
+                            <td>
+                                <button class="btn btn-sm ${e.visible ? 'btn-secondary' : 'btn-success'}" onclick="modererEvaluation(${e.id}, ${!e.visible})">${e.visible ? '👁️' : '👁️‍🗨️'}</button>
+                                <button class="btn btn-sm btn-danger" onclick="supprimerEvaluation(${e.id})">🗑️</button>
+                            </td>
+                        </tr>`;
+                    });
+                    html += '</tbody></table>';
+                    document.getElementById('evalListContainer').innerHTML = html;
+                } else {
+                    document.getElementById('evalListContainer').innerHTML = '<p style="color:#9ca3af;">Aucune évaluation</p>';
+                }
+            } catch (e) {
+                console.error('Erreur liste:', e);
+            }
+        }
+        
+        function updateEvalStatus(ouvertes) {
+            document.getElementById('evalStatus').textContent = ouvertes ? '🟢 Ouvertes' : '🔴 Fermées';
+            document.getElementById('evalStatus').style.color = ouvertes ? '#10b981' : '#ef4444';
+        }
+        
+        async function toggleEvaluationsGlobal(ouvrir) {
+            try {
+                const response = await fetch('/api/evaluations/admin/parametres', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ evaluations_ouvertes: ouvrir })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    updateEvalStatus(ouvrir);
+                    showAlert(data.message, 'success');
+                }
+            } catch (e) {
+                showAlert('Erreur', 'error');
+            }
+        }
+        
+        async function modererEvaluation(id, visible) {
+            try {
+                await fetch(`/api/evaluations/admin/${id}/moderer`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ visible })
+                });
+                loadEvaluationsAdmin();
+            } catch (e) {
+                showAlert('Erreur', 'error');
+            }
+        }
+        
+        async function supprimerEvaluation(id) {
+            if (!confirm('Supprimer cette évaluation ?')) return;
+            try {
+                await fetch(`/api/evaluations/admin/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                loadEvaluationsAdmin();
+            } catch (e) {
+                showAlert('Erreur', 'error');
+            }
+        }
+
+        // ========== CLOTURER ==========
+        function initCloturer() {
+            const year = new Date().getFullYear();
+            document.getElementById('clotureAnnee').value = year;
+            document.getElementById('clotureNom').placeholder = `Semaine Spéciale ${year}`;
+        }
+        
+        async function cloturerSemaine() {
+            const annee = parseInt(document.getElementById('clotureAnnee').value);
+            const nom = document.getElementById('clotureNom').value || `Semaine Spéciale ${annee}`;
+            const commentaire = document.getElementById('clotureNotes').value;
+            const reset = document.getElementById('clotureReset').checked;
+            const nouvelleAnnee = reset ? annee + 1 : null;
+            
+            if (!confirm(`Êtes-vous sûr de vouloir clôturer la semaine spéciale ${annee} ?\n\nNom: ${nom}\nReset pour ${annee + 1}: ${reset ? 'Oui' : 'Non'}`)) return;
+            if (!confirm('⚠️ Cette action est IRRÉVERSIBLE. Confirmer ?')) return;
+            
+            try {
+                const response = await fetch('/api/archives/cloturer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ annee, nom, commentaire, nouvelleAnnee })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('✅ ' + data.message + '\n\nVous pouvez voir l\'archive dans la page Archives.');
+                    window.location.href = 'archives.html';
+                } else {
+                    showAlert('❌ ' + data.message, 'error');
+                }
+            } catch (e) {
+                showAlert('❌ Erreur: ' + e.message, 'error');
+            }
+        }
     </script>
 
     <!-- Modal Ajout -->
