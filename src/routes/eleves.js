@@ -147,6 +147,43 @@ router.get('/mon-horaire', async (req, res) => {
 });
 
 /**
+ * GET /api/eleves/mes-inscriptions
+ * Liste des inscriptions de l'élève connecté
+ */
+router.get('/mes-inscriptions', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        const eleve = await query('SELECT id FROM eleves WHERE utilisateur_id = ?', [userId]);
+        if (eleve.length === 0) {
+            return res.status(404).json({ success: false, message: 'Élève non trouvé' });
+        }
+        
+        const inscriptions = await query(`
+            SELECT i.id as inscription_id, i.planning_id, i.statut, i.inscription_manuelle,
+                a.id as atelier_id, a.nom as atelier_nom, a.duree, a.description,
+                c.id as creneau_id, c.jour, c.periode, c.ordre,
+                s.nom as salle_nom,
+                p.nombre_creneaux,
+                t.nom as theme_nom, t.couleur as theme_couleur, t.icone as theme_icone
+            FROM inscriptions i
+            JOIN planning p ON i.planning_id = p.id
+            JOIN ateliers a ON p.atelier_id = a.id
+            JOIN creneaux c ON p.creneau_id = c.id
+            LEFT JOIN salles s ON p.salle_id = s.id
+            LEFT JOIN themes t ON a.theme_id = t.id
+            WHERE i.eleve_id = ? AND i.statut = 'confirmee'
+            ORDER BY c.ordre
+        `, [eleve[0].id]);
+        
+        res.json({ success: true, data: inscriptions });
+    } catch (error) {
+        console.error('Erreur mes-inscriptions:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
  * GET /api/eleves/catalogue
  * Catalogue des ateliers disponibles
  */
