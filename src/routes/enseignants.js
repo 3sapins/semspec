@@ -816,11 +816,11 @@ router.get('/eleve/:eleveId/horaire', async (req, res) => {
 
 /**
  * GET /api/enseignants/catalogue-simple
- * Catalogue simplifié (sans inscriptions par ligne)
+ * Catalogue simplifié avec enseignants
  */
 router.get('/catalogue-simple', async (req, res) => {
     try {
-        // Récupérer tous les ateliers validés
+        // Récupérer tous les ateliers validés avec les enseignants
         const ateliers = await query(`
             SELECT 
                 a.id,
@@ -829,6 +829,9 @@ router.get('/catalogue-simple', async (req, res) => {
                 a.informations_eleves,
                 a.duree,
                 a.nombre_places_max,
+                a.enseignant_acronyme,
+                a.enseignant2_acronyme,
+                a.enseignant3_acronyme,
                 t.id as theme_id,
                 t.nom as theme_nom,
                 t.couleur as theme_couleur,
@@ -839,8 +842,9 @@ router.get('/catalogue-simple', async (req, res) => {
             ORDER BY t.nom, a.nom
         `);
         
-        // Pour chaque atelier, récupérer ses créneaux planifiés
+        // Pour chaque atelier, récupérer ses créneaux et les noms des enseignants
         for (const atelier of ateliers) {
+            // Créneaux
             const creneaux = await query(`
                 SELECT 
                     p.id as planning_id,
@@ -854,11 +858,32 @@ router.get('/catalogue-simple', async (req, res) => {
                 ORDER BY c.ordre
             `, [atelier.id]);
             atelier.creneaux = creneaux;
+            
+            // Noms des enseignants
+            const enseignants = [];
+            if (atelier.enseignant_acronyme) {
+                const ens1 = await query('SELECT nom, prenom FROM utilisateurs WHERE acronyme = ?', [atelier.enseignant_acronyme]);
+                if (ens1.length > 0) enseignants.push(`${ens1[0].prenom} ${ens1[0].nom}`);
+            }
+            if (atelier.enseignant2_acronyme) {
+                const ens2 = await query('SELECT nom, prenom FROM utilisateurs WHERE acronyme = ?', [atelier.enseignant2_acronyme]);
+                if (ens2.length > 0) enseignants.push(`${ens2[0].prenom} ${ens2[0].nom}`);
+            }
+            if (atelier.enseignant3_acronyme) {
+                const ens3 = await query('SELECT nom, prenom FROM utilisateurs WHERE acronyme = ?', [atelier.enseignant3_acronyme]);
+                if (ens3.length > 0) enseignants.push(`${ens3[0].prenom} ${ens3[0].nom}`);
+            }
+            atelier.enseignants = enseignants.join(', ') || '-';
         }
         
         const themes = await query('SELECT * FROM themes ORDER BY nom');
         
         res.json({ success: true, data: { ateliers, themes } });
+    } catch (error) {
+        console.error('Erreur catalogue simple:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
     } catch (error) {
         console.error('Erreur catalogue simple:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
