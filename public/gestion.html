@@ -50,6 +50,7 @@
         <div id="alert" class="alert"></div>
         <div class="tabs">
             <button class="tab active" onclick="switchTab('listes')">📋 Listes</button>
+            <button class="tab" onclick="switchTab('import')">📥 Import CSV</button>
             <button class="tab" onclick="switchTab('quotas')">📊 Quotas</button>
             <button class="tab" onclick="switchTab('inscriptions-classes')">🔐 Inscriptions</button>
             <button class="tab" onclick="switchTab('evaluations')">⭐ Évaluations</button>
@@ -57,7 +58,7 @@
             <button class="tab" onclick="switchTab('piquet')">👮 Piquet</button>
             <button class="tab" onclick="switchTab('eleves-creneaux')">👁️ Élèves/Créneaux</button>
             <button class="tab" onclick="switchTab('creneaux-faibles')">⚠️ Faibles</button>
-            <button class="tab" style="background:#ef4444; color:white;" onclick="switchTab('cloturer')">🏁 Clôturer</button>
+            <button class="tab" style="background:#ef4444; color:white;" onclick="switchTab('cloturer')" >🏁 Clôturer</button>
         </div>
 
         <!-- LISTES -->
@@ -72,6 +73,101 @@
                 <button class="btn btn-primary" onclick="loadListe('types_salles')">🏷️ Types de Salles</button>
             </div>
             <div id="listeContainer"></div>
+        </div>
+
+        <!-- IMPORT CSV -->
+        <div id="import" class="tab-content">
+            <h2 style="margin-bottom: 20px;">📥 Import CSV</h2>
+            
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:20px;">
+                
+                <!-- Import Élèves -->
+                <div class="card">
+                    <h3>🎓 Importer des Élèves</h3>
+                    <p style="color:#6b7280; font-size:13px; margin-bottom:15px;">
+                        Format CSV: <code>nom,prenom,classe</code><br>
+                        Exemple: <code>Dupont,Jean,9VP1</code>
+                    </p>
+                    <textarea id="csvEleves" rows="6" placeholder="nom,prenom,classe
+Dupont,Jean,9VP1
+Martin,Marie,9VP2" style="width:100%; padding:10px; font-family:monospace; font-size:12px; border:1px solid #ddd; border-radius:5px;"></textarea>
+                    <button class="btn btn-success" style="margin-top:10px; width:100%;" onclick="importCSV('eleves')">📥 Importer les élèves</button>
+                </div>
+                
+                <!-- Import Enseignants -->
+                <div class="card">
+                    <h3>👨‍🏫 Importer des Enseignants</h3>
+                    <p style="color:#6b7280; font-size:13px; margin-bottom:15px;">
+                        Format CSV: <code>acronyme,nom,prenom,email,charge_max</code><br>
+                        Exemple: <code>DUP,Dupont,Jean,j.dupont@ecole.ch,12</code>
+                    </p>
+                    <textarea id="csvEnseignants" rows="6" placeholder="acronyme,nom,prenom,email,charge_max
+DUP,Dupont,Jean,j.dupont@ecole.ch,12
+MAR,Martin,Marie,,10" style="width:100%; padding:10px; font-family:monospace; font-size:12px; border:1px solid #ddd; border-radius:5px;"></textarea>
+                    <button class="btn btn-success" style="margin-top:10px; width:100%;" onclick="importCSV('enseignants')">📥 Importer les enseignants</button>
+                </div>
+                
+                <!-- Import Ateliers -->
+                <div class="card">
+                    <h3>🎨 Importer des Ateliers</h3>
+                    <p style="color:#6b7280; font-size:13px; margin-bottom:15px;">
+                        Format CSV: <code>nom,enseignant,duree,places,type_salle,theme,statut</code><br>
+                        Durée: 2, 4 ou 6 périodes. Statut: brouillon, soumis, valide
+                    </p>
+                    <textarea id="csvAteliers" rows="6" placeholder="nom,enseignant,duree,places,type_salle,theme,statut
+Cuisine italienne,DUP,4,15,Cuisine,Culinaire,soumis
+Football,MAR,2,20,Gymnase,Sport,valide" style="width:100%; padding:10px; font-family:monospace; font-size:12px; border:1px solid #ddd; border-radius:5px;"></textarea>
+                    <button class="btn btn-success" style="margin-top:10px; width:100%;" onclick="importCSV('ateliers')">📥 Importer les ateliers</button>
+                </div>
+                
+                <!-- Import Classes -->
+                <div class="card">
+                    <h3>🏫 Importer des Classes</h3>
+                    <p style="color:#6b7280; font-size:13px; margin-bottom:15px;">
+                        Format CSV: <code>nom,niveau</code><br>
+                        Exemple: <code>9VP1,9</code>
+                    </p>
+                    <textarea id="csvClasses" rows="6" placeholder="nom,niveau
+9VP1,9
+9VP2,9
+10VP1,10" style="width:100%; padding:10px; font-family:monospace; font-size:12px; border:1px solid #ddd; border-radius:5px;"></textarea>
+                    <button class="btn btn-success" style="margin-top:10px; width:100%;" onclick="importCSV('classes')">📥 Importer les classes</button>
+                </div>
+                
+                <!-- Import Salles -->
+                <div class="card">
+                    <h3>🚪 Importer des Salles</h3>
+                    <p style="color:#6b7280; font-size:13px; margin-bottom:15px;">
+                        Format CSV: <code>nom,capacite,type_salle,batiment</code><br>
+                        Exemple: <code>C101,25,Classe standard,Bâtiment A</code>
+                    </p>
+                    <textarea id="csvSalles" rows="6" placeholder="nom,capacite,type_salle,batiment
+C101,25,Classe standard,Bâtiment A
+Gym1,30,Gymnase,Sports
+Cuisine,15,Cuisine,Bâtiment B" style="width:100%; padding:10px; font-family:monospace; font-size:12px; border:1px solid #ddd; border-radius:5px;"></textarea>
+                    <button class="btn btn-success" style="margin-top:10px; width:100%;" onclick="importCSV('salles')">📥 Importer les salles</button>
+                </div>
+                
+            </div>
+            
+            <!-- Résultats d'import -->
+            <div id="importResults" style="margin-top:20px; display:none;">
+                <h3>📊 Résultats de l'import</h3>
+                <div id="importResultsContent" style="background:#f9fafb; padding:15px; border-radius:10px; margin-top:10px;"></div>
+            </div>
+            
+            <!-- Aide -->
+            <div style="margin-top:30px; background:#eff6ff; padding:20px; border-radius:10px; border-left:4px solid #3b82f6;">
+                <h3 style="color:#1e40af; margin-bottom:10px;">💡 Conseils pour l'import</h3>
+                <ul style="color:#1e40af; margin-left:20px; line-height:1.8;">
+                    <li>La première ligne doit contenir les en-têtes (nom des colonnes)</li>
+                    <li>Les colonnes doivent être séparées par des virgules</li>
+                    <li>Pour les élèves, la classe doit exister dans le système</li>
+                    <li>Pour les ateliers, l'enseignant (acronyme) doit exister</li>
+                    <li>Les doublons seront ignorés avec un message d'erreur</li>
+                    <li>Vous pouvez aussi coller depuis Excel (copier les cellules)</li>
+                </ul>
+            </div>
         </div>
 
         <!-- EVALUATIONS -->
@@ -391,6 +487,109 @@
             alert.className = `alert alert-${type}`;
             alert.style.display = 'block';
             setTimeout(() => alert.style.display = 'none', 5000);
+        }
+
+        // ========== IMPORT CSV ==========
+        function parseCSV(csvText) {
+            const lines = csvText.trim().split('\n');
+            if (lines.length < 2) return [];
+            
+            // Détecter le séparateur (virgule ou tab pour Excel)
+            const firstLine = lines[0];
+            const separator = firstLine.includes('\t') ? '\t' : ',';
+            
+            // Parser les headers
+            const headers = lines[0].split(separator).map(h => h.trim().toLowerCase().replace(/['"]/g, ''));
+            
+            // Parser les données
+            const data = [];
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                
+                const values = line.split(separator).map(v => v.trim().replace(/^["']|["']$/g, ''));
+                const row = {};
+                headers.forEach((header, idx) => {
+                    row[header] = values[idx] || '';
+                });
+                data.push(row);
+            }
+            
+            return data;
+        }
+        
+        async function importCSV(type) {
+            const textareaId = {
+                'eleves': 'csvEleves',
+                'enseignants': 'csvEnseignants',
+                'ateliers': 'csvAteliers',
+                'classes': 'csvClasses',
+                'salles': 'csvSalles'
+            }[type];
+            
+            const csvText = document.getElementById(textareaId).value.trim();
+            if (!csvText) {
+                showAlert('❌ Veuillez coller des données CSV', 'error');
+                return;
+            }
+            
+            const data = parseCSV(csvText);
+            if (data.length === 0) {
+                showAlert('❌ Aucune donnée valide trouvée', 'error');
+                return;
+            }
+            
+            if (!confirm(`Importer ${data.length} ${type} ?`)) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/import/${type}`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    },
+                    body: JSON.stringify({ data })
+                });
+                
+                const result = await response.json();
+                
+                // Afficher les résultats
+                const resultsDiv = document.getElementById('importResults');
+                const contentDiv = document.getElementById('importResultsContent');
+                
+                let html = `<p style="font-size:18px; margin-bottom:15px;"><strong>✅ ${result.data.success}</strong> ${type} importé(e)s</p>`;
+                
+                if (result.data.errors && result.data.errors.length > 0) {
+                    html += `<div style="background:#fef2f2; padding:10px; border-radius:5px; margin-bottom:10px;">
+                        <strong style="color:#dc2626;">⚠️ ${result.data.errors.length} erreurs :</strong>
+                        <ul style="margin:10px 0 0 20px; color:#dc2626; font-size:13px;">
+                            ${result.data.errors.slice(0, 20).map(e => `<li>${e}</li>`).join('')}
+                            ${result.data.errors.length > 20 ? `<li>... et ${result.data.errors.length - 20} autres</li>` : ''}
+                        </ul>
+                    </div>`;
+                }
+                
+                if (result.data.created && result.data.created.length > 0) {
+                    html += `<details style="margin-top:10px;">
+                        <summary style="cursor:pointer; color:#059669;">Voir les ${result.data.created.length} éléments créés</summary>
+                        <div style="max-height:200px; overflow-y:auto; margin-top:10px; font-size:12px; font-family:monospace;">
+                            ${result.data.created.map(c => `<div style="padding:3px 0; border-bottom:1px solid #e5e7eb;">${JSON.stringify(c)}</div>`).join('')}
+                        </div>
+                    </details>`;
+                }
+                
+                contentDiv.innerHTML = html;
+                resultsDiv.style.display = 'block';
+                
+                showAlert(result.message, 'success');
+                
+                // Rafraîchir les listes si nécessaire
+                if (type === 'eleves') chargerTousEleves();
+                
+            } catch (error) {
+                console.error('Erreur import:', error);
+                showAlert('❌ Erreur lors de l\'import: ' + error.message, 'error');
+            }
         }
 
         async function loadClassesForSelects() {
