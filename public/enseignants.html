@@ -1116,55 +1116,95 @@
             });
             
             let html = `<p style="margin-bottom:15px; color:#666;">${filtered.length} atelier(s) trouvé(s)</p>`;
+            html += '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:15px;">';
             
             filtered.forEach(atelier => {
-                const themeStyle = atelier.theme_couleur 
-                    ? `background: ${atelier.theme_couleur}20; color: ${atelier.theme_couleur}; border-left: 4px solid ${atelier.theme_couleur};` 
-                    : 'background: #f3f4f6; border-left: 4px solid #6b7280;';
-                
+                const themeBg = atelier.theme_couleur || '#6b7280';
                 const dureeBadge = atelier.duree === 6 ? 'Journée' : `${atelier.duree}p`;
                 
-                // Formater les créneaux de manière compacte
-                const creneauxStr = atelier.creneaux?.map(c => {
-                    const jourAbbr = c.jour.substring(0, 3).charAt(0).toUpperCase() + c.jour.substring(1, 3);
-                    return `${jourAbbr} ${c.periode}`;
-                }).join(' • ') || 'Non planifié';
-                
                 html += `
-                    <div style="padding:15px; margin-bottom:10px; border-radius:8px; ${themeStyle}; cursor:pointer;" onclick="this.querySelector('.atelier-details').classList.toggle('hidden')">
-                        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
-                            <div style="flex:1; min-width:200px;">
-                                <h3 style="margin:0 0 5px 0; font-size:16px;">${atelier.nom}</h3>
-                                <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-                                    <span style="background:#1e3a5f; color:white; padding:2px 8px; border-radius:10px; font-size:11px;">${dureeBadge}</span>
-                                    <span style="background:#10b981; color:white; padding:2px 8px; border-radius:10px; font-size:11px;">${atelier.nombre_places_max} places</span>
-                                    ${atelier.theme_nom ? `<span style="font-size:12px;">${atelier.theme_icone || ''} ${atelier.theme_nom}</span>` : ''}
-                                </div>
-                            </div>
-                            <div style="text-align:right; font-size:12px; color:#4b5563;">
-                                📅 ${creneauxStr}
+                    <div class="catalogue-card" style="background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.08); overflow:hidden; transition:transform 0.2s, box-shadow 0.2s; cursor:pointer;" 
+                         onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.12)';"
+                         onmouseout="this.style.transform=''; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)';"
+                         onclick="this.querySelector('.card-details').classList.toggle('hidden')">
+                        
+                        <!-- Header avec couleur thème -->
+                        <div style="background:${themeBg}; padding:12px 15px; color:white;">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <span style="font-size:12px; opacity:0.9;">${atelier.theme_icone || ''} ${atelier.theme_nom || 'Sans thème'}</span>
+                                <span style="background:rgba(255,255,255,0.25); padding:2px 8px; border-radius:10px; font-size:11px;">${dureeBadge}</span>
                             </div>
                         </div>
-                        <div class="atelier-details hidden" style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(0,0,0,0.1);">
-                            ${atelier.description ? `<p style="margin:0 0 8px 0; color:#374151;">${atelier.description}</p>` : ''}
-                            ${atelier.informations_eleves ? `<p style="margin:0; padding:8px; background:rgba(255,255,255,0.5); border-radius:5px; font-size:13px;">ℹ️ ${atelier.informations_eleves}</p>` : ''}
-                            ${atelier.creneaux?.length > 0 ? `
-                                <div style="margin-top:10px;">
-                                    <strong style="font-size:12px;">Créneaux:</strong>
-                                    <div style="display:flex; flex-wrap:wrap; gap:5px; margin-top:5px;">
-                                        ${atelier.creneaux.map(c => `
-                                            <span style="background:white; padding:3px 8px; border-radius:5px; font-size:11px; border:1px solid #ddd;">
-                                                ${c.jour.charAt(0).toUpperCase() + c.jour.slice(1)} ${c.periode} ${c.salle_nom ? '• ' + c.salle_nom : ''}
-                                            </span>
-                                        `).join('')}
-                                    </div>
-                                </div>
+                        
+                        <!-- Corps -->
+                        <div style="padding:15px;">
+                            <h3 style="margin:0 0 8px 0; font-size:16px; color:#1e3a5f;">${atelier.nom}</h3>
+                            
+                            <!-- Enseignants -->
+                            <div style="display:flex; align-items:center; gap:6px; margin-bottom:10px; color:#4b5563; font-size:13px;">
+                                <span>👨‍🏫</span>
+                                <span>${atelier.enseignants || '-'}</span>
+                            </div>
+                            
+                            <!-- Badges -->
+                            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+                                <span style="background:#e0f2fe; color:#0369a1; padding:3px 10px; border-radius:15px; font-size:11px;">
+                                    👥 ${atelier.nombre_places_max} places
+                                </span>
+                                ${atelier.creneaux?.length > 0 ? `
+                                    <span style="background:#fef3c7; color:#92400e; padding:3px 10px; border-radius:15px; font-size:11px;">
+                                        📅 ${atelier.creneaux.length} créneau${atelier.creneaux.length > 1 ? 'x' : ''}
+                                    </span>
+                                ` : ''}
+                            </div>
+                            
+                            <!-- Description courte -->
+                            ${atelier.description ? `
+                                <p style="margin:0; font-size:13px; color:#6b7280; line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">
+                                    ${atelier.description}
+                                </p>
                             ` : ''}
+                            
+                            <!-- Détails (cachés par défaut) -->
+                            <div class="card-details hidden" style="margin-top:12px; padding-top:12px; border-top:1px solid #e5e7eb;">
+                                ${atelier.description ? `
+                                    <p style="margin:0 0 10px 0; font-size:13px; color:#374151; line-height:1.5;">
+                                        ${atelier.description}
+                                    </p>
+                                ` : ''}
+                                
+                                ${atelier.informations_eleves ? `
+                                    <div style="background:#f0fdf4; padding:10px; border-radius:8px; margin-bottom:10px;">
+                                        <p style="margin:0; font-size:12px; color:#166534;">
+                                            ℹ️ ${atelier.informations_eleves}
+                                        </p>
+                                    </div>
+                                ` : ''}
+                                
+                                ${atelier.creneaux?.length > 0 ? `
+                                    <div>
+                                        <strong style="font-size:12px; color:#374151;">📅 Créneaux planifiés :</strong>
+                                        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">
+                                            ${atelier.creneaux.map(c => `
+                                                <span style="background:#f3f4f6; padding:5px 10px; border-radius:6px; font-size:12px; color:#374151;">
+                                                    <strong>${c.jour.charAt(0).toUpperCase() + c.jour.slice(1)}</strong> ${c.periode}
+                                                    ${c.salle_nom ? `<span style="color:#6b7280;">• ${c.salle_nom}</span>` : ''}
+                                                </span>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                ` : '<p style="margin:0; font-size:12px; color:#9ca3af;">Pas encore planifié</p>'}
+                            </div>
+                            
+                            <div style="text-align:center; margin-top:10px;">
+                                <span style="font-size:11px; color:#9ca3af;">Cliquer pour voir les détails ▼</span>
+                            </div>
                         </div>
                     </div>
                 `;
             });
             
+            html += '</div>';
             document.getElementById('catalogueContainer').innerHTML = html;
         }
 
