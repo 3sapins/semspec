@@ -546,6 +546,23 @@ router.get('/grid', async (req, res) => {
             JOIN creneaux c ON p.creneau_id = c.id
         `);
         
+        // Charger aussi les piquets/dégagements
+        let piquets = [];
+        try {
+            piquets = await query(`
+                SELECT ep.id, ep.utilisateur_id, ep.creneau_id, ep.type,
+                    u.nom as enseignant_nom, u.prenom as enseignant_prenom, u.acronyme as enseignant_acronyme,
+                    c.jour, c.periode, c.ordre,
+                    'Salle des maîtres' as salle_nom
+                FROM enseignants_piquet ep
+                JOIN utilisateurs u ON ep.utilisateur_id = u.id
+                JOIN creneaux c ON ep.creneau_id = c.id
+                ORDER BY c.ordre
+            `);
+        } catch (e) {
+            console.error('Erreur chargement piquets pour grid:', e);
+        }
+        
         const grid = {};
         const allCreneaux = ['lundi-P1-2', 'lundi-P3-4', 'lundi-P6-7', 'mardi-P1-2', 'mardi-P3-4', 'mardi-P6-7', 
             'mercredi-P1-2', 'mercredi-P3-4', 'jeudi-P1-2', 'jeudi-P3-4', 'jeudi-P6-7', 
@@ -589,6 +606,41 @@ router.get('/grid', async (req, res) => {
                         };
                     }
                 }
+            }
+        });
+        
+        // Ajouter les piquets dans la "Salle des maîtres"
+        piquets.forEach(p => {
+            if (!grid[p.jour]) grid[p.jour] = {};
+            if (!grid[p.jour][p.periode]) grid[p.jour][p.periode] = {};
+            
+            const salleName = 'Salle des maîtres';
+            
+            // Si plusieurs enseignants en piquet sur le même créneau, on les cumule
+            if (grid[p.jour][p.periode][salleName]) {
+                // Ajouter l'enseignant à la liste existante
+                const existing = grid[p.jour][p.periode][salleName];
+                if (existing.enseignants_list) {
+                    existing.enseignants_list.push(`${p.enseignant_prenom} ${p.enseignant_nom}`);
+                    existing.enseignant_acronyme += `, ${p.enseignant_acronyme}`;
+                } else {
+                    existing.enseignants_list = [existing.atelier_nom.replace('🚨 ', '').replace('📋 ', ''), `${p.enseignant_prenom} ${p.enseignant_nom}`];
+                }
+                existing.atelier_nom = p.type === 'piquet' ? '🚨 Piquet' : '📋 Dégagement';
+            } else {
+                grid[p.jour][p.periode][salleName] = {
+                    planning_id: null,
+                    atelier_id: null,
+                    atelier_nom: p.type === 'piquet' ? '🚨 Piquet' : '📋 Dégagement',
+                    enseignant_acronyme: p.enseignant_acronyme,
+                    enseignants: `${p.enseignant_prenom} ${p.enseignant_nom}`,
+                    nombre_inscrits: null,
+                    nombre_places_max: null,
+                    nombre_creneaux: 1,
+                    duree: 2,
+                    type: p.type,
+                    is_piquet: true
+                };
             }
         });
         

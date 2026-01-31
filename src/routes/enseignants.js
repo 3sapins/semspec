@@ -298,6 +298,8 @@ router.get('/mon-horaire', async (req, res) => {
         const acronyme = req.user.acronyme;
         const userId = req.user.id;
         
+        console.log(`[mon-horaire] Chargement pour ${acronyme} (userId: ${userId})`);
+        
         // Ateliers de l'enseignant
         const horaire = await query(`
             SELECT p.id as planning_id, p.creneau_id, p.nombre_creneaux,
@@ -313,16 +315,38 @@ router.get('/mon-horaire', async (req, res) => {
             ORDER BY c.ordre
         `, [acronyme, acronyme, acronyme]);
         
-        // Piquets et dégagements de l'enseignant
-        const piquets = await query(`
-            SELECT ep.id, ep.creneau_id, ep.type, ep.commentaire,
-                c.jour, c.periode, c.ordre,
-                'Salle des maîtres' as salle_nom
-            FROM enseignants_piquet ep
-            JOIN creneaux c ON ep.creneau_id = c.id
-            WHERE ep.utilisateur_id = ?
-            ORDER BY c.ordre
-        `, [userId]);
+        console.log(`[mon-horaire] ${horaire.length} ateliers trouvés`);
+        
+        // Piquets et dégagements de l'enseignant (avec fallback si colonne commentaire n'existe pas)
+        let piquets = [];
+        try {
+            piquets = await query(`
+                SELECT ep.id, ep.creneau_id, ep.type, ep.commentaire,
+                    c.jour, c.periode, c.ordre,
+                    'Salle des maîtres' as salle_nom
+                FROM enseignants_piquet ep
+                JOIN creneaux c ON ep.creneau_id = c.id
+                WHERE ep.utilisateur_id = ?
+                ORDER BY c.ordre
+            `, [userId]);
+        } catch (e) {
+            if (e.code === 'ER_BAD_FIELD_ERROR') {
+                // Colonne commentaire n'existe pas
+                piquets = await query(`
+                    SELECT ep.id, ep.creneau_id, ep.type, NULL as commentaire,
+                        c.jour, c.periode, c.ordre,
+                        'Salle des maîtres' as salle_nom
+                    FROM enseignants_piquet ep
+                    JOIN creneaux c ON ep.creneau_id = c.id
+                    WHERE ep.utilisateur_id = ?
+                    ORDER BY c.ordre
+                `, [userId]);
+            } else {
+                console.error('[mon-horaire] Erreur piquets:', e);
+            }
+        }
+        
+        console.log(`[mon-horaire] ${piquets.length} piquets/dégagements trouvés`);
         
         // Combiner les deux
         const combined = [
@@ -344,6 +368,8 @@ router.get('/mon-horaire', async (req, res) => {
                 commentaire: p.commentaire
             }))
         ].sort((a, b) => a.ordre - b.ordre);
+        
+        console.log(`[mon-horaire] Total combiné: ${combined.length} éléments`);
         
         const creneaux = await query('SELECT * FROM creneaux ORDER BY ordre');
         
