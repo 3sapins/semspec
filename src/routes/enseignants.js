@@ -2,8 +2,244 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../config/database');
 const { authMiddleware, enseignantMiddleware } = require('../middleware/auth');
+const bcrypt = require('bcrypt');
 
 router.use(authMiddleware, enseignantMiddleware);
+
+/**
+ * GET /api/enseignants/profil
+ * Profil de l'enseignant connecté
+ */
+router.get('/profil', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        const user = await query(`
+            SELECT id, acronyme, nom, prenom, email, charge_max
+            FROM utilisateurs WHERE id = ?
+        `, [userId]);
+        
+        if (user.length === 0) {
+            return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+        }
+        
+        // Calculer la charge actuelle
+        const chargeActuelle = await query(`
+            SELECT COALESCE(SUM(a.duree), 0) as charge
+            FROM planning p
+            JOIN ateliers a ON p.atelier_id = a.id
+            WHERE a.enseignant_acronyme = ? OR a.enseignant2_acronyme = ? OR a.enseignant3_acronyme = ?
+        `, [user[0].acronyme, user[0].acronyme, user[0].acronyme]);
+        
+        res.json({ 
+            success: true, 
+            data: {
+                ...user[0],
+                charge_actuelle: chargeActuelle[0]?.charge || 0
+            }
+        });
+    } catch (error) {
+        console.error('Erreur profil:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * PUT /api/enseignants/mot-de-passe
+ * Changer son mot de passe
+ */
+router.put('/mot-de-passe', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { ancien_mot_de_passe, nouveau_mot_de_passe } = req.body;
+        
+        if (!ancien_mot_de_passe || !nouveau_mot_de_passe) {
+            return res.status(400).json({ success: false, message: 'Ancien et nouveau mot de passe requis' });
+        }
+        
+        if (nouveau_mot_de_passe.length < 4) {
+            return res.status(400).json({ success: false, message: 'Le nouveau mot de passe doit faire au moins 4 caractères' });
+        }
+        
+        // Vérifier l'ancien mot de passe
+        const user = await query('SELECT mot_de_passe FROM utilisateurs WHERE id = ?', [userId]);
+        if (user.length === 0) {
+            return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+        }
+        
+        const validPassword = await bcrypt.compare(ancien_mot_de_passe, user[0].mot_de_passe);
+        if (!validPassword) {
+            return res.status(400).json({ success: false, message: 'Ancien mot de passe incorrect' });
+        }
+        
+        // Hasher et enregistrer le nouveau
+        const hashedPassword = await bcrypt.hash(nouveau_mot_de_passe, 10);
+        await query('UPDATE utilisateurs SET mot_de_passe = ? WHERE id = ?', [hashedPassword, userId]);
+        
+        res.json({ success: true, message: 'Mot de passe modifié avec succès' });
+    } catch (error) {
+        console.error('Erreur changement mot de passe:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * GET /api/enseignants/ma-charge
+ * Charge actuelle de l'enseignant
+ */
+router.get('/ma-charge', async (req, res) => {
+    try {
+        const acronyme = req.user.acronyme;
+        
+        // Charge max définie
+        const user = await query('SELECT charge_max FROM utilisateurs WHERE acronyme = ?', [acronyme]);
+        const chargeMax = user[0]?.charge_max || 0;
+        
+        // Charge actuelle (ateliers placés dans le planning)
+        const chargeActuelle = await query(`
+            SELECT COALESCE(SUM(a.duree), 0) as charge
+            FROM planning p
+            JOIN ateliers a ON p.atelier_id = a.id
+            WHERE a.enseignant_acronyme = ? OR a.enseignant2_acronyme = ? OR a.enseignant3_acronyme = ?
+        `, [acronyme, acronyme, acronyme]);
+        
+        // Détail par atelier
+        const detail = await query(`
+            SELECT a.id, a.nom, a.duree, c.jour, c.periode
+            FROM planning p
+            JOIN ateliers a ON p.atelier_id = a.id
+            JOIN creneaux c ON p.creneau_id = c.id
+            WHERE a.enseignant_acronyme = ? OR a.enseignant2_acronyme = ? OR a.enseignant3_acronyme = ?
+            ORDER BY c.ordre
+        `, [acronyme, acronyme, acronyme]);
+        
+        res.json({ 
+            success: true, 
+            data: {
+                charge_max: chargeMax,
+                charge_actuelle: chargeActuelle[0]?.charge || 0,
+                detail: detail
+            }
+        });
+    } catch (error) {
+        console.error('Erreur charge:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * GET /api/enseignants/presences/:planningId
+ * Liste des élèves avec statut de présence pour un créneau
+ */
+router.get('/presences/:planningId', async (req, res) => {
+    try {
+        const { planningId } = req.params;
+        const acronyme = req.user.acronyme;
+        
+        // Vérifier que c'est bien un atelier de cet enseignant
+        const planning = await query(`
+            SELECT p.id, p.creneau_id, a.id as atelier_id, a.nom as atelier_nom, 
+                c.jour, c.periode, s.nom as salle_nom
+            FROM planning p
+            JOIN ateliers a ON p.atelier_id = a.id
+            JOIN creneaux c ON p.creneau_id = c.id
+            LEFT JOIN salles s ON p.salle_id = s.id
+            WHERE p.id = ? AND (a.enseignant_acronyme = ? OR a.enseignant2_acronyme = ? OR a.enseignant3_acronyme = ?)
+        `, [planningId, acronyme, acronyme, acronyme]);
+        
+        if (planning.length === 0) {
+            return res.status(404).json({ success: false, message: 'Créneau non trouvé ou non autorisé' });
+        }
+        
+        // Liste des élèves inscrits avec leur statut de présence
+        const eleves = await query(`
+            SELECT 
+                e.id as eleve_id,
+                u.nom, u.prenom,
+                cl.nom as classe_nom,
+                COALESCE(pr.statut, 'non_pointe') as presence_statut,
+                pr.commentaire as presence_commentaire,
+                pr.id as presence_id
+            FROM inscriptions i
+            JOIN eleves e ON i.eleve_id = e.id
+            JOIN utilisateurs u ON e.utilisateur_id = u.id
+            JOIN classes cl ON e.classe_id = cl.id
+            LEFT JOIN presences pr ON pr.eleve_id = e.id AND pr.atelier_id = ? AND pr.creneau_id = ?
+            WHERE i.planning_id = ? AND i.statut = 'confirmee'
+            ORDER BY cl.nom, u.nom, u.prenom
+        `, [planning[0].atelier_id, planning[0].creneau_id, planningId]);
+        
+        res.json({ 
+            success: true, 
+            data: {
+                planning: planning[0],
+                eleves: eleves
+            }
+        });
+    } catch (error) {
+        console.error('Erreur presences:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * POST /api/enseignants/presences/:planningId
+ * Enregistrer/modifier les présences
+ */
+router.post('/presences/:planningId', async (req, res) => {
+    try {
+        const { planningId } = req.params;
+        const { presences } = req.body; // [{eleve_id, statut, commentaire}, ...]
+        const acronyme = req.user.acronyme;
+        
+        if (!Array.isArray(presences)) {
+            return res.status(400).json({ success: false, message: 'Liste de présences requise' });
+        }
+        
+        // Vérifier que c'est bien un atelier de cet enseignant
+        const planning = await query(`
+            SELECT p.id, p.creneau_id, a.id as atelier_id
+            FROM planning p
+            JOIN ateliers a ON p.atelier_id = a.id
+            WHERE p.id = ? AND (a.enseignant_acronyme = ? OR a.enseignant2_acronyme = ? OR a.enseignant3_acronyme = ?)
+        `, [planningId, acronyme, acronyme, acronyme]);
+        
+        if (planning.length === 0) {
+            return res.status(404).json({ success: false, message: 'Créneau non trouvé ou non autorisé' });
+        }
+        
+        const atelierId = planning[0].atelier_id;
+        const creneauId = planning[0].creneau_id;
+        
+        // Enregistrer chaque présence
+        for (const p of presences) {
+            if (!p.eleve_id || !p.statut) continue;
+            
+            // Upsert présence
+            const existing = await query(
+                'SELECT id FROM presences WHERE eleve_id = ? AND atelier_id = ? AND creneau_id = ?',
+                [p.eleve_id, atelierId, creneauId]
+            );
+            
+            if (existing.length > 0) {
+                await query(
+                    'UPDATE presences SET statut = ?, commentaire = ? WHERE id = ?',
+                    [p.statut, p.commentaire || null, existing[0].id]
+                );
+            } else {
+                await query(
+                    'INSERT INTO presences (eleve_id, atelier_id, creneau_id, statut, commentaire) VALUES (?, ?, ?, ?, ?)',
+                    [p.eleve_id, atelierId, creneauId, p.statut, p.commentaire || null]
+                );
+            }
+        }
+        
+        res.json({ success: true, message: 'Présences enregistrées' });
+    } catch (error) {
+        console.error('Erreur enregistrement presences:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
 
 /**
  * GET /api/enseignants/dashboard
@@ -116,6 +352,33 @@ router.get('/listes/:planningId', async (req, res) => {
         res.json({ success: true, data: { planning: planning[0], eleves: eleves } });
     } catch (error) {
         console.error('Erreur liste:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * GET /api/enseignants/atelier/:id
+ * Obtenir un atelier spécifique (pour modification)
+ */
+router.get('/atelier/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const acronyme = req.user.acronyme;
+        
+        const atelier = await query(`
+            SELECT a.*, t.nom as theme_nom, t.couleur as theme_couleur
+            FROM ateliers a
+            LEFT JOIN themes t ON a.theme_id = t.id
+            WHERE a.id = ? AND (a.enseignant_acronyme = ? OR a.enseignant2_acronyme = ? OR a.enseignant3_acronyme = ?)
+        `, [id, acronyme, acronyme, acronyme]);
+        
+        if (atelier.length === 0) {
+            return res.status(404).json({ success: false, message: 'Atelier non trouvé ou non autorisé' });
+        }
+        
+        res.json({ success: true, data: atelier[0] });
+    } catch (error) {
+        console.error('Erreur atelier:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
