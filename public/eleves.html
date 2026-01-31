@@ -670,24 +670,15 @@
         // Charger toutes les données
         async function loadData() {
             try {
-                // Charger ateliers disponibles
-                const respAteliers = await fetch(`${API_URL}/eleves/ateliers-disponibles`, {
+                // Charger le profil pour avoir la classe
+                const respProfil = await fetch(`${API_URL}/eleves/profil`, {
                     headers: { 'Authorization': `Bearer ${currentToken}` }
                 });
-                const dataAteliers = await respAteliers.json();
+                const dataProfil = await respProfil.json();
                 
-                if (dataAteliers.success) {
-                    ateliersData = dataAteliers.data || [];
-                    inscriptionsOuvertes = dataAteliers.inscriptions_ouvertes;
-                    document.getElementById('userClasse').textContent = dataAteliers.eleve_info?.classe || '-';
-                    
-                    // Extraire les thèmes uniques
-                    const themesSet = new Set();
-                    ateliersData.forEach(a => {
-                        if (a.theme_nom) themesSet.add(a.theme_nom);
-                    });
-                    themesData = [...themesSet].sort();
-                    populateThemeFilter();
+                if (dataProfil.success) {
+                    document.getElementById('userClasse').textContent = dataProfil.data?.classe_nom || '-';
+                    inscriptionsOuvertes = dataProfil.data?.inscriptions_ouvertes !== false;
                     
                     if (!inscriptionsOuvertes) {
                         document.getElementById('alertsBanner').innerHTML = `
@@ -698,6 +689,29 @@
                     } else {
                         document.getElementById('alertsBanner').innerHTML = '';
                     }
+                }
+
+                // Charger le catalogue des ateliers
+                const respCatalogue = await fetch(`${API_URL}/eleves/catalogue`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                const dataCatalogue = await respCatalogue.json();
+                
+                if (dataCatalogue.success) {
+                    ateliersData = dataCatalogue.data.ateliers || [];
+                    
+                    // Extraire les thèmes depuis la liste des thèmes
+                    if (dataCatalogue.data.themes) {
+                        themesData = dataCatalogue.data.themes.map(t => t.nom);
+                    } else {
+                        // Fallback: extraire des ateliers
+                        const themesSet = new Set();
+                        ateliersData.forEach(a => {
+                            if (a.theme_nom) themesSet.add(a.theme_nom);
+                        });
+                        themesData = [...themesSet].sort();
+                    }
+                    populateThemeFilter();
                 }
 
                 // Charger mes inscriptions
@@ -712,8 +726,9 @@
                     // Calculer les créneaux occupés
                     creneauxOccupes = new Set();
                     inscriptionsData.forEach(insc => {
-                        if (insc.creneau_id && insc.nombre_creneaux) {
-                            for (let i = 0; i < insc.nombre_creneaux; i++) {
+                        const nbCreneaux = insc.nombre_creneaux || Math.ceil((insc.duree || 2) / 2);
+                        if (insc.creneau_id) {
+                            for (let i = 0; i < nbCreneaux; i++) {
                                 creneauxOccupes.add(insc.creneau_id + i);
                             }
                         }
@@ -736,6 +751,7 @@
                 
             } catch (error) {
                 console.error('Erreur chargement:', error);
+                document.getElementById('catalogueContainer').innerHTML = '<div class="no-ateliers">Erreur de chargement. Veuillez rafraîchir la page.</div>';
             }
         }
 
