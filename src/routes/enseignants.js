@@ -884,10 +884,5 @@ router.get('/catalogue-simple', async (req, res) => {
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
-    } catch (error) {
-        console.error('Erreur catalogue simple:', error);
-        res.status(500).json({ success: false, message: 'Erreur serveur' });
-    }
-});
 
 module.exports = router;
