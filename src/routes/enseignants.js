@@ -671,4 +671,186 @@ router.delete('/ateliers/:id', async (req, res) => {
     }
 });
 
+// ===================== HORAIRES ÉLÈVES =====================
+
+/**
+ * GET /api/enseignants/classes
+ * Liste des classes
+ */
+router.get('/classes', async (req, res) => {
+    try {
+        const classes = await query(`
+            SELECT id, nom, niveau,
+                (SELECT COUNT(*) FROM eleves WHERE classe_id = classes.id) as nb_eleves
+            FROM classes
+            ORDER BY niveau, nom
+        `);
+        res.json({ success: true, data: classes });
+    } catch (error) {
+        console.error('Erreur classes:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * GET /api/enseignants/eleves/recherche
+ * Rechercher un élève par nom/prénom
+ */
+router.get('/eleves/recherche', async (req, res) => {
+    try {
+        const { q } = req.query;
+        if (!q || q.length < 2) {
+            return res.json({ success: true, data: [] });
+        }
+        
+        const eleves = await query(`
+            SELECT e.id, u.nom, u.prenom, c.nom as classe_nom
+            FROM eleves e
+            JOIN utilisateurs u ON e.utilisateur_id = u.id
+            JOIN classes c ON e.classe_id = c.id
+            WHERE u.nom LIKE ? OR u.prenom LIKE ?
+            ORDER BY u.nom, u.prenom
+            LIMIT 20
+        `, [`%${q}%`, `%${q}%`]);
+        
+        res.json({ success: true, data: eleves });
+    } catch (error) {
+        console.error('Erreur recherche élèves:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * GET /api/enseignants/classe/:classeId/eleves
+ * Liste des élèves d'une classe avec leur horaire
+ */
+router.get('/classe/:classeId/eleves', async (req, res) => {
+    try {
+        const { classeId } = req.params;
+        
+        const classe = await query('SELECT id, nom, niveau FROM classes WHERE id = ?', [classeId]);
+        if (classe.length === 0) {
+            return res.status(404).json({ success: false, message: 'Classe non trouvée' });
+        }
+        
+        const eleves = await query(`
+            SELECT e.id, u.nom, u.prenom
+            FROM eleves e
+            JOIN utilisateurs u ON e.utilisateur_id = u.id
+            WHERE e.classe_id = ?
+            ORDER BY u.nom, u.prenom
+        `, [classeId]);
+        
+        res.json({ success: true, data: { classe: classe[0], eleves } });
+    } catch (error) {
+        console.error('Erreur élèves classe:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * GET /api/enseignants/eleve/:eleveId/horaire
+ * Horaire d'un élève spécifique
+ */
+router.get('/eleve/:eleveId/horaire', async (req, res) => {
+    try {
+        const { eleveId } = req.params;
+        
+        // Info élève
+        const eleve = await query(`
+            SELECT e.id, u.nom, u.prenom, c.nom as classe_nom
+            FROM eleves e
+            JOIN utilisateurs u ON e.utilisateur_id = u.id
+            JOIN classes c ON e.classe_id = c.id
+            WHERE e.id = ?
+        `, [eleveId]);
+        
+        if (eleve.length === 0) {
+            return res.status(404).json({ success: false, message: 'Élève non trouvé' });
+        }
+        
+        // Inscriptions
+        const inscriptions = await query(`
+            SELECT 
+                i.id as inscription_id,
+                a.nom as atelier_nom,
+                a.duree,
+                c.id as creneau_id,
+                c.jour,
+                c.periode,
+                c.ordre,
+                s.nom as salle_nom,
+                COALESCE(p.nombre_creneaux, CEIL(a.duree / 2)) as nombre_creneaux,
+                t.couleur as theme_couleur
+            FROM inscriptions i
+            JOIN planning p ON i.planning_id = p.id
+            JOIN ateliers a ON p.atelier_id = a.id
+            JOIN creneaux c ON p.creneau_id = c.id
+            LEFT JOIN salles s ON p.salle_id = s.id
+            LEFT JOIN themes t ON a.theme_id = t.id
+            WHERE i.eleve_id = ? AND i.statut = 'confirmee'
+            ORDER BY c.ordre
+        `, [eleveId]);
+        
+        // Créneaux
+        const creneaux = await query('SELECT * FROM creneaux ORDER BY ordre');
+        
+        res.json({ success: true, data: { eleve: eleve[0], inscriptions, creneaux } });
+    } catch (error) {
+        console.error('Erreur horaire élève:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * GET /api/enseignants/catalogue-simple
+ * Catalogue simplifié (sans inscriptions par ligne)
+ */
+router.get('/catalogue-simple', async (req, res) => {
+    try {
+        // Récupérer tous les ateliers validés
+        const ateliers = await query(`
+            SELECT 
+                a.id,
+                a.nom,
+                a.description,
+                a.informations_eleves,
+                a.duree,
+                a.nombre_places_max,
+                t.id as theme_id,
+                t.nom as theme_nom,
+                t.couleur as theme_couleur,
+                t.icone as theme_icone
+            FROM ateliers a
+            LEFT JOIN themes t ON a.theme_id = t.id
+            WHERE a.statut = 'valide'
+            ORDER BY t.nom, a.nom
+        `);
+        
+        // Pour chaque atelier, récupérer ses créneaux planifiés
+        for (const atelier of ateliers) {
+            const creneaux = await query(`
+                SELECT 
+                    p.id as planning_id,
+                    c.jour,
+                    c.periode,
+                    s.nom as salle_nom
+                FROM planning p
+                JOIN creneaux c ON p.creneau_id = c.id
+                LEFT JOIN salles s ON p.salle_id = s.id
+                WHERE p.atelier_id = ?
+                ORDER BY c.ordre
+            `, [atelier.id]);
+            atelier.creneaux = creneaux;
+        }
+        
+        const themes = await query('SELECT * FROM themes ORDER BY nom');
+        
+        res.json({ success: true, data: { ateliers, themes } });
+    } catch (error) {
+        console.error('Erreur catalogue simple:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
 module.exports = router;
