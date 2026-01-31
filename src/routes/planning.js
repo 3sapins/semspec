@@ -84,19 +84,23 @@ router.get('/ateliers-valides', async (req, res) => {
 /**
  * POST /api/planning/allouer
  * Allocation automatique intelligente avec règles complètes :
- * 1. Multiplication des ateliers pour remplir la charge des enseignants
- * 2. Répartition équitable sur tous les jours de la semaine
- * 3. Priorité : 6 périodes (début P1-2) > 4 périodes (P1-2 ou P3-4) > 2 périodes
- * 4. Respect des disponibilités enseignants
- * 5. Respect de la charge max (nombre de périodes)
- * 6. Respect du type de salle demandé
- * 7. Ateliers multi-créneaux sur le même jour
+ * 
+ * PRIORITÉ 1: Placer chaque atelier validé AU MOINS UNE FOIS
+ * PRIORITÉ 2: Multiplier les ateliers pour remplir la charge des enseignants
+ * 
+ * Règles:
+ * - Répartition équitable sur tous les jours de la semaine
+ * - Priorité durée : 6 périodes > 4 périodes > 2 périodes
+ * - Respect des disponibilités enseignants
+ * - Respect de la charge max (nombre de périodes)
+ * - Respect du type de salle demandé
+ * - Ateliers multi-créneaux sur le même jour
  */
 router.post('/allouer', async (req, res) => {
     try {
         console.log('🔄 Début de l\'allocation automatique...');
         
-        // 1. Charger tous les ateliers validés (même déjà placés pour multiplication)
+        // 1. Charger tous les ateliers validés
         const ateliersBase = await query(`
             SELECT a.*, 
                 u.nom as enseignant_nom, 
@@ -122,7 +126,7 @@ router.post('/allouer', async (req, res) => {
         // 2. Charger les créneaux ordonnés
         const creneaux = await query('SELECT * FROM creneaux ORDER BY ordre');
         
-        // Organiser les créneaux par jour avec ordre des jours
+        // Organiser les créneaux par jour
         const joursOrdre = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
         const creneauxParJour = {};
         joursOrdre.forEach(jour => { creneauxParJour[jour] = []; });
@@ -141,55 +145,49 @@ router.post('/allouer', async (req, res) => {
             dispoMap[d.enseignant_acronyme].add(d.creneau_id);
         });
         
-        // 5. Charger les charges max et actuelles des enseignants
-        const enseignantsData = await query(`
-            SELECT acronyme, COALESCE(charge_max, 0) as charge_max 
-            FROM utilisateurs 
-            WHERE role = 'enseignant'
-        `);
+        // 5. Charger les charges max
+        const enseignantsData = await query(`SELECT acronyme, COALESCE(charge_max, 0) as charge_max FROM utilisateurs WHERE role = 'enseignant'`);
         const chargeMaxMap = {};
         enseignantsData.forEach(e => { chargeMaxMap[e.acronyme] = e.charge_max; });
         
         const chargesActuelles = await query(`
             SELECT a.enseignant_acronyme, SUM(a.duree) as charge_utilisee
-            FROM planning p
-            JOIN ateliers a ON p.atelier_id = a.id
+            FROM planning p JOIN ateliers a ON p.atelier_id = a.id
             GROUP BY a.enseignant_acronyme
         `);
         const chargeMap = {};
         chargesActuelles.forEach(c => { chargeMap[c.enseignant_acronyme] = c.charge_utilisee || 0; });
         
         // 6. Initialiser les structures d'occupation
-        const salleOccupee = {}; // salleOccupee[creneau_id][salle_id] = atelier_id
-        const enseignantOccupe = {}; // enseignantOccupe[creneau_id][acronyme] = atelier_id
+        const salleOccupee = {};
+        const enseignantOccupe = {};
         creneaux.forEach(c => {
             salleOccupee[c.id] = {};
             enseignantOccupe[c.id] = {};
         });
         
-        // Compteur d'occupation par jour pour répartition équitable
         const occupationParJour = {};
         joursOrdre.forEach(jour => { occupationParJour[jour] = 0; });
+        
+        // Tracker : quels ateliers ont déjà été placés
+        const ateliersPlacesAuMoinsUneFois = new Set();
         
         // Charger les placements existants
         const placementsExistants = await query(`
             SELECT p.*, a.enseignant_acronyme, a.enseignant2_acronyme, a.enseignant3_acronyme, a.duree, c.jour
-            FROM planning p 
-            JOIN ateliers a ON p.atelier_id = a.id
-            JOIN creneaux c ON p.creneau_id = c.id
+            FROM planning p JOIN ateliers a ON p.atelier_id = a.id JOIN creneaux c ON p.creneau_id = c.id
         `);
         
         placementsExistants.forEach(p => {
+            ateliersPlacesAuMoinsUneFois.add(p.atelier_id);
+            occupationParJour[p.jour] = (occupationParJour[p.jour] || 0) + 1;
+            
             const nombreCreneaux = Math.ceil(p.duree / 2);
             const indexDebut = creneaux.findIndex(c => c.id === p.creneau_id);
-            
-            // Compter l'occupation par jour
-            occupationParJour[p.jour] = (occupationParJour[p.jour] || 0) + 1;
             
             for (let i = 0; i < nombreCreneaux && indexDebut + i < creneaux.length; i++) {
                 const creneauId = creneaux[indexDebut + i].id;
                 salleOccupee[creneauId][p.salle_id] = p.atelier_id;
-                
                 if (p.enseignant_acronyme) enseignantOccupe[creneauId][p.enseignant_acronyme] = p.atelier_id;
                 if (p.enseignant2_acronyme) enseignantOccupe[creneauId][p.enseignant2_acronyme] = p.atelier_id;
                 if (p.enseignant3_acronyme) enseignantOccupe[creneauId][p.enseignant3_acronyme] = p.atelier_id;
@@ -205,95 +203,61 @@ router.post('/allouer', async (req, res) => {
         
         const resultat = { placed: 0, failed: [], iterations: [] };
         
-        // Fonction pour obtenir le jour le moins chargé
-        function getJourMoinsCharge() {
-            let minJour = joursOrdre[0];
-            let minOccupation = occupationParJour[minJour];
-            
-            for (const jour of joursOrdre) {
-                if (occupationParJour[jour] < minOccupation) {
-                    minOccupation = occupationParJour[jour];
-                    minJour = jour;
-                }
-            }
-            return minJour;
-        }
-        
-        // Fonction pour trier les jours par occupation (moins chargé d'abord)
+        // Fonctions utilitaires
         function getJoursTriesParOccupation() {
             return [...joursOrdre].sort((a, b) => occupationParJour[a] - occupationParJour[b]);
         }
         
-        // Fonction pour vérifier si un enseignant est disponible sur des créneaux
         function enseignantDisponible(acronyme, creneauxIds) {
             if (!dispoMap[acronyme] || dispoMap[acronyme].size === 0) return true;
             return creneauxIds.every(id => dispoMap[acronyme].has(id));
         }
         
-        // Fonction pour vérifier si un enseignant n'est pas déjà occupé
         function enseignantLibre(acronyme, creneauxIds) {
             return creneauxIds.every(id => !enseignantOccupe[id][acronyme]);
         }
         
-        // Fonction pour vérifier la charge max
         function chargeRestante(acronyme) {
             const chargeMax = chargeMaxMap[acronyme] || 0;
-            if (chargeMax === 0) return 999; // Pas de limite
-            const chargeActuelle = chargeMap[acronyme] || 0;
-            return chargeMax - chargeActuelle;
+            if (chargeMax === 0) return 999;
+            return chargeMax - (chargeMap[acronyme] || 0);
         }
         
-        // Fonction pour trouver une salle compatible
         function trouverSalle(atelier, creneauxIds) {
             for (const salle of salles) {
                 if (salle.capacite < atelier.nombre_places_max) continue;
-                
-                if (atelier.type_salle_demande && atelier.type_salle_demande !== '') {
-                    if (salle.type_salle !== atelier.type_salle_demande) continue;
-                }
-                
-                const salleLibre = creneauxIds.every(id => !salleOccupee[id][salle.id]);
-                if (salleLibre) return salle;
+                if (atelier.type_salle_demande && atelier.type_salle_demande !== '' && salle.type_salle !== atelier.type_salle_demande) continue;
+                if (creneauxIds.every(id => !salleOccupee[id][salle.id])) return salle;
             }
             return null;
         }
         
-        // Fonction pour obtenir les créneaux de début possibles selon durée et jour
         function getCreneauxDebut(duree, jour) {
             const creneauxJour = creneauxParJour[jour];
             const possibles = [];
             
             if (duree === 6) {
-                // 6 périodes : doit commencer en P1-2, besoin de 3 créneaux
                 if (creneauxJour.length >= 3) {
                     const p12 = creneauxJour.find(c => c.periode === 'P1-2');
                     if (p12) possibles.push({ creneau: p12, creneauxJour });
                 }
             } else if (duree === 4) {
-                // 4 périodes : P1-2 (matin) ou P3-4 (après-midi sauf mercredi)
                 const p12 = creneauxJour.find(c => c.periode === 'P1-2');
                 const p34 = creneauxJour.find(c => c.periode === 'P3-4');
                 const p67 = creneauxJour.find(c => c.periode === 'P6-7');
-                
                 if (p12 && p34) possibles.push({ creneau: p12, creneauxJour });
                 if (jour !== 'mercredi' && p34 && p67) possibles.push({ creneau: p34, creneauxJour });
             } else {
-                // 2 périodes : n'importe quel créneau
-                creneauxJour.forEach(c => {
-                    possibles.push({ creneau: c, creneauxJour });
-                });
+                creneauxJour.forEach(c => possibles.push({ creneau: c, creneauxJour }));
             }
-            
             return possibles;
         }
         
-        // Fonction pour placer un atelier sur un jour spécifique
-        async function placerAtelierSurJour(atelier, jour) {
+        async function placerAtelierSurJour(atelier, jour, ignoreChargeMax = false) {
             const nombreCreneaux = Math.ceil(atelier.duree / 2);
             const acronyme = atelier.enseignant_acronyme;
             
-            // Vérifier qu'il reste de la charge
-            if (chargeRestante(acronyme) < atelier.duree) {
+            if (!ignoreChargeMax && chargeRestante(acronyme) < atelier.duree) {
                 return { success: false, raison: 'Charge max atteinte' };
             }
             
@@ -301,7 +265,6 @@ router.post('/allouer', async (req, res) => {
             
             for (const { creneau, creneauxJour } of creneauxDebut) {
                 const indexDansJour = creneauxJour.findIndex(c => c.id === creneau.id);
-                
                 if (indexDansJour + nombreCreneaux > creneauxJour.length) continue;
                 
                 const creneauxNecessaires = [];
@@ -310,11 +273,9 @@ router.post('/allouer', async (req, res) => {
                 }
                 const creneauxIds = creneauxNecessaires.map(c => c.id);
                 
-                // Vérifications enseignant principal
                 if (!enseignantDisponible(acronyme, creneauxIds)) continue;
                 if (!enseignantLibre(acronyme, creneauxIds)) continue;
                 
-                // Vérifications enseignants supplémentaires
                 if (atelier.enseignant2_acronyme) {
                     if (!enseignantDisponible(atelier.enseignant2_acronyme, creneauxIds)) continue;
                     if (!enseignantLibre(atelier.enseignant2_acronyme, creneauxIds)) continue;
@@ -324,18 +285,13 @@ router.post('/allouer', async (req, res) => {
                     if (!enseignantLibre(atelier.enseignant3_acronyme, creneauxIds)) continue;
                 }
                 
-                // Trouver une salle
                 const salle = trouverSalle(atelier, creneauxIds);
                 if (!salle) continue;
                 
-                // Placer !
                 try {
-                    await query(`
-                        INSERT INTO planning (atelier_id, salle_id, creneau_id, nombre_creneaux, valide) 
-                        VALUES (?, ?, ?, ?, TRUE)
-                    `, [atelier.id, salle.id, creneau.id, nombreCreneaux]);
+                    await query(`INSERT INTO planning (atelier_id, salle_id, creneau_id, nombre_creneaux, valide) VALUES (?, ?, ?, ?, TRUE)`,
+                        [atelier.id, salle.id, creneau.id, nombreCreneaux]);
                     
-                    // Mettre à jour les structures
                     creneauxIds.forEach(id => {
                         salleOccupee[id][salle.id] = atelier.id;
                         enseignantOccupe[id][acronyme] = atelier.id;
@@ -345,104 +301,92 @@ router.post('/allouer', async (req, res) => {
                     
                     chargeMap[acronyme] = (chargeMap[acronyme] || 0) + atelier.duree;
                     occupationParJour[jour]++;
+                    ateliersPlacesAuMoinsUneFois.add(atelier.id);
                     
                     return { success: true, jour, creneau: creneau.periode, salle: salle.nom };
-                    
                 } catch (error) {
                     console.error(`❌ Erreur placement:`, error);
                 }
             }
-            
-            return { success: false, raison: 'Pas de créneau disponible ce jour' };
+            return { success: false, raison: 'Pas de créneau disponible' };
         }
         
-        // Fonction pour placer un atelier en cherchant le meilleur jour
-        async function placerAtelier(atelier) {
-            const joursParOccupation = getJoursTriesParOccupation();
-            
-            for (const jour of joursParOccupation) {
-                const result = await placerAtelierSurJour(atelier, jour);
-                if (result.success) {
-                    return result;
-                }
+        async function placerAtelier(atelier, ignoreChargeMax = false) {
+            for (const jour of getJoursTriesParOccupation()) {
+                const result = await placerAtelierSurJour(atelier, jour, ignoreChargeMax);
+                if (result.success) return result;
             }
-            
             return { success: false, raison: 'Aucun créneau/salle disponible' };
         }
         
-        // Fonction pour placer toutes les itérations possibles d'un atelier
-        async function placerToutesIterations(atelier) {
+        // ========== PHASE 1 : Placer chaque atelier AU MOINS UNE FOIS ==========
+        console.log('');
+        console.log('═══════════════════════════════════════════════════════');
+        console.log('📌 PHASE 1: Placer chaque atelier au moins une fois');
+        console.log('═══════════════════════════════════════════════════════');
+        
+        const ateliersJamaisPlaces = ateliersBase.filter(a => !ateliersPlacesAuMoinsUneFois.has(a.id));
+        console.log(`📋 ${ateliersJamaisPlaces.length} ateliers jamais placés`);
+        
+        // Trier par durée (6p > 4p > 2p)
+        ateliersJamaisPlaces.sort((a, b) => b.duree - a.duree);
+        
+        for (const atelier of ateliersJamaisPlaces) {
+            const result = await placerAtelier(atelier, true); // ignoreChargeMax pour le 1er placement
+            if (result.success) {
+                resultat.placed++;
+                resultat.iterations.push({ atelier: atelier.nom, iteration: 1, phase: 'initial', jour: result.jour, creneau: result.creneau, salle: result.salle });
+                console.log(`✅ [Initial] "${atelier.nom}": ${result.jour} ${result.creneau} en ${result.salle}`);
+            } else {
+                resultat.failed.push({ id: atelier.id, nom: atelier.nom, enseignant: atelier.enseignant_acronyme, raison: result.raison });
+                console.log(`❌ [Initial] "${atelier.nom}": ${result.raison}`);
+            }
+        }
+        
+        // ========== PHASE 2 : Multiplier pour remplir les charges ==========
+        console.log('');
+        console.log('═══════════════════════════════════════════════════════');
+        console.log('📌 PHASE 2: Multiplier les ateliers pour remplir les charges');
+        console.log('═══════════════════════════════════════════════════════');
+        
+        // Trier tous les ateliers placés par durée
+        const ateliersAMultiplier = ateliersBase
+            .filter(a => ateliersPlacesAuMoinsUneFois.has(a.id))
+            .sort((a, b) => b.duree - a.duree);
+        
+        for (const atelier of ateliersAMultiplier) {
             const acronyme = atelier.enseignant_acronyme;
-            let iterationsPlacees = 0;
+            let iterNum = 1;
             
-            // Continuer tant qu'il reste de la charge et qu'on peut placer
             while (chargeRestante(acronyme) >= atelier.duree) {
-                const result = await placerAtelier(atelier);
-                
+                const result = await placerAtelier(atelier, false);
                 if (result.success) {
-                    iterationsPlacees++;
+                    iterNum++;
                     resultat.placed++;
-                    resultat.iterations.push({
-                        atelier: atelier.nom,
-                        iteration: iterationsPlacees,
-                        jour: result.jour,
-                        creneau: result.creneau,
-                        salle: result.salle
-                    });
-                    console.log(`✅ "${atelier.nom}" #${iterationsPlacees}: ${result.jour} ${result.creneau} en ${result.salle}`);
+                    resultat.iterations.push({ atelier: atelier.nom, iteration: iterNum, phase: 'multi', jour: result.jour, creneau: result.creneau, salle: result.salle });
+                    console.log(`✅ [Multi] "${atelier.nom}" #${iterNum}: ${result.jour} ${result.creneau} en ${result.salle}`);
                 } else {
-                    // Plus de créneaux disponibles pour cet atelier
                     break;
                 }
             }
-            
-            if (iterationsPlacees === 0) {
-                resultat.failed.push({ 
-                    id: atelier.id, 
-                    nom: atelier.nom, 
-                    enseignant: acronyme,
-                    raison: chargeRestante(acronyme) < atelier.duree ? 'Charge max atteinte' : 'Aucun créneau disponible'
-                });
-            }
-            
-            return iterationsPlacees;
         }
         
-        // 8. Placer les ateliers par ordre de priorité avec multiplication
-        
-        // 8a. D'abord les ateliers de 6 périodes (une seule itération car journée complète)
-        console.log('📌 Placement des ateliers 6 périodes...');
-        for (const atelier of ateliers6p) {
-            await placerToutesIterations(atelier);
-        }
-        
-        // 8b. Puis les ateliers de 4 périodes
-        console.log('📌 Placement des ateliers 4 périodes...');
-        for (const atelier of ateliers4p) {
-            await placerToutesIterations(atelier);
-        }
-        
-        // 8c. Enfin les ateliers de 2 périodes
-        console.log('📌 Placement des ateliers 2 périodes...');
-        for (const atelier of ateliers2p) {
-            await placerToutesIterations(atelier);
-        }
-        
-        // 9. Log et réponse
+        // Log final
         await query('INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
-            [req.user.id, 'AUTO_ALLOCATION', `${resultat.placed} placements, ${resultat.failed.length} ateliers non placés`]);
+            [req.user.id, 'AUTO_ALLOCATION', `${resultat.placed} placements, ${resultat.failed.length} échecs`]);
         
+        console.log('');
+        console.log('═══════════════════════════════════════════════════════');
         console.log(`🏁 Allocation terminée: ${resultat.placed} placements`);
-        console.log(`📊 Répartition par jour:`, occupationParJour);
-        
-        if (resultat.failed.length > 0) {
-            console.log('❌ Échecs:', resultat.failed.map(f => `${f.nom} (${f.enseignant}): ${f.raison}`).join(', '));
-        }
+        console.log(`📊 Répartition:`, occupationParJour);
+        console.log(`✅ Ateliers placés: ${ateliersPlacesAuMoinsUneFois.size}/${ateliersBase.length}`);
         
         res.json({ 
             success: true, 
             message: `${resultat.placed} placements effectués`,
             ateliers_places: resultat.placed,
+            ateliers_uniques_places: ateliersPlacesAuMoinsUneFois.size,
+            ateliers_total: ateliersBase.length,
             ateliers_non_places: resultat.failed.length,
             repartition_jours: occupationParJour,
             echecs: resultat.failed
