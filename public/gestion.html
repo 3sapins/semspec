@@ -65,8 +65,8 @@
                 <button class="btn btn-primary" onclick="loadListe('eleves')">🎓 Élèves</button>
                 <button class="btn btn-primary" onclick="loadListe('classes')">🏫 Classes</button>
                 <button class="btn btn-primary" onclick="loadListe('salles')">🚪 Salles</button>
-                <button class="btn btn-warning" onclick="loadListe('themes')">🎨 Thèmes</button>
-                <button class="btn btn-warning" onclick="loadListe('types_salles')">🏷️ Types de Salles</button>
+                <button class="btn btn-primary" onclick="loadListe('themes')">🎨 Thèmes</button>
+                <button class="btn btn-primary" onclick="loadListe('types_salles')">🏷️ Types de Salles</button>
             </div>
             <div id="listeContainer"></div>
         </div>
@@ -82,6 +82,7 @@
                         <div class="form-group"><label>Nom *</label><input type="text" id="ens_nom" required></div>
                         <div class="form-group"><label>Prénom *</label><input type="text" id="ens_prenom" required></div>
                         <div class="form-group"><label>Email</label><input type="email" id="ens_email"></div>
+                        <div class="form-group"><label>Charge max (périodes)</label><input type="number" id="ens_charge_max" min="0" max="30" value="0" placeholder="0 = illimité"></div>
                         <button type="submit" class="btn btn-success">Ajouter</button>
                     </form>
                 </div>
@@ -378,11 +379,38 @@
                 const result = await response.json();
                 let html = '<table><thead><tr>';
                 if (type === 'enseignants') {
-                    html += '<th>Acronyme</th><th>Nom</th><th>Prénom</th><th>Email</th><th>Ateliers</th><th>Actions</th></tr></thead><tbody>';
-                    result.data.forEach(e => html += `<tr><td>${e.acronyme}</td><td>${e.nom}</td><td>${e.prenom}</td><td>${e.email || '-'}</td><td>${e.nombre_ateliers}</td><td><button class="btn btn-sm btn-secondary" onclick="resetPasswordEnseignant(${e.id}, '${e.acronyme}')">🔑 Reset MDP</button></td></tr>`);
+                    html += '<th>Acronyme</th><th>Nom</th><th>Prénom</th><th>Email</th><th>Charge</th><th>Ateliers</th><th>Actions</th></tr></thead><tbody>';
+                    result.data.forEach(e => {
+                        const chargeMax = e.charge_max || 0;
+                        const chargeText = chargeMax > 0 ? `${chargeMax}p` : 'illimité';
+                        html += `<tr>
+                            <td><strong>${e.acronyme}</strong></td>
+                            <td>${e.nom}</td>
+                            <td>${e.prenom}</td>
+                            <td>${e.email || '-'}</td>
+                            <td>${chargeText}</td>
+                            <td>${e.nombre_ateliers}</td>
+                            <td>
+                                <button class="btn btn-sm btn-primary" onclick="editEnseignant(${e.id}, '${e.acronyme}', '${e.nom}', '${e.prenom}', '${e.email || ''}', ${chargeMax})">✏️</button>
+                                <button class="btn btn-sm btn-secondary" onclick="voirDisponibilites(${e.id}, '${e.acronyme}')">📅</button>
+                                <button class="btn btn-sm btn-warning" onclick="resetPasswordEnseignant(${e.id}, '${e.acronyme}')">🔑</button>
+                            </td>
+                        </tr>`;
+                    });
                 } else if (type === 'eleves') {
-                    html += '<th>Nom</th><th>Prénom</th><th>Classe</th><th>Actions</th></tr></thead><tbody>';
-                    result.data.forEach(e => html += `<tr><td>${e.nom}</td><td>${e.prenom}</td><td>${e.classe_nom}</td><td><button class="btn btn-sm btn-secondary" onclick="resetPasswordEleve(${e.id}, '${e.prenom} ${e.nom}')">🔑 Reset MDP</button></td></tr>`);
+                    html += '<th>Nom</th><th>Prénom</th><th>Classe</th><th>Login</th><th>Actions</th></tr></thead><tbody>';
+                    result.data.forEach(e => {
+                        const login = e.login || '-';
+                        html += `<tr>
+                            <td>${e.nom}</td>
+                            <td>${e.prenom}</td>
+                            <td>${e.classe_nom}</td>
+                            <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;">${login}</code></td>
+                            <td>
+                                <button class="btn btn-sm btn-warning" onclick="resetPasswordEleve(${e.id}, '${e.prenom} ${e.nom}')">🔑 Reset</button>
+                            </td>
+                        </tr>`;
+                    });
                 } else if (type === 'classes') {
                     html += '<th>Nom</th><th>Niveau</th><th>Élèves</th></tr></thead><tbody>';
                     result.data.forEach(c => html += `<tr><td>${c.nom}</td><td>${c.niveau || '-'}</td><td>${c.nombre_eleves}</td></tr>`);
@@ -397,8 +425,8 @@
                         <td><span style="display:inline-block;width:20px;height:20px;background:${t.couleur || '#667eea'};border-radius:4px;vertical-align:middle;"></span> ${t.couleur || '#667eea'}</td>
                         <td>${t.description || '-'}</td>
                         <td>
-                            <button class="btn btn-sm btn-primary" onclick="editTheme(${t.id}, '${t.nom}', '${t.couleur || '#667eea'}', '${t.icone || '🎨'}', '${t.description || ''}')">✏️</button>
-                            <button class="btn btn-sm btn-danger" onclick="deleteTheme(${t.id}, '${t.nom}')">🗑️</button>
+                            <button class="btn btn-sm btn-primary" onclick="editTheme(${t.id}, '${(t.nom || '').replace(/'/g, "\\'")}', '${t.couleur || '#667eea'}', '${t.icone || '🎨'}', '${(t.description || '').replace(/'/g, "\\'")}')">✏️</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteTheme(${t.id}, '${(t.nom || '').replace(/'/g, "\\'")}')">🗑️</button>
                         </td>
                     </tr>`);
                 } else if (type === 'types_salles') {
@@ -407,18 +435,26 @@
                         <td><strong>${t.nom}</strong></td>
                         <td>${t.description || '-'}</td>
                         <td>
-                            <button class="btn btn-sm btn-primary" onclick="editTypeSalle(${t.id}, '${t.nom}', '${t.description || ''}')">✏️</button>
-                            <button class="btn btn-sm btn-danger" onclick="deleteTypeSalle(${t.id}, '${t.nom}')">🗑️</button>
+                            <button class="btn btn-sm btn-primary" onclick="editTypeSalle(${t.id}, '${(t.nom || '').replace(/'/g, "\\'")}', '${(t.description || '').replace(/'/g, "\\'")}')">✏️</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteTypeSalle(${t.id}, '${(t.nom || '').replace(/'/g, "\\'")}')">🗑️</button>
                         </td>
                     </tr>`);
                 }
                 html += '</tbody></table>';
-                // Ajouter boutons reset global pour enseignants et élèves
+                
+                // Boutons d'ajout rapide et reset global
                 if (type === 'enseignants') {
-                    html += `<div style="margin-top:15px;"><button class="btn btn-danger" onclick="resetAllPasswords('enseignants')">🔑 Réinitialiser TOUS les MDP enseignants</button></div>`;
+                    html += `<div style="margin-top:15px; display:flex; gap:10px; flex-wrap:wrap;">
+                        <button class="btn btn-danger" onclick="resetAllPasswords('enseignants')">🔑 Réinitialiser TOUS les MDP</button>
+                    </div>`;
                 } else if (type === 'eleves') {
                     html += `<div style="margin-top:15px;"><button class="btn btn-danger" onclick="resetAllPasswords('eleves')">🔑 Réinitialiser TOUS les MDP élèves</button></div>`;
+                } else if (type === 'themes') {
+                    html += `<div style="margin-top:15px;"><button class="btn btn-success" onclick="switchTab('ajouter'); setTimeout(() => document.getElementById('theme_nom').focus(), 100);">➕ Ajouter un thème</button></div>`;
+                } else if (type === 'types_salles') {
+                    html += `<div style="margin-top:15px;"><button class="btn btn-success" onclick="switchTab('ajouter'); setTimeout(() => document.getElementById('type_salle_nom').focus(), 100);">➕ Ajouter un type de salle</button></div>`;
                 }
+                
                 html += '<p style="margin-top:10px;color:#666;"><strong>' + result.data.length + '</strong> enregistrements</p>';
                 document.getElementById('listeContainer').innerHTML = html;
             } catch (e) { document.getElementById('listeContainer').innerHTML = '<p style="color:red;">Erreur: ' + e.message + '</p>'; }
@@ -428,7 +464,13 @@
         document.getElementById('formEnseignant').addEventListener('submit', async (e) => {
             e.preventDefault();
             try {
-                const data = { acronyme: document.getElementById('ens_acronyme').value.toUpperCase(), nom: document.getElementById('ens_nom').value, prenom: document.getElementById('ens_prenom').value, email: document.getElementById('ens_email').value || null };
+                const data = { 
+                    acronyme: document.getElementById('ens_acronyme').value.toUpperCase(), 
+                    nom: document.getElementById('ens_nom').value, 
+                    prenom: document.getElementById('ens_prenom').value, 
+                    email: document.getElementById('ens_email').value || null,
+                    charge_max: parseInt(document.getElementById('ens_charge_max').value) || 0
+                };
                 const response = await fetch(`${API_BASE}/enseignants`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(data) });
                 const result = await response.json();
                 if (result.success) { showAlert('✅ Enseignant ajouté !', 'success'); e.target.reset(); loadEnseignantsForSelects(); }
@@ -523,6 +565,116 @@
                 else showAlert('❌ ' + result.message, 'error');
             } catch (e) { showAlert('❌ Erreur', 'error'); }
         });
+
+        // CRUD ENSEIGNANTS
+        async function editEnseignant(id, acronyme, nom, prenom, email, chargeMax) {
+            // Créer un formulaire modal simple
+            const newNom = prompt('Nom:', nom);
+            if (newNom === null) return;
+            const newPrenom = prompt('Prénom:', prenom);
+            if (newPrenom === null) return;
+            const newEmail = prompt('Email:', email);
+            const newChargeMax = prompt('Charge max (périodes, 0 = illimité):', chargeMax);
+            if (newChargeMax === null) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/enseignant/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ 
+                        nom: newNom || nom, 
+                        prenom: newPrenom || prenom, 
+                        email: newEmail || null,
+                        charge_max: parseInt(newChargeMax) || 0
+                    })
+                });
+                const result = await response.json();
+                if (result.success) { 
+                    showAlert('✅ Enseignant modifié', 'success'); 
+                    loadListe('enseignants'); 
+                }
+                else showAlert('❌ ' + result.message, 'error');
+            } catch (e) { showAlert('❌ Erreur: ' + e.message, 'error'); }
+        }
+
+        async function voirDisponibilites(enseignantId, acronyme) {
+            try {
+                // Charger les créneaux et disponibilités
+                const [creneauxRes, dispoRes] = await Promise.all([
+                    fetch('/api/planning/creneaux', { headers: { 'Authorization': `Bearer ${token}` } }),
+                    fetch(`${API_BASE}/enseignant/${enseignantId}/disponibilites`, { headers: { 'Authorization': `Bearer ${token}` } })
+                ]);
+                
+                const creneaux = (await creneauxRes.json()).data || [];
+                const disponibilites = (await dispoRes.json()).data || [];
+                const dispoSet = new Set(disponibilites.filter(d => d.disponible).map(d => d.creneau_id));
+                
+                // Organiser par jour
+                const jours = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
+                let html = `<h3>📅 Disponibilités de ${acronyme}</h3>
+                    <p style="color:#666;margin-bottom:15px;">Cliquez sur un créneau pour basculer sa disponibilité</p>
+                    <table style="width:100%;"><thead><tr><th>Jour</th><th>Créneaux</th></tr></thead><tbody>`;
+                
+                jours.forEach(jour => {
+                    const creneauxJour = creneaux.filter(c => c.jour === jour);
+                    html += `<tr><td><strong>${jour.charAt(0).toUpperCase() + jour.slice(1)}</strong></td><td>`;
+                    creneauxJour.forEach(c => {
+                        const isDispo = dispoSet.has(c.id);
+                        const bgColor = isDispo ? '#d1fae5' : '#fee2e2';
+                        const icon = isDispo ? '✅' : '❌';
+                        html += `<button onclick="toggleDisponibilite(${enseignantId}, ${c.id}, ${isDispo}, '${acronyme}')" 
+                            style="margin:2px;padding:5px 10px;border:none;border-radius:5px;background:${bgColor};cursor:pointer;">
+                            ${icon} ${c.periode}
+                        </button>`;
+                    });
+                    html += '</td></tr>';
+                });
+                
+                html += '</tbody></table>';
+                html += `<div style="margin-top:15px;">
+                    <button class="btn btn-success" onclick="setAllDisponibilites(${enseignantId}, true, '${acronyme}')">✅ Tout disponible</button>
+                    <button class="btn btn-danger" onclick="setAllDisponibilites(${enseignantId}, false, '${acronyme}')">❌ Tout indisponible</button>
+                    <button class="btn btn-secondary" onclick="loadListe('enseignants')">← Retour</button>
+                </div>`;
+                
+                document.getElementById('listeContainer').innerHTML = html;
+            } catch (e) { 
+                showAlert('❌ Erreur: ' + e.message, 'error'); 
+            }
+        }
+
+        async function toggleDisponibilite(enseignantId, creneauId, currentState, acronyme) {
+            try {
+                const response = await fetch(`${API_BASE}/enseignant/${enseignantId}/disponibilite`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ creneau_id: creneauId, disponible: !currentState })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    voirDisponibilites(enseignantId, acronyme);
+                } else {
+                    showAlert('❌ ' + result.message, 'error');
+                }
+            } catch (e) { showAlert('❌ Erreur', 'error'); }
+        }
+
+        async function setAllDisponibilites(enseignantId, disponible, acronyme) {
+            try {
+                const response = await fetch(`${API_BASE}/enseignant/${enseignantId}/disponibilites/all`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ disponible })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showAlert('✅ Disponibilités mises à jour', 'success');
+                    voirDisponibilites(enseignantId, acronyme);
+                } else {
+                    showAlert('❌ ' + result.message, 'error');
+                }
+            } catch (e) { showAlert('❌ Erreur', 'error'); }
+        }
 
         // CRUD THEMES
         async function editTheme(id, nom, couleur, icone, description) {
