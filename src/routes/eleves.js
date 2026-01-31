@@ -149,7 +149,7 @@ router.get('/mon-horaire', async (req, res) => {
 
 /**
  * GET /api/eleves/mes-inscriptions
- * Liste des inscriptions de l'élève connecté
+ * Liste des inscriptions de l'élève connecté (propres inscriptions + manuelles par admin)
  */
 router.get('/mes-inscriptions', async (req, res) => {
     try {
@@ -160,13 +160,27 @@ router.get('/mes-inscriptions', async (req, res) => {
             return res.status(404).json({ success: false, message: 'Élève non trouvé' });
         }
         
+        // Récupérer toutes les inscriptions confirmées de l'élève
+        // (inscriptions propres + manuelles par admin + par classe)
         const inscriptions = await query(`
-            SELECT i.id as inscription_id, i.planning_id, i.statut, i.inscription_manuelle,
-                a.id as atelier_id, a.nom as atelier_nom, a.duree, a.description,
-                c.id as creneau_id, c.jour, c.periode, c.ordre,
+            SELECT 
+                i.id as inscription_id, 
+                i.planning_id, 
+                i.statut,
+                a.id as atelier_id, 
+                a.nom as atelier_nom, 
+                a.duree, 
+                a.description,
+                a.informations_eleves,
+                c.id as creneau_id, 
+                c.jour, 
+                c.periode, 
+                c.ordre,
                 s.nom as salle_nom,
-                p.nombre_creneaux,
-                t.nom as theme_nom, t.couleur as theme_couleur, t.icone as theme_icone
+                COALESCE(p.nombre_creneaux, CEIL(a.duree / 2)) as nombre_creneaux,
+                t.nom as theme_nom, 
+                t.couleur as theme_couleur, 
+                t.icone as theme_icone
             FROM inscriptions i
             JOIN planning p ON i.planning_id = p.id
             JOIN ateliers a ON p.atelier_id = a.id
@@ -455,6 +469,37 @@ router.post('/inscrire/:planningId', async (req, res) => {
         res.json({ success: true, message: `Inscrit à "${p.atelier_nom}"` });
     } catch (error) {
         console.error('Erreur inscription:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * DELETE /api/eleves/desinscrire/:planningId
+ * Se désinscrire d'un créneau (route alternative)
+ */
+router.delete('/desinscrire/:planningId', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const planningId = parseInt(req.params.planningId);
+        
+        const eleve = await query('SELECT id, inscriptions_validees FROM eleves WHERE utilisateur_id = ?', [userId]);
+        if (eleve.length === 0) {
+            return res.status(404).json({ success: false, message: 'Élève non trouvé' });
+        }
+        
+        if (eleve[0].inscriptions_validees) {
+            return res.status(403).json({ success: false, message: 'Tes inscriptions sont validées et ne peuvent plus être modifiées' });
+        }
+        
+        const result = await query('DELETE FROM inscriptions WHERE eleve_id = ? AND planning_id = ?', [eleve[0].id, planningId]);
+        
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, message: 'Inscription non trouvée' });
+        }
+        
+        res.json({ success: true, message: 'Désinscription effectuée' });
+    } catch (error) {
+        console.error('Erreur désinscription:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
