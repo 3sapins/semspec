@@ -66,6 +66,8 @@
                 <button class="btn btn-primary" onclick="loadListe('eleves')">🎓 Élèves</button>
                 <button class="btn btn-primary" onclick="loadListe('classes')">🏫 Classes</button>
                 <button class="btn btn-primary" onclick="loadListe('salles')">🚪 Salles</button>
+                <button class="btn btn-warning" onclick="loadListe('themes')">🎨 Thèmes</button>
+                <button class="btn btn-warning" onclick="loadListe('types_salles')">🏷️ Types de Salles</button>
             </div>
             <div id="listeContainer"></div>
         </div>
@@ -97,6 +99,7 @@
                     <form id="formSalle">
                         <div class="form-group"><label>Nom *</label><input type="text" id="salle_nom" required></div>
                         <div class="form-group"><label>Capacité</label><input type="number" id="salle_capacite" value="25"></div>
+                        <div class="form-group"><label>Type</label><select id="salle_type"></select></div>
                         <button type="submit" class="btn btn-success">Ajouter</button>
                     </form>
                 </div>
@@ -106,6 +109,24 @@
                         <div class="form-group"><label>Nom *</label><input type="text" id="eleve_nom" required></div>
                         <div class="form-group"><label>Prénom *</label><input type="text" id="eleve_prenom" required></div>
                         <div class="form-group"><label>Classe *</label><select id="eleve_classe" required></select></div>
+                        <button type="submit" class="btn btn-success">Ajouter</button>
+                    </form>
+                </div>
+                <div class="card">
+                    <h3>🎨 Thème</h3>
+                    <form id="formTheme">
+                        <div class="form-group"><label>Nom *</label><input type="text" id="theme_nom" required></div>
+                        <div class="form-group"><label>Couleur</label><input type="color" id="theme_couleur" value="#667eea"></div>
+                        <div class="form-group"><label>Icône</label><input type="text" id="theme_icone" value="🎨" maxlength="5"></div>
+                        <div class="form-group"><label>Description</label><input type="text" id="theme_description"></div>
+                        <button type="submit" class="btn btn-success">Ajouter</button>
+                    </form>
+                </div>
+                <div class="card">
+                    <h3>🏷️ Type de Salle</h3>
+                    <form id="formTypeSalle">
+                        <div class="form-group"><label>Nom *</label><input type="text" id="type_salle_nom" required placeholder="ex: Salle informatique"></div>
+                        <div class="form-group"><label>Description</label><input type="text" id="type_salle_description"></div>
                         <button type="submit" class="btn btn-success">Ajouter</button>
                     </form>
                 </div>
@@ -248,6 +269,7 @@
             loadCreneauxForSelects();
             loadPlanningsForSelects();
             chargerTousEleves();
+            loadTypesSalles();
         });
 
         function switchTab(tabName) {
@@ -349,7 +371,11 @@
 
         async function loadListe(type) {
             try {
-                const response = await fetch(`${API_BASE}/${type}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                let url = `${API_BASE}/${type}`;
+                if (type === 'themes') url = '/api/admin/themes/liste';
+                if (type === 'types_salles') url = '/api/admin/types-salles';
+                
+                const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
                 const result = await response.json();
                 let html = '<table><thead><tr>';
                 if (type === 'enseignants') {
@@ -364,6 +390,28 @@
                 } else if (type === 'salles') {
                     html += '<th>Nom</th><th>Capacité</th><th>Type</th><th>Dispo</th></tr></thead><tbody>';
                     result.data.forEach(s => html += `<tr><td>${s.nom}</td><td>${s.capacite}</td><td>${s.type_salle || '-'}</td><td>${s.disponible ? '✅' : '❌'}</td></tr>`);
+                } else if (type === 'themes') {
+                    html += '<th>Icône</th><th>Nom</th><th>Couleur</th><th>Description</th><th>Actions</th></tr></thead><tbody>';
+                    result.data.forEach(t => html += `<tr>
+                        <td style="font-size:24px;">${t.icone || '🎨'}</td>
+                        <td><strong>${t.nom}</strong></td>
+                        <td><span style="display:inline-block;width:20px;height:20px;background:${t.couleur || '#667eea'};border-radius:4px;vertical-align:middle;"></span> ${t.couleur || '#667eea'}</td>
+                        <td>${t.description || '-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="editTheme(${t.id}, '${t.nom}', '${t.couleur || '#667eea'}', '${t.icone || '🎨'}', '${t.description || ''}')">✏️</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteTheme(${t.id}, '${t.nom}')">🗑️</button>
+                        </td>
+                    </tr>`);
+                } else if (type === 'types_salles') {
+                    html += '<th>Nom</th><th>Description</th><th>Actions</th></tr></thead><tbody>';
+                    result.data.forEach(t => html += `<tr>
+                        <td><strong>${t.nom}</strong></td>
+                        <td>${t.description || '-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="editTypeSalle(${t.id}, '${t.nom}', '${t.description || ''}')">✏️</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteTypeSalle(${t.id}, '${t.nom}')">🗑️</button>
+                        </td>
+                    </tr>`);
                 }
                 html += '</tbody></table>';
                 // Ajouter boutons reset global pour enseignants et élèves
@@ -374,7 +422,7 @@
                 }
                 html += '<p style="margin-top:10px;color:#666;"><strong>' + result.data.length + '</strong> enregistrements</p>';
                 document.getElementById('listeContainer').innerHTML = html;
-            } catch (e) { document.getElementById('listeContainer').innerHTML = '<p style="color:red;">Erreur</p>'; }
+            } catch (e) { document.getElementById('listeContainer').innerHTML = '<p style="color:red;">Erreur: ' + e.message + '</p>'; }
         }
 
         // FORMULAIRES
@@ -403,7 +451,11 @@
         document.getElementById('formSalle').addEventListener('submit', async (e) => {
             e.preventDefault();
             try {
-                const data = { nom: document.getElementById('salle_nom').value, capacite: parseInt(document.getElementById('salle_capacite').value) || 25 };
+                const data = { 
+                    nom: document.getElementById('salle_nom').value, 
+                    capacite: parseInt(document.getElementById('salle_capacite').value) || 25,
+                    type_salle: document.getElementById('salle_type').value || null
+                };
                 const response = await fetch(`${API_BASE}/salles`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(data) });
                 const result = await response.json();
                 if (result.success) { showAlert('✅ Salle ajoutée !', 'success'); e.target.reset(); }
@@ -421,6 +473,136 @@
                 else showAlert('❌ ' + result.message, 'error');
             } catch (e) { showAlert('❌ Erreur', 'error'); }
         });
+
+        // FORMULAIRE THEME
+        document.getElementById('formTheme').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                const data = { 
+                    nom: document.getElementById('theme_nom').value, 
+                    couleur: document.getElementById('theme_couleur').value,
+                    icone: document.getElementById('theme_icone').value || '🎨',
+                    description: document.getElementById('theme_description').value || null
+                };
+                const response = await fetch('/api/admin/themes', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, 
+                    body: JSON.stringify(data) 
+                });
+                const result = await response.json();
+                if (result.success) { 
+                    showAlert('✅ Thème ajouté !', 'success'); 
+                    e.target.reset(); 
+                    document.getElementById('theme_couleur').value = '#667eea';
+                    document.getElementById('theme_icone').value = '🎨';
+                    loadListe('themes');
+                }
+                else showAlert('❌ ' + result.message, 'error');
+            } catch (e) { showAlert('❌ Erreur', 'error'); }
+        });
+
+        // FORMULAIRE TYPE SALLE
+        document.getElementById('formTypeSalle').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                const data = { 
+                    nom: document.getElementById('type_salle_nom').value, 
+                    description: document.getElementById('type_salle_description').value || null
+                };
+                const response = await fetch('/api/admin/types-salles', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, 
+                    body: JSON.stringify(data) 
+                });
+                const result = await response.json();
+                if (result.success) { 
+                    showAlert('✅ Type de salle ajouté !', 'success'); 
+                    e.target.reset(); 
+                    loadListe('types_salles');
+                    loadTypesSalles();
+                }
+                else showAlert('❌ ' + result.message, 'error');
+            } catch (e) { showAlert('❌ Erreur', 'error'); }
+        });
+
+        // CRUD THEMES
+        async function editTheme(id, nom, couleur, icone, description) {
+            const newNom = prompt('Nom du thème:', nom);
+            if (!newNom) return;
+            const newCouleur = prompt('Couleur (hex):', couleur) || couleur;
+            const newIcone = prompt('Icône:', icone) || icone;
+            const newDesc = prompt('Description:', description);
+            
+            try {
+                const response = await fetch(`/api/admin/themes/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ nom: newNom, couleur: newCouleur, icone: newIcone, description: newDesc })
+                });
+                const result = await response.json();
+                if (result.success) { showAlert('✅ Thème modifié', 'success'); loadListe('themes'); }
+                else showAlert('❌ ' + result.message, 'error');
+            } catch (e) { showAlert('❌ Erreur', 'error'); }
+        }
+
+        async function deleteTheme(id, nom) {
+            if (!confirm(`Supprimer le thème "${nom}" ?`)) return;
+            try {
+                const response = await fetch(`/api/admin/themes/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                if (result.success) { showAlert('✅ Thème supprimé', 'success'); loadListe('themes'); }
+                else showAlert('❌ ' + result.message, 'error');
+            } catch (e) { showAlert('❌ Erreur', 'error'); }
+        }
+
+        // CRUD TYPES SALLES
+        async function editTypeSalle(id, nom, description) {
+            const newNom = prompt('Nom du type de salle:', nom);
+            if (!newNom) return;
+            const newDesc = prompt('Description:', description);
+            
+            try {
+                const response = await fetch(`/api/admin/types-salles/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ nom: newNom, description: newDesc })
+                });
+                const result = await response.json();
+                if (result.success) { showAlert('✅ Type de salle modifié', 'success'); loadListe('types_salles'); loadTypesSalles(); }
+                else showAlert('❌ ' + result.message, 'error');
+            } catch (e) { showAlert('❌ Erreur', 'error'); }
+        }
+
+        async function deleteTypeSalle(id, nom) {
+            if (!confirm(`Supprimer le type de salle "${nom}" ?`)) return;
+            try {
+                const response = await fetch(`/api/admin/types-salles/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                if (result.success) { showAlert('✅ Type de salle supprimé', 'success'); loadListe('types_salles'); loadTypesSalles(); }
+                else showAlert('❌ ' + result.message, 'error');
+            } catch (e) { showAlert('❌ Erreur', 'error'); }
+        }
+
+        // Charger les types de salles pour le select du formulaire salle
+        async function loadTypesSalles() {
+            try {
+                const response = await fetch('/api/admin/types-salles', { headers: { 'Authorization': `Bearer ${token}` } });
+                const result = await response.json();
+                const select = document.getElementById('salle_type');
+                if (select) {
+                    select.innerHTML = '<option value="">-- Aucun type --</option>';
+                    result.data.forEach(t => {
+                        select.innerHTML += `<option value="${t.nom}">${t.nom}</option>`;
+                    });
+                }
+            } catch (e) { console.error('Erreur chargement types salles:', e); }
+        }
 
         // RECHERCHE ÉLÈVES
         async function chargerTousEleves() {
