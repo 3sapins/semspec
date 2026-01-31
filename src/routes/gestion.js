@@ -214,6 +214,53 @@ router.post('/eleves', async (req, res) => {
     }
 });
 
+router.put('/eleves/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { nom, prenom, classe_id } = req.body;
+        
+        // Récupérer l'utilisateur_id de l'élève
+        const eleve = await query('SELECT utilisateur_id FROM eleves WHERE id = ?', [id]);
+        if (eleve.length === 0) {
+            return res.status(404).json({ success: false, message: 'Élève non trouvé' });
+        }
+        
+        // Mettre à jour l'utilisateur
+        await query('UPDATE utilisateurs SET nom = COALESCE(?, nom), prenom = COALESCE(?, prenom) WHERE id = ?',
+            [nom, prenom, eleve[0].utilisateur_id]);
+        
+        // Mettre à jour la classe si fournie
+        if (classe_id) {
+            await query('UPDATE eleves SET classe_id = ? WHERE id = ?', [classe_id, id]);
+        }
+        
+        res.json({ success: true, message: 'Élève modifié' });
+    } catch (error) {
+        console.error('Erreur:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+router.delete('/eleves/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Récupérer l'utilisateur_id de l'élève
+        const eleve = await query('SELECT utilisateur_id FROM eleves WHERE id = ?', [id]);
+        if (eleve.length === 0) {
+            return res.status(404).json({ success: false, message: 'Élève non trouvé' });
+        }
+        
+        // Supprimer l'utilisateur (cascade supprimera l'élève et ses inscriptions)
+        await query('DELETE FROM utilisateurs WHERE id = ?', [eleve[0].utilisateur_id]);
+        
+        res.json({ success: true, message: 'Élève supprimé' });
+    } catch (error) {
+        console.error('Erreur:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
 // ========== CLASSES ==========
 router.get('/classes', async (req, res) => {
     try {
@@ -239,6 +286,37 @@ router.post('/classes', async (req, res) => {
         if (error.code === 'ER_DUP_ENTRY') {
             return res.status(400).json({ success: false, message: 'Cette classe existe déjà' });
         }
+        console.error('Erreur:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+router.put('/classes/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { nom, niveau } = req.body;
+        await query('UPDATE classes SET nom = COALESCE(?, nom), niveau = ? WHERE id = ?', [nom, niveau || null, id]);
+        res.json({ success: true, message: 'Classe modifiée' });
+    } catch (error) {
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({ success: false, message: 'Ce nom de classe existe déjà' });
+        }
+        console.error('Erreur:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+router.delete('/classes/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Supprimer les élèves de cette classe d'abord (cascade)
+        const eleves = await query('SELECT utilisateur_id FROM eleves WHERE classe_id = ?', [id]);
+        for (const e of eleves) {
+            await query('DELETE FROM utilisateurs WHERE id = ?', [e.utilisateur_id]);
+        }
+        await query('DELETE FROM classes WHERE id = ?', [id]);
+        res.json({ success: true, message: 'Classe et ses élèves supprimés' });
+    } catch (error) {
         console.error('Erreur:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
@@ -279,6 +357,27 @@ router.put('/salles/:id', async (req, res) => {
             type_salle = ?, batiment = ?, equipement = ?, disponible = COALESCE(?, disponible) WHERE id = ?`,
             [nom, capacite, type_salle, batiment, equipement, disponible, id]);
         res.json({ success: true, message: 'Salle modifiée' });
+    } catch (error) {
+        console.error('Erreur:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+router.delete('/salles/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Vérifier si la salle est utilisée dans le planning
+        const planning = await query('SELECT COUNT(*) as count FROM planning WHERE salle_id = ?', [id]);
+        if (planning[0].count > 0) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Cette salle est utilisée dans le planning. Retirez-la du planning avant de la supprimer.' 
+            });
+        }
+        
+        await query('DELETE FROM salles WHERE id = ?', [id]);
+        res.json({ success: true, message: 'Salle supprimée' });
     } catch (error) {
         console.error('Erreur:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
