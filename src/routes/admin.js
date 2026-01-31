@@ -321,6 +321,50 @@ router.put('/ateliers/:id/refuser', adminMiddleware, async (req, res) => {
     }
 });
 
+// Modifier un atelier (admin) - garde le statut actuel
+router.put('/ateliers/:id/modifier', adminMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const {
+            nom, description, informations_eleves, duree, nombre_places_max,
+            theme_id, type_salle_demande, budget_max, remarques,
+            enseignant_acronyme, enseignant2_acronyme, enseignant3_acronyme
+        } = req.body;
+        
+        const ateliers = await query('SELECT * FROM ateliers WHERE id = ?', [id]);
+        if (ateliers.length === 0) {
+            return res.status(404).json({ success: false, message: 'Atelier non trouvé' });
+        }
+        
+        await query(`
+            UPDATE ateliers SET
+                nom = COALESCE(?, nom),
+                description = ?,
+                informations_eleves = ?,
+                duree = COALESCE(?, duree),
+                nombre_places_max = COALESCE(?, nombre_places_max),
+                theme_id = ?,
+                type_salle_demande = ?,
+                budget_max = COALESCE(?, budget_max),
+                remarques = ?,
+                enseignant_acronyme = COALESCE(?, enseignant_acronyme),
+                enseignant2_acronyme = ?,
+                enseignant3_acronyme = ?
+            WHERE id = ?
+        `, [nom, description, informations_eleves, duree, nombre_places_max,
+            theme_id || null, type_salle_demande || null, budget_max, remarques,
+            enseignant_acronyme, enseignant2_acronyme || null, enseignant3_acronyme || null, id]);
+        
+        await query('INSERT INTO historique (utilisateur_id, action, table_cible, id_cible, details) VALUES (?, ?, ?, ?, ?)',
+            [req.user.id, 'UPDATE_ADMIN', 'ateliers', id, `Modification admin: ${nom}`]);
+        
+        res.json({ success: true, message: 'Atelier modifié' });
+    } catch (error) {
+        console.error('Erreur modification atelier:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
 // Supprimer un atelier
 router.delete('/ateliers/:id', enseignantMiddleware, async (req, res) => {
     try {
@@ -613,6 +657,235 @@ router.put('/inscriptions/classes/toutes', adminMiddleware, async (req, res) => 
         res.json({ success: true, message: `Inscriptions ${action} pour toutes les classes` });
     } catch (error) {
         console.error('Erreur toggle toutes:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+// ========== THEMES (CRUD complet) ==========
+
+/**
+ * GET /api/admin/themes/liste
+ * Liste tous les thèmes
+ */
+router.get('/themes/liste', adminMiddleware, async (req, res) => {
+    try {
+        const themes = await query('SELECT * FROM themes ORDER BY nom');
+        res.json({ success: true, data: themes });
+    } catch (error) {
+        console.error('Erreur themes:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * POST /api/admin/themes
+ * Créer un thème
+ */
+router.post('/themes', adminMiddleware, async (req, res) => {
+    try {
+        const { nom, couleur, icone, description } = req.body;
+        
+        if (!nom) {
+            return res.status(400).json({ success: false, message: 'Nom requis' });
+        }
+        
+        const result = await query(
+            'INSERT INTO themes (nom, couleur, icone, description) VALUES (?, ?, ?, ?)',
+            [nom, couleur || '#667eea', icone || '🎨', description || null]
+        );
+        
+        res.json({ success: true, message: 'Thème créé', data: { id: result.insertId } });
+    } catch (error) {
+        console.error('Erreur création thème:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * PUT /api/admin/themes/:id
+ * Modifier un thème
+ */
+router.put('/themes/:id', adminMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { nom, couleur, icone, description } = req.body;
+        
+        await query(
+            'UPDATE themes SET nom = COALESCE(?, nom), couleur = COALESCE(?, couleur), icone = COALESCE(?, icone), description = ? WHERE id = ?',
+            [nom, couleur, icone, description, id]
+        );
+        
+        res.json({ success: true, message: 'Thème modifié' });
+    } catch (error) {
+        console.error('Erreur modification thème:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * DELETE /api/admin/themes/:id
+ * Supprimer un thème
+ */
+router.delete('/themes/:id', adminMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Vérifier si des ateliers utilisent ce thème
+        const ateliers = await query('SELECT COUNT(*) as count FROM ateliers WHERE theme_id = ?', [id]);
+        if (ateliers[0].count > 0) {
+            return res.status(400).json({ 
+                success: false, 
+                message: `Impossible de supprimer: ${ateliers[0].count} atelier(s) utilisent ce thème` 
+            });
+        }
+        
+        await query('DELETE FROM themes WHERE id = ?', [id]);
+        res.json({ success: true, message: 'Thème supprimé' });
+    } catch (error) {
+        console.error('Erreur suppression thème:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+// ========== TYPES DE SALLES (CRUD complet) ==========
+
+/**
+ * GET /api/admin/types-salles
+ * Liste tous les types de salles
+ */
+router.get('/types-salles', adminMiddleware, async (req, res) => {
+    try {
+        // Récupérer les types distincts depuis les salles existantes
+        const types = await query('SELECT DISTINCT type_salle FROM salles WHERE type_salle IS NOT NULL AND type_salle != "" ORDER BY type_salle');
+        
+        // Aussi chercher dans une table types_salles si elle existe
+        let typesTable = [];
+        try {
+            typesTable = await query('SELECT * FROM types_salles ORDER BY nom');
+        } catch (e) {
+            // Table n'existe pas, on la crée
+            await query(`
+                CREATE TABLE IF NOT EXISTS types_salles (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    nom VARCHAR(100) NOT NULL UNIQUE,
+                    description VARCHAR(255)
+                )
+            `);
+            // Insérer les types existants depuis les salles
+            const existingTypes = types.map(t => t.type_salle).filter(Boolean);
+            for (const type of existingTypes) {
+                try {
+                    await query('INSERT IGNORE INTO types_salles (nom) VALUES (?)', [type]);
+                } catch (e) {}
+            }
+            typesTable = await query('SELECT * FROM types_salles ORDER BY nom');
+        }
+        
+        res.json({ success: true, data: typesTable });
+    } catch (error) {
+        console.error('Erreur types salles:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * POST /api/admin/types-salles
+ * Créer un type de salle
+ */
+router.post('/types-salles', adminMiddleware, async (req, res) => {
+    try {
+        const { nom, description } = req.body;
+        
+        if (!nom) {
+            return res.status(400).json({ success: false, message: 'Nom requis' });
+        }
+        
+        // Créer la table si elle n'existe pas
+        await query(`
+            CREATE TABLE IF NOT EXISTS types_salles (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                nom VARCHAR(100) NOT NULL UNIQUE,
+                description VARCHAR(255)
+            )
+        `);
+        
+        const result = await query(
+            'INSERT INTO types_salles (nom, description) VALUES (?, ?)',
+            [nom, description || null]
+        );
+        
+        res.json({ success: true, message: 'Type de salle créé', data: { id: result.insertId } });
+    } catch (error) {
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({ success: false, message: 'Ce type existe déjà' });
+        }
+        console.error('Erreur création type salle:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * PUT /api/admin/types-salles/:id
+ * Modifier un type de salle
+ */
+router.put('/types-salles/:id', adminMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { nom, description } = req.body;
+        
+        // Récupérer l'ancien nom pour mettre à jour les salles
+        const oldType = await query('SELECT nom FROM types_salles WHERE id = ?', [id]);
+        if (oldType.length === 0) {
+            return res.status(404).json({ success: false, message: 'Type non trouvé' });
+        }
+        
+        const oldNom = oldType[0].nom;
+        
+        await query('UPDATE types_salles SET nom = COALESCE(?, nom), description = ? WHERE id = ?',
+            [nom, description, id]);
+        
+        // Mettre à jour les salles qui utilisent ce type
+        if (nom && nom !== oldNom) {
+            await query('UPDATE salles SET type_salle = ? WHERE type_salle = ?', [nom, oldNom]);
+            await query('UPDATE ateliers SET type_salle_demande = ? WHERE type_salle_demande = ?', [nom, oldNom]);
+        }
+        
+        res.json({ success: true, message: 'Type de salle modifié' });
+    } catch (error) {
+        console.error('Erreur modification type salle:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * DELETE /api/admin/types-salles/:id
+ * Supprimer un type de salle
+ */
+router.delete('/types-salles/:id', adminMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Récupérer le nom
+        const type = await query('SELECT nom FROM types_salles WHERE id = ?', [id]);
+        if (type.length === 0) {
+            return res.status(404).json({ success: false, message: 'Type non trouvé' });
+        }
+        
+        const nom = type[0].nom;
+        
+        // Vérifier si des salles utilisent ce type
+        const salles = await query('SELECT COUNT(*) as count FROM salles WHERE type_salle = ?', [nom]);
+        if (salles[0].count > 0) {
+            return res.status(400).json({ 
+                success: false, 
+                message: `Impossible de supprimer: ${salles[0].count} salle(s) utilisent ce type` 
+            });
+        }
+        
+        await query('DELETE FROM types_salles WHERE id = ?', [id]);
+        res.json({ success: true, message: 'Type de salle supprimé' });
+    } catch (error) {
+        console.error('Erreur suppression type salle:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
