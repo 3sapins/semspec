@@ -365,6 +365,101 @@ router.post('/inscription', async (req, res) => {
 });
 
 /**
+ * POST /api/eleves/inscrire/:planningId
+ * S'inscrire à un créneau (route alternative avec planningId dans l'URL)
+ */
+router.post('/inscrire/:planningId', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const planningId = parseInt(req.params.planningId);
+        
+        const eleve = await query('SELECT id, inscriptions_validees FROM eleves WHERE utilisateur_id = ?', [userId]);
+        if (eleve.length === 0) {
+            return res.status(404).json({ success: false, message: 'Élève non trouvé' });
+        }
+        
+        if (eleve[0].inscriptions_validees) {
+            return res.status(403).json({ success: false, message: 'Tes inscriptions sont validées et ne peuvent plus être modifiées' });
+        }
+        
+        // Vérifier le planning
+        const planning = await query(`
+            SELECT p.*, a.nombre_places_max, a.nom as atelier_nom, a.id as atelier_id, 
+                   c.jour, c.periode, p.nombre_creneaux, a.duree
+            FROM planning p
+            JOIN ateliers a ON p.atelier_id = a.id
+            JOIN creneaux c ON p.creneau_id = c.id
+            WHERE p.id = ?
+        `, [planningId]);
+        
+        if (planning.length === 0) {
+            return res.status(404).json({ success: false, message: 'Créneau non trouvé' });
+        }
+        
+        const p = planning[0];
+        const nombreCreneaux = p.nombre_creneaux || Math.ceil((p.duree || 2) / 2);
+        
+        // Vérifier conflit horaire sur tous les créneaux
+        for (let i = 0; i < nombreCreneaux; i++) {
+            const creneauId = p.creneau_id + i;
+            const conflit = await query(`
+                SELECT a.nom FROM inscriptions i
+                JOIN planning pl ON i.planning_id = pl.id
+                JOIN ateliers a ON pl.atelier_id = a.id
+                WHERE i.eleve_id = ? AND i.statut = 'confirmee'
+                AND ? BETWEEN pl.creneau_id AND (pl.creneau_id + COALESCE(pl.nombre_creneaux, 1) - 1)
+            `, [eleve[0].id, creneauId]);
+            
+            if (conflit.length > 0) {
+                return res.status(400).json({ success: false, message: `Conflit horaire: déjà inscrit à "${conflit[0].nom}"` });
+            }
+        }
+        
+        // Vérifier places disponibles
+        const inscrits = await query(
+            'SELECT COUNT(*) as nb FROM inscriptions WHERE planning_id = ? AND statut = "confirmee"', 
+            [planningId]
+        );
+        
+        if (inscrits[0].nb >= p.nombre_places_max) {
+            return res.status(400).json({ success: false, message: 'Désolé, plus de places disponibles' });
+        }
+        
+        // Vérifier si déjà inscrit
+        const dejaInscrit = await query(
+            'SELECT id FROM inscriptions WHERE eleve_id = ? AND planning_id = ? AND statut = "confirmee"',
+            [eleve[0].id, planningId]
+        );
+        
+        if (dejaInscrit.length > 0) {
+            return res.status(400).json({ success: false, message: 'Tu es déjà inscrit à cet atelier' });
+        }
+        
+        // Inscrire
+        await query(`
+            INSERT INTO inscriptions (eleve_id, atelier_id, planning_id, statut)
+            VALUES (?, ?, ?, 'confirmee')
+        `, [eleve[0].id, p.atelier_id, planningId]);
+        
+        // Vérifier qu'on n'a pas dépassé la limite
+        const totalApres = await query(
+            'SELECT COUNT(*) as nb FROM inscriptions WHERE planning_id = ? AND statut = "confirmee"',
+            [planningId]
+        );
+        
+        if (totalApres[0].nb > p.nombre_places_max) {
+            await query('DELETE FROM inscriptions WHERE eleve_id = ? AND planning_id = ?', [eleve[0].id, planningId]);
+            return res.status(400).json({ success: false, message: 'Désolé, la dernière place vient d\'être prise' });
+        }
+        
+        res.json({ success: true, message: `Inscrit à "${p.atelier_nom}"` });
+    } catch (error) {
+        console.error('Erreur inscription:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
  * DELETE /api/eleves/inscription/:planningId
  * Se désinscrire d'un créneau
  */
