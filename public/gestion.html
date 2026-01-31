@@ -1369,7 +1369,7 @@
                     const resp = await fetch('/api/admin/types-salles', { headers: { 'Authorization': `Bearer ${token}` } });
                     const data = await resp.json();
                     const sel = document.getElementById('modal_type_salle');
-                    sel.innerHTML = '<option value="">-- Aucun --</option>' + data.data.map(t => `<option value="${t.id}">${t.nom}</option>`).join('');
+                    sel.innerHTML = '<option value="">-- Aucun --</option>' + data.data.map(t => `<option value="${t.nom}">${t.nom}</option>`).join('');
                 }, 100);
             } else if (type === 'theme') {
                 title = '🎨 Ajouter un thème';
@@ -1427,7 +1427,7 @@
                     data = {
                         nom: document.getElementById('modal_nom').value,
                         capacite: parseInt(document.getElementById('modal_capacite').value) || 25,
-                        type_salle_id: document.getElementById('modal_type_salle').value || null
+                        type_salle: document.getElementById('modal_type_salle').value || null
                     };
                 } else if (currentAddType === 'theme') {
                     url = '/api/admin/themes';
