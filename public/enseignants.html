@@ -644,6 +644,33 @@
                         🗓️ Mes Disponibilités
                     </div>
                     <div class="card-body">
+                        <!-- Charge horaire -->
+                        <div id="chargeHoraireInfo" style="background:linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); color:white; padding:15px 20px; border-radius:10px; margin-bottom:20px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                                <div>
+                                    <span style="font-size:14px; opacity:0.9;">Votre charge horaire :</span>
+                                    <span id="chargeHoraireValue" style="font-size:24px; font-weight:bold; margin-left:10px;">--</span>
+                                    <span style="font-size:14px; opacity:0.9;"> périodes/semaine</span>
+                                </div>
+                                <div style="text-align:right;">
+                                    <span style="font-size:13px; opacity:0.8;">Disponibilités sélectionnées :</span>
+                                    <span id="nbDispoSelectionnees" style="font-size:18px; font-weight:bold; margin-left:5px;">0</span>
+                                    <span style="font-size:13px; opacity:0.8;"> créneaux</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Message explicatif -->
+                        <div style="background:#fef3c7; border-left:4px solid #f59e0b; padding:15px; border-radius:0 8px 8px 0; margin-bottom:20px;">
+                            <p style="margin:0; color:#92400e; font-size:14px; line-height:1.6;">
+                                <strong>📋 Instructions :</strong><br>
+                                Veuillez sélectionner tous les créneaux horaires où vous êtes disponible. 
+                                Votre répartition finale n'excédera pas votre charge horaire (périodes habituellement enseignées). 
+                                <strong>Des disponibilités plus larges que votre charge horaire nous aident pour la répartition.</strong><br>
+                                Merci de ne décocher que les plages horaires réellement impossibles pour vous.
+                            </p>
+                        </div>
+                        
                         <div id="dispoValidated" class="dispo-validated" style="display:none;">
                             ✅ Vos disponibilités ont été validées et ne peuvent plus être modifiées.
                         </div>
@@ -1343,14 +1370,14 @@
             ateliers.forEach(a => {
                 const statutColor = {
                     'brouillon': '#6b7280',
-                    'en_attente': '#f59e0b',
+                    'soumis': '#f59e0b',
                     'valide': '#10b981',
                     'refuse': '#ef4444'
                 }[a.statut] || '#6b7280';
                 
                 const statutLabel = {
                     'brouillon': 'Brouillon',
-                    'en_attente': 'En attente',
+                    'soumis': 'En attente',
                     'valide': 'Validé',
                     'refuse': 'Refusé'
                 }[a.statut] || a.statut;
@@ -1570,6 +1597,18 @@
         // ===================== DISPONIBILITÉS =====================
         async function loadDisponibilites() {
             try {
+                // Charger la charge horaire depuis le profil
+                const profilResponse = await fetch(`${API_URL}/enseignants/profil`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                const profilData = await profilResponse.json();
+                
+                if (profilData.success && profilData.data) {
+                    const charge = profilData.data.charge_max || 0;
+                    document.getElementById('chargeHoraireValue').textContent = charge;
+                }
+                
+                // Charger les disponibilités
                 const response = await fetch(`${API_URL}/enseignants/disponibilites`, {
                     headers: { 'Authorization': `Bearer ${currentToken}` }
                 });
@@ -1583,6 +1622,11 @@
                 console.error('Erreur disponibilités:', error);
                 document.getElementById('disponibilitesContainer').innerHTML = '<p style="color:red;">Erreur de chargement</p>';
             }
+        }
+
+        function updateDispoCount() {
+            const checked = document.querySelectorAll('.dispo-checkbox:checked').length;
+            document.getElementById('nbDispoSelectionnees').textContent = checked;
         }
 
         function displayDisponibilites(creneaux) {
@@ -1629,6 +1673,7 @@
                         <input type="checkbox" class="dispo-checkbox" 
                                data-jour="${jour}" data-periode="${periode}" 
                                data-creneau="${creneauId}"
+                               onchange="updateDispoCount()"
                                ${checked} ${disabled} style="width:20px; height:20px; cursor:pointer;">
                     </td>`;
                 });
@@ -1647,12 +1692,16 @@
             }
             
             document.getElementById('disponibilitesContainer').innerHTML = html;
+            
+            // Mettre à jour le compteur après affichage
+            updateDispoCount();
         }
 
         function selectAllDispos(checked) {
             document.querySelectorAll('.dispo-checkbox:not([disabled])').forEach(cb => {
                 cb.checked = checked;
             });
+            updateDispoCount();
         }
 
         async function saveDisponibilites() {
@@ -1668,8 +1717,7 @@
                 if (cb.dataset.creneau) {
                     disponibilites.push({
                         creneau_id: parseInt(cb.dataset.creneau),
-                        disponible: cb.checked,
-                        periodes_enseignees_normalement: 0
+                        disponible: cb.checked
                     });
                 }
             });
