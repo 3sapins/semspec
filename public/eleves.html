@@ -768,8 +768,9 @@
             // Map des inscriptions par créneau
             const inscriptionParCreneau = {};
             inscriptionsData.forEach(insc => {
-                if (insc.creneau_id && insc.nombre_creneaux) {
-                    for (let i = 0; i < insc.nombre_creneaux; i++) {
+                const nbCreneaux = insc.nombre_creneaux || Math.ceil((insc.duree || 2) / 2);
+                if (insc.creneau_id) {
+                    for (let i = 0; i < nbCreneaux; i++) {
                         const creneauId = insc.creneau_id + i;
                         inscriptionParCreneau[creneauId] = {
                             ...insc,
@@ -815,7 +816,7 @@
                                 <div class="atelier-mini">
                                     <div class="nom">${inscription.atelier_nom}</div>
                                     <div class="salle">📍 ${inscription.salle_nom || '-'}</div>
-                                    ${inscriptionsOuvertes ? `<button class="btn-retirer" onclick="desinscrire(${inscription.id}, '${inscription.atelier_nom.replace(/'/g, "\\'")}')">✕</button>` : ''}
+                                    ${inscriptionsOuvertes ? `<button class="btn-retirer" onclick="desinscrire(${inscription.planning_id}, '${inscription.atelier_nom.replace(/'/g, "\\'")}')">✕</button>` : ''}
                                 </div>
                             </td>`;
                         } else {
@@ -847,8 +848,9 @@
             
             const creneauxRemplis = new Set();
             inscriptionsData.forEach(insc => {
-                if (insc.creneau_id && insc.nombre_creneaux) {
-                    for (let i = 0; i < insc.nombre_creneaux; i++) {
+                const nbCreneaux = insc.nombre_creneaux || Math.ceil((insc.duree || 2) / 2);
+                if (insc.creneau_id) {
+                    for (let i = 0; i < nbCreneaux; i++) {
                         creneauxRemplis.add(insc.creneau_id + i);
                     }
                 }
