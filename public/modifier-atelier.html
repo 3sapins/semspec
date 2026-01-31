@@ -273,12 +273,6 @@
                     <label>Type de salle demandé</label>
                     <select id="type_salle">
                         <option value="">-- Aucune préférence --</option>
-                        <option value="Classe standard">Classe standard</option>
-                        <option value="Salle informatique">Salle informatique</option>
-                        <option value="Atelier">Atelier</option>
-                        <option value="Laboratoire">Laboratoire</option>
-                        <option value="Salle de sport">Salle de sport</option>
-                        <option value="Extérieur">Extérieur</option>
                     </select>
                 </div>
 
@@ -322,8 +316,32 @@
 
             await loadEnseignants();
             await loadThemes();
+            await loadTypesSalles();
             await loadAtelier();
         });
+
+        // Charger les types de salles
+        async function loadTypesSalles() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch('/api/enseignants/types-salles', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    const select = document.getElementById('type_salle');
+                    result.data.forEach(type => {
+                        const option = document.createElement('option');
+                        option.value = type;
+                        option.textContent = type;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Erreur chargement types salles:', error);
+            }
+        }
 
         // Charger la liste des thèmes
         async function loadThemes() {
