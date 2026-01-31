@@ -516,6 +516,7 @@
                 <div style="text-align: right;">
                     <span id="userName" style="font-weight: 600;"></span>
                     <div style="margin-top: 8px;">
+                        <button class="btn btn-secondary btn-sm" onclick="showProfil()">👤 Profil</button>
                         <button class="btn btn-print btn-sm" onclick="printHoraire()">🖨️ Horaire</button>
                         <button class="btn btn-print btn-sm" onclick="printListes()">🖨️ Listes</button>
                         <button class="btn btn-danger btn-sm" onclick="logout()">Déconnexion</button>
@@ -629,6 +630,93 @@
         </div>
     </div>
 
+    <!-- Modal Créer/Modifier Atelier -->
+    <div class="modal-overlay" id="createAtelierModal" style="display:none;">
+        <div class="modal" style="max-width:600px;">
+            <div class="modal-header">
+                <h2 id="formAtelierTitle">Créer un atelier</h2>
+                <button class="modal-close" onclick="closeCreateAtelier()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="formAtelier" onsubmit="saveAtelier(event)">
+                    <input type="hidden" id="atelier_id">
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block; margin-bottom:5px; font-weight:600;">Nom *</label>
+                        <input type="text" id="atelier_nom" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:5px;">
+                    </div>
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block; margin-bottom:5px; font-weight:600;">Description</label>
+                        <textarea id="atelier_description" rows="3" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:5px;"></textarea>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">
+                        <div>
+                            <label style="display:block; margin-bottom:5px; font-weight:600;">Durée *</label>
+                            <select id="atelier_duree" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:5px;">
+                                <option value="2">2 périodes</option>
+                                <option value="4">4 périodes (demi-journée)</option>
+                                <option value="6">6 périodes (journée)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display:block; margin-bottom:5px; font-weight:600;">Places max *</label>
+                            <input type="number" id="atelier_places" required min="1" max="100" value="20" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:5px;">
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">
+                        <div>
+                            <label style="display:block; margin-bottom:5px; font-weight:600;">Thème</label>
+                            <select id="atelier_theme" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:5px;">
+                                <option value="">-- Aucun --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display:block; margin-bottom:5px; font-weight:600;">Type de salle</label>
+                            <select id="atelier_type_salle" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:5px;">
+                                <option value="">-- Aucune préférence --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block; margin-bottom:5px; font-weight:600;">Infos pour les élèves</label>
+                        <textarea id="atelier_infos" rows="2" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:5px;" placeholder="Matériel à apporter, tenue, etc."></textarea>
+                    </div>
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block; margin-bottom:5px; font-weight:600;">Budget max (CHF)</label>
+                        <input type="number" id="atelier_budget" min="0" step="0.01" value="0" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:5px;">
+                    </div>
+                    <div style="display:flex; gap:10px; justify-content:flex-end;">
+                        <button type="button" class="btn btn-secondary" onclick="closeCreateAtelier()">Annuler</button>
+                        <button type="submit" class="btn btn-success">Enregistrer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Profil -->
+    <div class="modal-overlay" id="profilModal" style="display:none;">
+        <div class="modal" style="max-width:500px;">
+            <div class="modal-header">
+                <h2>👤 Mon Profil</h2>
+                <button class="modal-close" onclick="closeProfilModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="profilContent">
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Présences -->
+    <div class="modal-overlay" id="presencesModal" style="display:none;">
+        <div class="modal" style="max-width:700px;">
+            <div class="modal-header">
+                <h2 id="presencesTitle">📋 Pointage des présences</h2>
+                <button class="modal-close" onclick="closePresencesModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="presencesContent">
+            </div>
+        </div>
+    </div>
+
     <!-- Page Impression Horaire -->
     <div id="printHorairePage" class="print-page">
         <h1>Mon Horaire - Semaine Spéciale</h1>
@@ -647,6 +735,7 @@
         let currentUser = null;
         let catalogueData = [];
         let themesData = [];
+        let typesSallesData = [];
         let disponibilitesValidees = false;
 
         const JOURS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
@@ -742,6 +831,7 @@
             await loadCatalogue();
             await loadMesAteliers();
             await loadDisponibilites();
+            await loadThemesAndTypesSalles();
         }
 
         // ===================== HORAIRE =====================
@@ -825,6 +915,7 @@
                                 <div class="inscrits">
                                     <span class="count">${atelier.nb_inscrits}/${atelier.nombre_places_max}</span>
                                     <button class="btn-liste" onclick="showListeEleves(${atelier.planning_id})">Liste</button>
+                                    <button class="btn-liste" style="background:#10b981;" onclick="showPresences(${atelier.planning_id})">✓ Présences</button>
                                 </div>
                                 ${dureeLabel}
                             </div>
@@ -987,7 +1078,7 @@
         // ===================== MES ATELIERS =====================
         async function loadMesAteliers() {
             try {
-                const response = await fetch(`${API_URL}/enseignants/ateliers`, {
+                const response = await fetch(`${API_URL}/enseignants/mes-ateliers`, {
                     headers: { 'Authorization': `Bearer ${currentToken}` }
                 });
                 const data = await response.json();
@@ -1012,20 +1103,36 @@
             ateliers.forEach(a => {
                 const statutColor = {
                     'brouillon': '#6b7280',
-                    'soumis': '#f59e0b',
+                    'en_attente': '#f59e0b',
                     'valide': '#10b981',
                     'refuse': '#ef4444'
                 }[a.statut] || '#6b7280';
+                
+                const statutLabel = {
+                    'brouillon': 'Brouillon',
+                    'en_attente': 'En attente',
+                    'valide': 'Validé',
+                    'refuse': 'Refusé'
+                }[a.statut] || a.statut;
+                
+                let actions = '';
+                if (a.statut === 'brouillon') {
+                    actions = `
+                        <button class="btn btn-sm btn-primary" onclick="editAtelier(${a.id})">✏️</button>
+                        <button class="btn btn-sm btn-success" onclick="submitAtelier(${a.id})">Soumettre</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteAtelier(${a.id})">🗑️</button>
+                    `;
+                } else if (a.statut === 'valide' || a.statut === 'en_attente') {
+                    actions = `<button class="btn btn-sm btn-secondary" onclick="viewAtelier(${a.id})">👁️</button>`;
+                }
                 
                 html += `<tr style="border-bottom:1px solid #e5e7eb;">
                     <td style="padding:10px;">${a.nom}</td>
                     <td style="text-align:center;">${a.duree}p</td>
                     <td style="text-align:center;">${a.nombre_places_max}</td>
-                    <td style="text-align:center;">${a.nombre_inscrits || 0}</td>
-                    <td style="text-align:center;"><span style="background:${statutColor}20; color:${statutColor}; padding:3px 10px; border-radius:10px; font-size:12px;">${a.statut}</span></td>
-                    <td style="text-align:center;">
-                        ${a.statut === 'brouillon' ? `<button class="btn btn-sm btn-success" onclick="submitAtelier(${a.id})">Soumettre</button>` : ''}
-                    </td>
+                    <td style="text-align:center;">${a.nb_inscrits || 0}</td>
+                    <td style="text-align:center;"><span style="background:${statutColor}20; color:${statutColor}; padding:3px 10px; border-radius:10px; font-size:12px;">${statutLabel}</span></td>
+                    <td style="text-align:center;">${actions}</td>
                 </tr>`;
             });
             
@@ -1038,7 +1145,7 @@
             
             try {
                 const response = await fetch(`${API_URL}/enseignants/ateliers/${id}/soumettre`, {
-                    method: 'POST',
+                    method: 'PUT',
                     headers: { 'Authorization': `Bearer ${currentToken}` }
                 });
                 const data = await response.json();
@@ -1054,8 +1161,116 @@
             }
         }
 
+        async function deleteAtelier(id) {
+            if (!confirm('Supprimer cet atelier brouillon ?')) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/enseignants/ateliers/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Atelier supprimé');
+                    loadMesAteliers();
+                } else {
+                    alert(data.message || 'Erreur');
+                }
+            } catch (error) {
+                alert('Erreur de connexion');
+            }
+        }
+
+        function viewAtelier(id) {
+            // Afficher les détails de l'atelier
+            window.open(`/api/print/presence/${id}/1?token=${currentToken}`, '_blank');
+        }
+
+        function editAtelier(id) {
+            // Rediriger vers le formulaire d'édition
+            showEditAtelierForm(id);
+        }
+
+        async function showEditAtelierForm(id) {
+            try {
+                const response = await fetch(`${API_URL}/enseignants/atelier/${id}`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    const a = data.data;
+                    // Pré-remplir le formulaire de création avec les données
+                    document.getElementById('atelier_id').value = a.id;
+                    document.getElementById('atelier_nom').value = a.nom || '';
+                    document.getElementById('atelier_description').value = a.description || '';
+                    document.getElementById('atelier_duree').value = a.duree || 2;
+                    document.getElementById('atelier_places').value = a.nombre_places_max || 20;
+                    document.getElementById('atelier_theme').value = a.theme_id || '';
+                    document.getElementById('atelier_type_salle').value = a.type_salle_demande || '';
+                    document.getElementById('atelier_infos').value = a.informations_eleves || '';
+                    document.getElementById('atelier_budget').value = a.budget_max || 0;
+                    
+                    document.getElementById('formAtelierTitle').textContent = 'Modifier l\'atelier';
+                    document.getElementById('createAtelierModal').style.display = 'flex';
+                }
+            } catch (error) {
+                alert('Erreur chargement atelier');
+            }
+        }
+
         function showCreateAtelier() {
-            alert('Fonctionnalité de création d\'atelier à implémenter');
+            // Reset le formulaire
+            document.getElementById('atelier_id').value = '';
+            document.getElementById('formAtelier').reset();
+            document.getElementById('formAtelierTitle').textContent = 'Créer un atelier';
+            document.getElementById('createAtelierModal').style.display = 'flex';
+        }
+
+        function closeCreateAtelier() {
+            document.getElementById('createAtelierModal').style.display = 'none';
+        }
+
+        async function saveAtelier(e) {
+            e.preventDefault();
+            
+            const id = document.getElementById('atelier_id').value;
+            const data = {
+                nom: document.getElementById('atelier_nom').value,
+                description: document.getElementById('atelier_description').value,
+                duree: parseInt(document.getElementById('atelier_duree').value),
+                nombre_places_max: parseInt(document.getElementById('atelier_places').value),
+                theme_id: document.getElementById('atelier_theme').value || null,
+                type_salle_demande: document.getElementById('atelier_type_salle').value || null,
+                informations_eleves: document.getElementById('atelier_infos').value,
+                budget_max: parseFloat(document.getElementById('atelier_budget').value) || 0
+            };
+            
+            try {
+                const url = id ? `${API_URL}/enseignants/ateliers/${id}` : `${API_URL}/enseignants/ateliers`;
+                const method = id ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentToken}` 
+                    },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(id ? 'Atelier modifié' : 'Atelier créé');
+                    closeCreateAtelier();
+                    loadMesAteliers();
+                } else {
+                    alert(result.message || 'Erreur');
+                }
+            } catch (error) {
+                alert('Erreur de connexion');
+            }
         }
 
         // ===================== DISPONIBILITÉS =====================
@@ -1313,6 +1528,229 @@
             } catch (error) {
                 alert('Erreur lors de la préparation de l\'impression');
             }
+        }
+
+        // ===================== PROFIL & MOT DE PASSE =====================
+        async function showProfil() {
+            try {
+                const response = await fetch(`${API_URL}/enseignants/profil`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    const p = data.data;
+                    const chargeText = p.charge_max > 0 ? `${p.charge_actuelle} / ${p.charge_max} périodes` : `${p.charge_actuelle} périodes (pas de limite)`;
+                    
+                    document.getElementById('profilContent').innerHTML = `
+                        <div style="margin-bottom:20px;">
+                            <p><strong>Acronyme:</strong> ${p.acronyme}</p>
+                            <p><strong>Nom:</strong> ${p.prenom} ${p.nom}</p>
+                            <p><strong>Email:</strong> ${p.email || '-'}</p>
+                            <p><strong>Charge:</strong> ${chargeText}</p>
+                        </div>
+                        <hr style="margin:20px 0;">
+                        <h3 style="margin-bottom:15px;">🔐 Changer mon mot de passe</h3>
+                        <form onsubmit="changePassword(event)">
+                            <div style="margin-bottom:10px;">
+                                <label style="display:block; margin-bottom:5px;">Ancien mot de passe</label>
+                                <input type="password" id="old_password" required style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px;">
+                            </div>
+                            <div style="margin-bottom:10px;">
+                                <label style="display:block; margin-bottom:5px;">Nouveau mot de passe</label>
+                                <input type="password" id="new_password" required minlength="4" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px;">
+                            </div>
+                            <button type="submit" class="btn btn-primary">Modifier</button>
+                        </form>
+                    `;
+                    document.getElementById('profilModal').style.display = 'flex';
+                }
+            } catch (error) {
+                alert('Erreur chargement profil');
+            }
+        }
+
+        function closeProfilModal() {
+            document.getElementById('profilModal').style.display = 'none';
+        }
+
+        async function changePassword(e) {
+            e.preventDefault();
+            
+            const ancien = document.getElementById('old_password').value;
+            const nouveau = document.getElementById('new_password').value;
+            
+            try {
+                const response = await fetch(`${API_URL}/enseignants/mot-de-passe`, {
+                    method: 'PUT',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentToken}` 
+                    },
+                    body: JSON.stringify({ ancien_mot_de_passe: ancien, nouveau_mot_de_passe: nouveau })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Mot de passe modifié avec succès');
+                    closeProfilModal();
+                } else {
+                    alert(data.message || 'Erreur');
+                }
+            } catch (error) {
+                alert('Erreur de connexion');
+            }
+        }
+
+        // ===================== PRÉSENCES =====================
+        async function showPresences(planningId) {
+            try {
+                const response = await fetch(`${API_URL}/enseignants/presences/${planningId}`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    const { planning, eleves } = data.data;
+                    
+                    document.getElementById('presencesTitle').textContent = `📋 ${planning.atelier_nom} - ${planning.jour} ${planning.periode}`;
+                    
+                    let html = `<p style="margin-bottom:15px;">Salle: ${planning.salle_nom || '-'} | ${eleves.length} élèves</p>`;
+                    
+                    if (eleves.length === 0) {
+                        html += '<p style="color:#666;">Aucun élève inscrit.</p>';
+                    } else {
+                        html += `<form onsubmit="savePresences(event, ${planningId})">
+                            <table style="width:100%; border-collapse:collapse;">
+                                <thead><tr style="background:#f3f4f6;">
+                                    <th style="padding:10px; text-align:left;">Élève</th>
+                                    <th style="padding:10px;">Classe</th>
+                                    <th style="padding:10px;">Présent</th>
+                                    <th style="padding:10px;">Absent</th>
+                                    <th style="padding:10px;">Remarque</th>
+                                </tr></thead>
+                                <tbody>`;
+                        
+                        eleves.forEach(e => {
+                            const isPresent = e.presence_statut === 'present';
+                            const isAbsent = e.presence_statut === 'absent';
+                            
+                            html += `<tr style="border-bottom:1px solid #eee;">
+                                <td style="padding:10px;">${e.nom} ${e.prenom}</td>
+                                <td style="padding:10px; text-align:center;">${e.classe_nom}</td>
+                                <td style="padding:10px; text-align:center;">
+                                    <input type="radio" name="presence_${e.eleve_id}" value="present" ${isPresent ? 'checked' : ''}>
+                                </td>
+                                <td style="padding:10px; text-align:center;">
+                                    <input type="radio" name="presence_${e.eleve_id}" value="absent" ${isAbsent ? 'checked' : ''}>
+                                </td>
+                                <td style="padding:10px;">
+                                    <input type="text" id="comment_${e.eleve_id}" value="${e.presence_commentaire || ''}" placeholder="..." style="width:100%; padding:5px; border:1px solid #ddd; border-radius:3px;">
+                                </td>
+                            </tr>`;
+                        });
+                        
+                        html += `</tbody></table>
+                            <div style="margin-top:15px; display:flex; gap:10px; justify-content:space-between; align-items:center;">
+                                <a href="https://www.vd.ch/themes/formation/scolarite-obligatoire/prestations-et-ressources-pour-les-professionnel%C2%B7le%C2%B7s/base-de-donnees-scolaire-bds" target="_blank" style="color:#667eea;">📊 Base centrale VD</a>
+                                <button type="submit" class="btn btn-success">💾 Enregistrer</button>
+                            </div>
+                        </form>`;
+                    }
+                    
+                    document.getElementById('presencesContent').innerHTML = html;
+                    document.getElementById('presencesModal').style.display = 'flex';
+                }
+            } catch (error) {
+                alert('Erreur chargement présences');
+            }
+        }
+
+        function closePresencesModal() {
+            document.getElementById('presencesModal').style.display = 'none';
+        }
+
+        async function savePresences(e, planningId) {
+            e.preventDefault();
+            
+            const form = e.target;
+            const presences = [];
+            
+            // Récupérer tous les radios cochés
+            const radios = form.querySelectorAll('input[type="radio"]:checked');
+            radios.forEach(radio => {
+                const eleveId = radio.name.replace('presence_', '');
+                const commentaire = document.getElementById(`comment_${eleveId}`)?.value || '';
+                presences.push({
+                    eleve_id: parseInt(eleveId),
+                    statut: radio.value,
+                    commentaire: commentaire
+                });
+            });
+            
+            try {
+                const response = await fetch(`${API_URL}/enseignants/presences/${planningId}`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentToken}` 
+                    },
+                    body: JSON.stringify({ presences })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Présences enregistrées');
+                } else {
+                    alert(data.message || 'Erreur');
+                }
+            } catch (error) {
+                alert('Erreur de connexion');
+            }
+        }
+
+        // ===================== CHARGEMENT THÈMES & TYPES SALLES =====================
+        async function loadThemesAndTypesSalles() {
+            try {
+                const [themesRes, typesRes] = await Promise.all([
+                    fetch(`${API_URL}/enseignants/themes`, { headers: { 'Authorization': `Bearer ${currentToken}` } }),
+                    fetch(`${API_URL}/enseignants/types-salles`, { headers: { 'Authorization': `Bearer ${currentToken}` } })
+                ]);
+                
+                const themesData = await themesRes.json();
+                const typesData = await typesRes.json();
+                
+                // Remplir le select des thèmes
+                const themeSelect = document.getElementById('atelier_theme');
+                if (themeSelect && themesData.success) {
+                    themeSelect.innerHTML = '<option value="">-- Aucun --</option>';
+                    themesData.data.forEach(t => {
+                        themeSelect.innerHTML += `<option value="${t.id}">${t.icone || ''} ${t.nom}</option>`;
+                    });
+                }
+                
+                // Remplir le select des types de salles
+                const typeSelect = document.getElementById('atelier_type_salle');
+                if (typeSelect && typesData.success) {
+                    typeSelect.innerHTML = '<option value="">-- Aucune préférence --</option>';
+                    typesData.data.forEach(t => {
+                        typeSelect.innerHTML += `<option value="${t}">${t}</option>`;
+                    });
+                }
+            } catch (error) {
+                console.error('Erreur chargement thèmes/types:', error);
+            }
+        }
+
+        // ===================== IMPRESSION CORRIGÉE =====================
+        function printHoraire() {
+            // Ouvrir la page d'impression via l'API print
+            window.open(`/api/print/horaire/enseignant?token=${currentToken}`, '_blank');
+        }
+
+        function printListes() {
+            // Ouvrir la page d'impression via l'API print
+            window.open(`/api/print/listes/enseignant?token=${currentToken}`, '_blank');
         }
     </script>
 </body>
