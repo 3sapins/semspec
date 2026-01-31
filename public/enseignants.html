@@ -684,6 +684,10 @@
                         <label style="display:block; margin-bottom:5px; font-weight:600;">Budget max (CHF)</label>
                         <input type="number" id="atelier_budget" min="0" step="0.01" value="0" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:5px;">
                     </div>
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block; margin-bottom:5px; font-weight:600;">Remarques pour l'admin</label>
+                        <textarea id="atelier_remarques" rows="2" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:5px; background:#fef3c7;" placeholder="Besoins particuliers, contraintes horaires, etc."></textarea>
+                    </div>
                     <div style="display:flex; gap:10px; justify-content:flex-end;">
                         <button type="button" class="btn btn-secondary" onclick="closeCreateAtelier()">Annuler</button>
                         <button type="submit" class="btn btn-success">Enregistrer</button>
@@ -988,20 +992,15 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    catalogueData = data.data;
+                    catalogueData = data.data.ateliers || [];
+                    themesData = data.data.themes || [];
                     
-                    // Extraire les thèmes
-                    const themesSet = new Set();
-                    catalogueData.forEach(a => {
-                        if (a.theme_nom) themesSet.add(a.theme_nom);
-                    });
-                    themesData = [...themesSet].sort();
                     populateThemeFilter();
-                    
                     displayCatalogue();
                 }
             } catch (error) {
                 console.error('Erreur catalogue:', error);
+                document.getElementById('catalogueContainer').innerHTML = '<p style="color:red;">Erreur de chargement</p>';
             }
         }
 
@@ -1009,7 +1008,7 @@
             const select = document.getElementById('filtreThemeCatalogue');
             select.innerHTML = '<option value="">Tous les thèmes</option>';
             themesData.forEach(theme => {
-                select.innerHTML += `<option value="${theme}">${theme}</option>`;
+                select.innerHTML += `<option value="${theme.nom}">${theme.icone || ''} ${theme.nom}</option>`;
             });
         }
 
@@ -1182,9 +1181,49 @@
             }
         }
 
-        function viewAtelier(id) {
-            // Afficher les détails de l'atelier
-            window.open(`/api/print/presence/${id}/1?token=${currentToken}`, '_blank');
+        async function viewAtelier(id) {
+            // Afficher les détails de l'atelier dans un modal
+            try {
+                const response = await fetch(`${API_URL}/enseignants/atelier/${id}`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    const a = data.data;
+                    const themeInfo = a.theme_nom ? `<span style="display:inline-block; padding:2px 8px; border-radius:10px; background:${a.theme_couleur || '#667eea'}20; color:${a.theme_couleur || '#667eea'};">${a.theme_nom}</span>` : '-';
+                    
+                    let html = `
+                        <div style="margin-bottom:15px;">
+                            <h3 style="margin-bottom:10px;">${a.nom}</h3>
+                            <p><strong>Statut:</strong> <span style="color:#10b981; font-weight:bold;">${a.statut}</span></p>
+                            <p><strong>Durée:</strong> ${a.duree} périodes</p>
+                            <p><strong>Places:</strong> ${a.nombre_places_max}</p>
+                            <p><strong>Thème:</strong> ${themeInfo}</p>
+                            <p><strong>Type de salle:</strong> ${a.type_salle_demande || '-'}</p>
+                            <p><strong>Budget:</strong> ${a.budget_max || 0} CHF</p>
+                        </div>
+                        <div style="margin-bottom:15px;">
+                            <strong>Description:</strong>
+                            <p style="background:#f3f4f6; padding:10px; border-radius:5px; margin-top:5px;">${a.description || '-'}</p>
+                        </div>
+                        <div style="margin-bottom:15px;">
+                            <strong>Infos pour les élèves:</strong>
+                            <p style="background:#f3f4f6; padding:10px; border-radius:5px; margin-top:5px;">${a.informations_eleves || '-'}</p>
+                        </div>
+                        <div>
+                            <strong>Remarques pour l'admin:</strong>
+                            <p style="background:#fef3c7; padding:10px; border-radius:5px; margin-top:5px;">${a.remarques || '-'}</p>
+                        </div>
+                    `;
+                    
+                    document.getElementById('modalListeTitle').textContent = '📋 Détails de l\'atelier';
+                    document.getElementById('modalListeBody').innerHTML = html;
+                    document.getElementById('modalListe').style.display = 'flex';
+                }
+            } catch (error) {
+                alert('Erreur chargement atelier');
+            }
         }
 
         function editAtelier(id) {
@@ -1211,6 +1250,7 @@
                     document.getElementById('atelier_type_salle').value = a.type_salle_demande || '';
                     document.getElementById('atelier_infos').value = a.informations_eleves || '';
                     document.getElementById('atelier_budget').value = a.budget_max || 0;
+                    document.getElementById('atelier_remarques').value = a.remarques || '';
                     
                     document.getElementById('formAtelierTitle').textContent = 'Modifier l\'atelier';
                     document.getElementById('createAtelierModal').style.display = 'flex';
@@ -1244,7 +1284,8 @@
                 theme_id: document.getElementById('atelier_theme').value || null,
                 type_salle_demande: document.getElementById('atelier_type_salle').value || null,
                 informations_eleves: document.getElementById('atelier_infos').value,
-                budget_max: parseFloat(document.getElementById('atelier_budget').value) || 0
+                budget_max: parseFloat(document.getElementById('atelier_budget').value) || 0,
+                remarques: document.getElementById('atelier_remarques').value || null
             };
             
             try {
@@ -1282,27 +1323,33 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    disponibilitesValidees = data.valide || false;
-                    displayDisponibilites(data.data);
+                    disponibilitesValidees = data.data.valide || false;
+                    displayDisponibilites(data.data.creneaux || []);
                 }
             } catch (error) {
                 console.error('Erreur disponibilités:', error);
+                document.getElementById('disponibilitesContainer').innerHTML = '<p style="color:red;">Erreur de chargement</p>';
             }
         }
 
-        function displayDisponibilites(dispos) {
-            if (disponibilitesValidees) {
-                document.getElementById('dispoValidated').style.display = 'block';
-                document.getElementById('dispoActions').style.display = 'none';
-            } else {
-                document.getElementById('dispoValidated').style.display = 'none';
-                document.getElementById('dispoActions').style.display = 'block';
+        function displayDisponibilites(creneaux) {
+            const dispoValidatedDiv = document.getElementById('dispoValidated');
+            const dispoActionsDiv = document.getElementById('dispoActions');
+            
+            if (dispoValidatedDiv && dispoActionsDiv) {
+                if (disponibilitesValidees) {
+                    dispoValidatedDiv.style.display = 'block';
+                    dispoActionsDiv.style.display = 'none';
+                } else {
+                    dispoValidatedDiv.style.display = 'none';
+                    dispoActionsDiv.style.display = 'block';
+                }
             }
             
             // Organiser par jour/période
             const dispoMap = {};
-            dispos.forEach(d => {
-                dispoMap[`${d.jour}-${d.periode}`] = d;
+            creneaux.forEach(c => {
+                dispoMap[`${c.jour}-${c.periode}`] = c;
             });
             
             let html = '<table class="dispo-table"><thead><tr><th></th>';
@@ -1320,15 +1367,16 @@
                         return;
                     }
                     
-                    const d = dispoMap[`${jour}-${periode}`];
-                    const checked = d?.disponible ? 'checked' : '';
+                    const c = dispoMap[`${jour}-${periode}`];
+                    const checked = c?.disponible ? 'checked' : '';
                     const disabled = disponibilitesValidees ? 'disabled' : '';
+                    const creneauId = c?.id || '';
                     
-                    html += `<td>
+                    html += `<td style="text-align:center;">
                         <input type="checkbox" class="dispo-checkbox" 
                                data-jour="${jour}" data-periode="${periode}" 
-                               data-creneau="${d?.creneau_id || ''}"
-                               ${checked} ${disabled}>
+                               data-creneau="${creneauId}"
+                               ${checked} ${disabled} style="width:20px; height:20px; cursor:pointer;">
                     </td>`;
                 });
                 
@@ -1336,7 +1384,22 @@
             });
             
             html += '</tbody></table>';
+            
+            if (!disponibilitesValidees) {
+                html += `<div style="margin-top:15px; display:flex; gap:10px;">
+                    <button class="btn btn-success" onclick="saveDisponibilites()">💾 Enregistrer</button>
+                    <button class="btn btn-secondary" onclick="selectAllDispos(true)">✅ Tout cocher</button>
+                    <button class="btn btn-secondary" onclick="selectAllDispos(false)">⬜ Tout décocher</button>
+                </div>`;
+            }
+            
             document.getElementById('disponibilitesContainer').innerHTML = html;
+        }
+
+        function selectAllDispos(checked) {
+            document.querySelectorAll('.dispo-checkbox:not([disabled])').forEach(cb => {
+                cb.checked = checked;
+            });
         }
 
         async function saveDisponibilites() {
