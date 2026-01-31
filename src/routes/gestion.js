@@ -497,18 +497,45 @@ router.get('/tous-eleves-creneaux', async (req, res) => {
 // ========== PIQUET / DÉGAGEMENT (CORRIGÉ - SANS salle_id) ==========
 router.get('/piquet', async (req, res) => {
     try {
-        const piquet = await query(`
-            SELECT ep.*, u.nom as enseignant_nom, u.prenom as enseignant_prenom, u.acronyme as enseignant_acronyme,
-                c.jour, c.periode, c.heure_debut, c.heure_fin
-            FROM enseignants_piquet ep
-            JOIN utilisateurs u ON ep.utilisateur_id = u.id
-            JOIN creneaux c ON ep.creneau_id = c.id
-            ORDER BY c.ordre, u.nom
-        `);
+        // Essayer d'abord avec commentaire
+        let piquet;
+        try {
+            piquet = await query(`
+                SELECT ep.id, ep.utilisateur_id, ep.creneau_id, ep.type, ep.commentaire,
+                    u.nom as enseignant_nom, u.prenom as enseignant_prenom, u.acronyme as enseignant_acronyme,
+                    c.jour, c.periode, c.heure_debut, c.heure_fin
+                FROM enseignants_piquet ep
+                JOIN utilisateurs u ON ep.utilisateur_id = u.id
+                JOIN creneaux c ON ep.creneau_id = c.id
+                ORDER BY c.ordre, u.nom
+            `);
+        } catch (e) {
+            // Si erreur (colonne commentaire n'existe pas), requête sans commentaire
+            if (e.code === 'ER_BAD_FIELD_ERROR') {
+                piquet = await query(`
+                    SELECT ep.id, ep.utilisateur_id, ep.creneau_id, ep.type, NULL as commentaire,
+                        u.nom as enseignant_nom, u.prenom as enseignant_prenom, u.acronyme as enseignant_acronyme,
+                        c.jour, c.periode, c.heure_debut, c.heure_fin
+                    FROM enseignants_piquet ep
+                    JOIN utilisateurs u ON ep.utilisateur_id = u.id
+                    JOIN creneaux c ON ep.creneau_id = c.id
+                    ORDER BY c.ordre, u.nom
+                `);
+                // Tenter d'ajouter la colonne
+                try {
+                    await query('ALTER TABLE enseignants_piquet ADD COLUMN commentaire TEXT');
+                    console.log('Colonne commentaire ajoutée à enseignants_piquet');
+                } catch (alterError) {
+                    // Ignore si la colonne existe déjà ou autre erreur
+                }
+            } else {
+                throw e;
+            }
+        }
         res.json({ success: true, data: piquet });
     } catch (error) {
         console.error('Erreur liste piquet:', error);
-        res.status(500).json({ success: false, message: 'Erreur serveur' });
+        res.status(500).json({ success: false, message: 'Erreur serveur: ' + error.message });
     }
 });
 
@@ -540,9 +567,23 @@ router.post('/piquet', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Cet enseignant est déjà affecté sur ce créneau' });
         }
         
-        // INSERT SANS salle_id (colonne inexistante)
-        await query(`INSERT INTO enseignants_piquet (utilisateur_id, creneau_id, type, commentaire) VALUES (?, ?, ?, ?)`,
-            [utilisateur_id, creneau_id, type || 'piquet', commentaire || null]);
+        // Essayer d'insérer avec commentaire
+        try {
+            await query(`INSERT INTO enseignants_piquet (utilisateur_id, creneau_id, type, commentaire) VALUES (?, ?, ?, ?)`,
+                [utilisateur_id, creneau_id, type || 'piquet', commentaire || null]);
+        } catch (insertError) {
+            if (insertError.code === 'ER_BAD_FIELD_ERROR') {
+                // Colonne commentaire n'existe pas, insérer sans
+                await query(`INSERT INTO enseignants_piquet (utilisateur_id, creneau_id, type) VALUES (?, ?, ?)`,
+                    [utilisateur_id, creneau_id, type || 'piquet']);
+                // Tenter d'ajouter la colonne pour la prochaine fois
+                try {
+                    await query('ALTER TABLE enseignants_piquet ADD COLUMN commentaire TEXT');
+                } catch (e) {}
+            } else {
+                throw insertError;
+            }
+        }
         
         res.json({ success: true, message: `${type === 'degagement' ? 'Dégagement' : 'Piquet'} ajouté pour ${enseignant[0].prenom} ${enseignant[0].nom}` });
     } catch (error) {
