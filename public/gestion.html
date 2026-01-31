@@ -353,11 +353,11 @@
                 const result = await response.json();
                 let html = '<table><thead><tr>';
                 if (type === 'enseignants') {
-                    html += '<th>Acronyme</th><th>Nom</th><th>Prénom</th><th>Email</th><th>Ateliers</th></tr></thead><tbody>';
-                    result.data.forEach(e => html += `<tr><td>${e.acronyme}</td><td>${e.nom}</td><td>${e.prenom}</td><td>${e.email || '-'}</td><td>${e.nombre_ateliers}</td></tr>`);
+                    html += '<th>Acronyme</th><th>Nom</th><th>Prénom</th><th>Email</th><th>Ateliers</th><th>Actions</th></tr></thead><tbody>';
+                    result.data.forEach(e => html += `<tr><td>${e.acronyme}</td><td>${e.nom}</td><td>${e.prenom}</td><td>${e.email || '-'}</td><td>${e.nombre_ateliers}</td><td><button class="btn btn-sm btn-secondary" onclick="resetPasswordEnseignant(${e.id}, '${e.acronyme}')">🔑 Reset MDP</button></td></tr>`);
                 } else if (type === 'eleves') {
-                    html += '<th>Nom</th><th>Prénom</th><th>Classe</th></tr></thead><tbody>';
-                    result.data.forEach(e => html += `<tr><td>${e.nom}</td><td>${e.prenom}</td><td>${e.classe_nom}</td></tr>`);
+                    html += '<th>Nom</th><th>Prénom</th><th>Classe</th><th>Actions</th></tr></thead><tbody>';
+                    result.data.forEach(e => html += `<tr><td>${e.nom}</td><td>${e.prenom}</td><td>${e.classe_nom}</td><td><button class="btn btn-sm btn-secondary" onclick="resetPasswordEleve(${e.id}, '${e.prenom} ${e.nom}')">🔑 Reset MDP</button></td></tr>`);
                 } else if (type === 'classes') {
                     html += '<th>Nom</th><th>Niveau</th><th>Élèves</th></tr></thead><tbody>';
                     result.data.forEach(c => html += `<tr><td>${c.nom}</td><td>${c.niveau || '-'}</td><td>${c.nombre_eleves}</td></tr>`);
@@ -365,7 +365,14 @@
                     html += '<th>Nom</th><th>Capacité</th><th>Type</th><th>Dispo</th></tr></thead><tbody>';
                     result.data.forEach(s => html += `<tr><td>${s.nom}</td><td>${s.capacite}</td><td>${s.type_salle || '-'}</td><td>${s.disponible ? '✅' : '❌'}</td></tr>`);
                 }
-                html += '</tbody></table><p style="margin-top:10px;color:#666;"><strong>' + result.data.length + '</strong> enregistrements</p>';
+                html += '</tbody></table>';
+                // Ajouter boutons reset global pour enseignants et élèves
+                if (type === 'enseignants') {
+                    html += `<div style="margin-top:15px;"><button class="btn btn-danger" onclick="resetAllPasswords('enseignants')">🔑 Réinitialiser TOUS les MDP enseignants</button></div>`;
+                } else if (type === 'eleves') {
+                    html += `<div style="margin-top:15px;"><button class="btn btn-danger" onclick="resetAllPasswords('eleves')">🔑 Réinitialiser TOUS les MDP élèves</button></div>`;
+                }
+                html += '<p style="margin-top:10px;color:#666;"><strong>' + result.data.length + '</strong> enregistrements</p>';
                 document.getElementById('listeContainer').innerHTML = html;
             } catch (e) { document.getElementById('listeContainer').innerHTML = '<p style="color:red;">Erreur</p>'; }
         }
@@ -511,11 +518,11 @@
                 const response = await fetch(`${API_BASE}/piquet`, { headers: { 'Authorization': `Bearer ${token}` } });
                 const result = await response.json();
                 if (result.data.length === 0) { document.getElementById('piquetListe').innerHTML = '<p style="color:#666;">Aucun</p>'; return; }
-                let html = '<table><thead><tr><th>Enseignant</th><th>Créneau</th><th>Type</th><th></th></tr></thead><tbody>';
+                let html = '<table><thead><tr><th>Enseignant</th><th>Créneau</th><th>Type</th><th>Commentaire</th><th></th></tr></thead><tbody>';
                 result.data.forEach(p => {
                     const jour = p.jour.charAt(0).toUpperCase() + p.jour.slice(1);
                     const typeLabel = p.type === 'degagement' ? '<span class="badge badge-blue">Dégagement</span>' : '<span class="badge badge-yellow">Piquet</span>';
-                    html += `<tr><td>${p.enseignant_prenom} ${p.enseignant_nom}</td><td>${jour} ${p.periode}</td><td>${typeLabel}</td><td><button class="btn btn-danger btn-sm" onclick="deletePiquet(${p.id})">🗑️</button></td></tr>`;
+                    html += `<tr><td>${p.enseignant_prenom} ${p.enseignant_nom}</td><td>${jour} ${p.periode}</td><td>${typeLabel}</td><td>${p.commentaire || '-'}</td><td><button class="btn btn-danger btn-sm" onclick="deletePiquet(${p.id})">🗑️</button></td></tr>`;
                 });
                 html += '</tbody></table>';
                 document.getElementById('piquetListe').innerHTML = html;
@@ -782,6 +789,70 @@
                 if (result.success) {
                     showAlert('✅ Inscriptions dé-validées', 'success');
                     chargerInscriptionsEleve(currentEleveId);
+                } else {
+                    showAlert('❌ ' + result.message, 'error');
+                }
+            } catch (e) {
+                showAlert('❌ Erreur', 'error');
+            }
+        }
+
+        // ========== RESET MOT DE PASSE ==========
+        async function resetPasswordEnseignant(id, acronyme) {
+            if (!confirm(`Réinitialiser le mot de passe de ${acronyme} ?\n\nNouveau mot de passe: ${acronyme.toLowerCase()}`)) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/enseignant/${id}/reset-password`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert(`✅ ${result.message}\nNouveau mot de passe: ${result.new_password}`, 'success');
+                } else {
+                    showAlert('❌ ' + result.message, 'error');
+                }
+            } catch (e) {
+                showAlert('❌ Erreur', 'error');
+            }
+        }
+
+        async function resetPasswordEleve(eleveId, nom) {
+            if (!confirm(`Réinitialiser le mot de passe de ${nom} ?\n\nNouveau mot de passe: eleve2026`)) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/eleve/${eleveId}/reset-password`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert(`✅ ${result.message}\nNouveau mot de passe: ${result.new_password}`, 'success');
+                } else {
+                    showAlert('❌ ' + result.message, 'error');
+                }
+            } catch (e) {
+                showAlert('❌ Erreur', 'error');
+            }
+        }
+
+        async function resetAllPasswords(type) {
+            const typeLabel = type === 'enseignants' ? 'enseignants (acronyme en minuscules)' : 'élèves (eleve2026)';
+            if (!confirm(`⚠️ ATTENTION: Réinitialiser TOUS les mots de passe des ${typeLabel} ?`)) return;
+            if (!confirm('Êtes-vous vraiment sûr ?')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/reset-all-passwords`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ type })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert(`✅ ${result.message}`, 'success');
                 } else {
                     showAlert('❌ ' + result.message, 'error');
                 }

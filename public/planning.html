@@ -59,6 +59,7 @@
                 <a href="index.html" class="btn btn-secondary">← Retour</a>
                 <button class="btn btn-primary" onclick="openPlacementManuel()">📍 Placement Manuel</button>
                 <button class="btn btn-success" onclick="lancerAllocation()">🚀 Allocation Auto</button>
+                <button class="btn btn-danger" onclick="resetPlanning()">🗑️ Réinitialiser</button>
                 <button class="btn btn-warning" onclick="window.print()">🖨️ Imprimer</button>
             </div>
         </div>
@@ -198,13 +199,15 @@
 
         async function loadAteliersNonPlaces() {
             try {
-                const response = await fetch('/api/planning/ateliers-non-places', { headers: { 'Authorization': `Bearer ${token}` } });
+                // Charger TOUS les ateliers validés (pas seulement non-placés) pour permettre plusieurs itérations
+                const response = await fetch('/api/planning/ateliers-valides', { headers: { 'Authorization': `Bearer ${token}` } });
                 const result = await response.json();
                 ateliersNonPlaces = result.data || [];
                 const select = document.getElementById('placementAtelier');
                 select.innerHTML = '<option value="">-- Sélectionner un atelier --</option>';
                 ateliersNonPlaces.forEach(a => {
-                    select.innerHTML += `<option value="${a.id}">${a.nom} (${a.duree}p - ${a.enseignant_acronyme})</option>`;
+                    const iterInfo = a.nb_iterations > 0 ? ` [${a.nb_iterations} itération(s)]` : ' [Non placé]';
+                    select.innerHTML += `<option value="${a.id}">${a.nom} (${a.duree}p - ${a.enseignant_acronyme})${iterInfo}</option>`;
                 });
             } catch (e) { console.error(e); }
         }
@@ -462,6 +465,26 @@
                 const response = await fetch('/api/planning/allouer', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
                 const result = await response.json();
                 if (result.success) { showAlert(`✅ ${result.message}`, 'success'); loadPlanning(); }
+                else showAlert('❌ ' + result.message, 'error');
+            } catch (e) { showAlert('❌ Erreur', 'error'); }
+        }
+
+        // ========== RESET PLANNING ==========
+        async function resetPlanning() {
+            if (!confirm('⚠️ ATTENTION: Supprimer TOUT le planning ?\n\nCette action supprimera tous les placements et les inscriptions associées.')) return;
+            if (!confirm('Êtes-vous vraiment sûr ? Cette action est irréversible.')) return;
+            
+            showAlert('⏳ Réinitialisation...', 'success');
+            try {
+                const response = await fetch('/api/planning/reset/all', { 
+                    method: 'DELETE', 
+                    headers: { 'Authorization': `Bearer ${token}` } 
+                });
+                const result = await response.json();
+                if (result.success) { 
+                    showAlert('✅ Planning réinitialisé', 'success'); 
+                    loadPlanning(); 
+                }
                 else showAlert('❌ ' + result.message, 'error');
             } catch (e) { showAlert('❌ Erreur', 'error'); }
         }
