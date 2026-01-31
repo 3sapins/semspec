@@ -15,6 +15,8 @@
         }
 
         .container { max-width: 1400px; margin: 0 auto; }
+        
+        .hidden { display: none !important; }
 
         .header {
             background: white;
@@ -528,6 +530,7 @@
             <div class="tabs-container no-print">
                 <button class="tab-btn active" onclick="showTab('horaire')">📅 Mon Horaire</button>
                 <button class="tab-btn" onclick="showTab('catalogue')">📚 Catalogue</button>
+                <button class="tab-btn" onclick="showTab('horaires-eleves')">👥 Horaires Élèves</button>
                 <button class="tab-btn" onclick="showTab('ateliers')">✏️ Mes Ateliers</button>
                 <button class="tab-btn" onclick="showTab('disponibilites')">🗓️ Disponibilités</button>
             </div>
@@ -553,20 +556,31 @@
                         📚 Catalogue des Ateliers
                     </div>
                     <div class="card-body">
-                        <div class="filtres">
+                        <div class="filtres" style="display:flex; flex-wrap:wrap; gap:15px; margin-bottom:20px;">
                             <div class="filtre-group">
                                 <label>Recherche:</label>
-                                <input type="text" id="searchCatalogue" placeholder="Nom..." oninput="filterCatalogue()">
+                                <input type="text" id="searchCatalogue" placeholder="Nom..." oninput="filterCatalogue()" style="padding:8px; border:1px solid #ddd; border-radius:5px;">
                             </div>
                             <div class="filtre-group">
                                 <label>Thème:</label>
-                                <select id="filtreThemeCatalogue" onchange="filterCatalogue()">
+                                <select id="filtreThemeCatalogue" onchange="filterCatalogue()" style="padding:8px; border:1px solid #ddd; border-radius:5px;">
                                     <option value="">Tous</option>
                                 </select>
                             </div>
                             <div class="filtre-group">
+                                <label>Jour:</label>
+                                <select id="filtreJourCatalogue" onchange="filterCatalogue()" style="padding:8px; border:1px solid #ddd; border-radius:5px;">
+                                    <option value="">Tous</option>
+                                    <option value="lundi">Lundi</option>
+                                    <option value="mardi">Mardi</option>
+                                    <option value="mercredi">Mercredi</option>
+                                    <option value="jeudi">Jeudi</option>
+                                    <option value="vendredi">Vendredi</option>
+                                </select>
+                            </div>
+                            <div class="filtre-group">
                                 <label>Durée:</label>
-                                <select id="filtreDureeCatalogue" onchange="filterCatalogue()">
+                                <select id="filtreDureeCatalogue" onchange="filterCatalogue()" style="padding:8px; border:1px solid #ddd; border-radius:5px;">
                                     <option value="">Toutes</option>
                                     <option value="2">2 périodes</option>
                                     <option value="4">4 périodes</option>
@@ -577,6 +591,33 @@
                         <div id="catalogueContainer">
                             <p style="color:#666;">Chargement...</p>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Horaires Élèves -->
+            <div id="tab-horaires-eleves" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        👥 Horaires des Élèves
+                    </div>
+                    <div class="card-body">
+                        <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:20px;">
+                            <div style="flex:1; min-width:250px;">
+                                <label style="display:block; margin-bottom:5px; font-weight:600;">Par classe:</label>
+                                <select id="selectClasse" onchange="loadElevesClasse()" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:5px;">
+                                    <option value="">-- Sélectionner une classe --</option>
+                                </select>
+                            </div>
+                            <div style="flex:1; min-width:250px;">
+                                <label style="display:block; margin-bottom:5px; font-weight:600;">Rechercher un élève:</label>
+                                <input type="text" id="rechercheEleve" placeholder="Nom ou prénom..." oninput="rechercherEleveEnseignant()" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:5px;">
+                                <div id="resultatsRechercheEleve" style="position:relative;"></div>
+                            </div>
+                        </div>
+                        
+                        <div id="elevesListeContainer" style="margin-bottom:20px;"></div>
+                        <div id="horaireEleveContainer"></div>
                     </div>
                 </div>
             </div>
@@ -832,10 +873,11 @@
         // Charger toutes les données
         async function loadAllData() {
             await loadHoraire();
-            await loadCatalogue();
+            await loadCatalogueSimple();
             await loadMesAteliers();
             await loadDisponibilites();
             await loadThemesAndTypesSalles();
+            await loadClasses();
         }
 
         // ===================== HORAIRE =====================
@@ -983,10 +1025,10 @@
             document.getElementById('modalListe').classList.remove('active');
         }
 
-        // ===================== CATALOGUE =====================
-        async function loadCatalogue() {
+        // ===================== CATALOGUE SIMPLIFIÉ =====================
+        async function loadCatalogueSimple() {
             try {
-                const response = await fetch(`${API_URL}/enseignants/catalogue`, {
+                const response = await fetch(`${API_URL}/enseignants/catalogue-simple`, {
                     headers: { 'Authorization': `Bearer ${currentToken}` }
                 });
                 const data = await response.json();
@@ -1019,12 +1061,15 @@
         function displayCatalogue() {
             const search = document.getElementById('searchCatalogue').value.toLowerCase();
             const theme = document.getElementById('filtreThemeCatalogue').value;
+            const jour = document.getElementById('filtreJourCatalogue').value;
             const duree = document.getElementById('filtreDureeCatalogue').value;
             
             let filtered = catalogueData.filter(a => {
-                if (search && !a.nom.toLowerCase().includes(search)) return false;
+                if (search && !a.nom.toLowerCase().includes(search) && !a.description?.toLowerCase().includes(search)) return false;
                 if (theme && a.theme_nom !== theme) return false;
                 if (duree && a.duree !== parseInt(duree)) return false;
+                // Filtre par jour: vérifier si l'atelier a un créneau ce jour
+                if (jour && !a.creneaux?.some(c => c.jour === jour)) return false;
                 return true;
             });
             
@@ -1033,35 +1078,59 @@
                 return;
             }
             
-            let html = '';
+            // Trier par thème puis par nom
+            filtered.sort((a, b) => {
+                if (a.theme_nom && b.theme_nom) return a.theme_nom.localeCompare(b.theme_nom) || a.nom.localeCompare(b.nom);
+                if (a.theme_nom) return -1;
+                if (b.theme_nom) return 1;
+                return a.nom.localeCompare(b.nom);
+            });
+            
+            let html = `<p style="margin-bottom:15px; color:#666;">${filtered.length} atelier(s) trouvé(s)</p>`;
+            
             filtered.forEach(atelier => {
                 const themeStyle = atelier.theme_couleur 
-                    ? `background: ${atelier.theme_couleur}20; color: ${atelier.theme_couleur};` 
-                    : 'background: #e5e7eb; color: #374151;';
+                    ? `background: ${atelier.theme_couleur}20; color: ${atelier.theme_couleur}; border-left: 4px solid ${atelier.theme_couleur};` 
+                    : 'background: #f3f4f6; border-left: 4px solid #6b7280;';
                 
                 const dureeBadge = atelier.duree === 6 ? 'Journée' : `${atelier.duree}p`;
                 
+                // Formater les créneaux de manière compacte
+                const creneauxStr = atelier.creneaux?.map(c => {
+                    const jourAbbr = c.jour.substring(0, 3).charAt(0).toUpperCase() + c.jour.substring(1, 3);
+                    return `${jourAbbr} ${c.periode}`;
+                }).join(' • ') || 'Non planifié';
+                
                 html += `
-                    <div class="atelier-item" onclick="toggleAtelier(this)">
-                        <div class="atelier-header">
-                            <div class="atelier-title">
-                                <h3>${atelier.nom}</h3>
-                                <span class="badge badge-duree">${dureeBadge}</span>
-                                ${atelier.theme_nom ? `<span class="badge" style="${themeStyle}">${atelier.theme_icone || ''} ${atelier.theme_nom}</span>` : ''}
+                    <div style="padding:15px; margin-bottom:10px; border-radius:8px; ${themeStyle}; cursor:pointer;" onclick="this.querySelector('.atelier-details').classList.toggle('hidden')">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+                            <div style="flex:1; min-width:200px;">
+                                <h3 style="margin:0 0 5px 0; font-size:16px;">${atelier.nom}</h3>
+                                <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                                    <span style="background:#1e3a5f; color:white; padding:2px 8px; border-radius:10px; font-size:11px;">${dureeBadge}</span>
+                                    <span style="background:#10b981; color:white; padding:2px 8px; border-radius:10px; font-size:11px;">${atelier.nombre_places_max} places</span>
+                                    ${atelier.theme_nom ? `<span style="font-size:12px;">${atelier.theme_icone || ''} ${atelier.theme_nom}</span>` : ''}
+                                </div>
                             </div>
-                            <span style="color:#6b7280;">▼</span>
+                            <div style="text-align:right; font-size:12px; color:#4b5563;">
+                                📅 ${creneauxStr}
+                            </div>
                         </div>
-                        <div class="atelier-content">
-                            <div class="atelier-enseignants">👨‍🏫 ${atelier.enseignants_noms || '-'}</div>
-                            ${atelier.description ? `<div class="atelier-desc">${atelier.description}</div>` : ''}
-                            <div class="atelier-creneaux">
-                                ${atelier.creneaux.map(c => `
-                                    <div class="creneau-row">
-                                        <span><strong>${c.jour.charAt(0).toUpperCase() + c.jour.slice(1)}</strong> ${c.periode} - 📍 ${c.salle_nom || '-'}</span>
-                                        <span>${c.nb_inscrits}/${atelier.nombre_places_max} inscrits</span>
+                        <div class="atelier-details hidden" style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(0,0,0,0.1);">
+                            ${atelier.description ? `<p style="margin:0 0 8px 0; color:#374151;">${atelier.description}</p>` : ''}
+                            ${atelier.informations_eleves ? `<p style="margin:0; padding:8px; background:rgba(255,255,255,0.5); border-radius:5px; font-size:13px;">ℹ️ ${atelier.informations_eleves}</p>` : ''}
+                            ${atelier.creneaux?.length > 0 ? `
+                                <div style="margin-top:10px;">
+                                    <strong style="font-size:12px;">Créneaux:</strong>
+                                    <div style="display:flex; flex-wrap:wrap; gap:5px; margin-top:5px;">
+                                        ${atelier.creneaux.map(c => `
+                                            <span style="background:white; padding:3px 8px; border-radius:5px; font-size:11px; border:1px solid #ddd;">
+                                                ${c.jour.charAt(0).toUpperCase() + c.jour.slice(1)} ${c.periode} ${c.salle_nom ? '• ' + c.salle_nom : ''}
+                                            </span>
+                                        `).join('')}
                                     </div>
-                                `).join('')}
-                            </div>
+                                </div>
+                            ` : ''}
                         </div>
                     </div>
                 `;
@@ -1070,8 +1139,179 @@
             document.getElementById('catalogueContainer').innerHTML = html;
         }
 
-        function toggleAtelier(el) {
-            el.classList.toggle('open');
+        // ===================== HORAIRES ÉLÈVES =====================
+        let classesData = [];
+        
+        async function loadClasses() {
+            try {
+                const response = await fetch(`${API_URL}/enseignants/classes`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    classesData = data.data || [];
+                    const select = document.getElementById('selectClasse');
+                    select.innerHTML = '<option value="">-- Sélectionner une classe --</option>';
+                    classesData.forEach(c => {
+                        select.innerHTML += `<option value="${c.id}">${c.nom} (${c.nb_eleves} élèves)</option>`;
+                    });
+                }
+            } catch (error) {
+                console.error('Erreur classes:', error);
+            }
+        }
+
+        async function loadElevesClasse() {
+            const classeId = document.getElementById('selectClasse').value;
+            if (!classeId) {
+                document.getElementById('elevesListeContainer').innerHTML = '';
+                document.getElementById('horaireEleveContainer').innerHTML = '';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/enseignants/classe/${classeId}/eleves`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    const { classe, eleves } = data.data;
+                    
+                    let html = `<h4 style="margin-bottom:10px;">Classe ${classe.nom} - ${eleves.length} élèves</h4>`;
+                    html += '<div style="display:flex; flex-wrap:wrap; gap:8px;">';
+                    eleves.forEach(e => {
+                        html += `<button class="btn btn-sm btn-secondary" onclick="loadHoraireEleve(${e.id})">${e.nom} ${e.prenom}</button>`;
+                    });
+                    html += '</div>';
+                    
+                    document.getElementById('elevesListeContainer').innerHTML = html;
+                    document.getElementById('horaireEleveContainer').innerHTML = '';
+                }
+            } catch (error) {
+                console.error('Erreur élèves classe:', error);
+            }
+        }
+
+        let rechercheTimeout = null;
+        function rechercherEleveEnseignant() {
+            clearTimeout(rechercheTimeout);
+            const terme = document.getElementById('rechercheEleve').value.trim();
+            
+            if (terme.length < 2) {
+                document.getElementById('resultatsRechercheEleve').innerHTML = '';
+                return;
+            }
+            
+            rechercheTimeout = setTimeout(async () => {
+                try {
+                    const response = await fetch(`${API_URL}/enseignants/eleves/recherche?q=${encodeURIComponent(terme)}`, {
+                        headers: { 'Authorization': `Bearer ${currentToken}` }
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success && data.data.length > 0) {
+                        let html = '<div style="position:absolute; top:100%; left:0; right:0; background:white; border:1px solid #ddd; border-radius:5px; box-shadow:0 4px 6px rgba(0,0,0,0.1); max-height:200px; overflow-y:auto; z-index:100;">';
+                        data.data.forEach(e => {
+                            html += `<div style="padding:10px; cursor:pointer; border-bottom:1px solid #eee;" onclick="selectEleve(${e.id}, '${e.nom} ${e.prenom}')" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
+                                <strong>${e.nom} ${e.prenom}</strong> <small style="color:#666;">(${e.classe_nom})</small>
+                            </div>`;
+                        });
+                        html += '</div>';
+                        document.getElementById('resultatsRechercheEleve').innerHTML = html;
+                    } else {
+                        document.getElementById('resultatsRechercheEleve').innerHTML = '<div style="position:absolute; top:100%; left:0; right:0; background:white; border:1px solid #ddd; border-radius:5px; padding:10px; color:#666;">Aucun résultat</div>';
+                    }
+                } catch (error) {
+                    console.error('Erreur recherche:', error);
+                }
+            }, 300);
+        }
+
+        function selectEleve(eleveId, nom) {
+            document.getElementById('rechercheEleve').value = nom;
+            document.getElementById('resultatsRechercheEleve').innerHTML = '';
+            document.getElementById('elevesListeContainer').innerHTML = '';
+            document.getElementById('selectClasse').value = '';
+            loadHoraireEleve(eleveId);
+        }
+
+        async function loadHoraireEleve(eleveId) {
+            try {
+                const response = await fetch(`${API_URL}/enseignants/eleve/${eleveId}/horaire`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayHoraireEleve(data.data);
+                }
+            } catch (error) {
+                console.error('Erreur horaire élève:', error);
+            }
+        }
+
+        function displayHoraireEleve(data) {
+            const { eleve, inscriptions, creneaux } = data;
+            
+            // Map inscriptions par créneau
+            const inscriptionParCreneau = {};
+            inscriptions.forEach(insc => {
+                const nbCreneaux = insc.nombre_creneaux || Math.ceil((insc.duree || 2) / 2);
+                for (let i = 0; i < nbCreneaux; i++) {
+                    inscriptionParCreneau[insc.creneau_id + i] = { ...insc, isStart: i === 0 };
+                }
+            });
+            
+            // Map créneaux
+            const creneauMap = {};
+            creneaux.forEach(c => creneauMap[`${c.jour}-${c.periode}`] = c);
+            
+            let html = `<h4 style="margin:15px 0; padding:10px; background:#1e3a5f; color:white; border-radius:5px;">
+                📋 Horaire de ${eleve.prenom} ${eleve.nom} (${eleve.classe_nom})
+            </h4>`;
+            
+            html += '<table style="width:100%; border-collapse:collapse; font-size:13px;">';
+            html += '<thead><tr style="background:#f3f4f6;"><th style="padding:8px; border:1px solid #ddd;"></th>';
+            JOURS.forEach(jour => {
+                html += `<th style="padding:8px; border:1px solid #ddd;">${jour.charAt(0).toUpperCase() + jour.slice(1)}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+            
+            PERIODES.forEach(periode => {
+                html += `<tr><td style="padding:8px; border:1px solid #ddd; font-weight:bold; background:#f9fafb;">${periode}</td>`;
+                
+                JOURS.forEach(jour => {
+                    if (jour === 'mercredi' && periode === 'P6-7') {
+                        html += '<td style="padding:8px; border:1px solid #ddd; background:#e5e7eb; color:#9ca3af; text-align:center;">Congé</td>';
+                        return;
+                    }
+                    
+                    const creneau = creneauMap[`${jour}-${periode}`];
+                    const insc = creneau ? inscriptionParCreneau[creneau.id] : null;
+                    
+                    if (insc) {
+                        const bgColor = insc.theme_couleur ? `${insc.theme_couleur}30` : '#d1fae5';
+                        if (insc.isStart) {
+                            html += `<td style="padding:8px; border:1px solid #ddd; background:${bgColor};">
+                                <strong>${insc.atelier_nom}</strong><br>
+                                <small>📍 ${insc.salle_nom || '-'}</small>
+                            </td>`;
+                        } else {
+                            html += `<td style="padding:8px; border:1px solid #ddd; background:${bgColor}; text-align:center;">⬆️</td>`;
+                        }
+                    } else {
+                        html += '<td style="padding:8px; border:1px solid #ddd; color:#9ca3af; text-align:center;">-</td>';
+                    }
+                });
+                
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            
+            document.getElementById('horaireEleveContainer').innerHTML = html;
         }
 
         // ===================== MES ATELIERS =====================
