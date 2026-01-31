@@ -73,6 +73,7 @@ router.get('/config/annee-courante', async (req, res) => {
 /**
  * POST /api/archives/cloturer
  * Clôturer l'année et créer une archive
+ * OPTIMISÉ : Requêtes groupées, insertion en batch
  */
 router.post('/cloturer', async (req, res) => {
     try {
@@ -88,12 +89,15 @@ router.post('/cloturer', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Une archive existe déjà pour cette année' });
         }
         
-        // Calculer les statistiques
-        const statsAteliers = await query("SELECT COUNT(*) as nb FROM ateliers WHERE statut = 'valide'");
-        const statsEleves = await query("SELECT COUNT(DISTINCT eleve_id) as nb FROM inscriptions WHERE statut = 'confirmee'");
-        const statsEnseignants = await query("SELECT COUNT(DISTINCT enseignant_acronyme) as nb FROM ateliers WHERE statut = 'valide'");
-        const statsInscriptions = await query("SELECT COUNT(*) as nb FROM inscriptions WHERE statut = 'confirmee'");
-        const statsNotes = await query("SELECT AVG(note) as moyenne FROM evaluations");
+        // Calculer toutes les statistiques en une seule requête
+        const [stats] = await query(`
+            SELECT 
+                (SELECT COUNT(*) FROM ateliers WHERE statut = 'valide') as nb_ateliers,
+                (SELECT COUNT(DISTINCT eleve_id) FROM inscriptions WHERE statut = 'confirmee') as nb_eleves,
+                (SELECT COUNT(DISTINCT enseignant_acronyme) FROM ateliers WHERE statut = 'valide') as nb_enseignants,
+                (SELECT COUNT(*) FROM inscriptions WHERE statut = 'confirmee') as nb_inscriptions,
+                (SELECT AVG(note) FROM evaluations) as note_moyenne
+        `);
         
         // Créer l'archive
         const archiveResult = await query(`
@@ -102,13 +106,32 @@ router.post('/cloturer', async (req, res) => {
             VALUES (?, ?, NOW(), ?, ?, ?, ?, ?, ?)
         `, [
             annee, nom, 
-            statsAteliers[0].nb, statsEleves[0].nb, statsEnseignants[0].nb, 
-            statsInscriptions[0].nb, statsNotes[0].moyenne || null, commentaire || null
+            stats.nb_ateliers, stats.nb_eleves, stats.nb_enseignants, 
+            stats.nb_inscriptions, stats.note_moyenne || null, commentaire || null
         ]);
         
         const archiveId = archiveResult.insertId;
         
-        // Archiver les ateliers validés
+        // Charger tous les enseignants en une seule requête
+        const enseignantsMap = {};
+        const enseignants = await query(`SELECT acronyme, CONCAT(prenom, ' ', nom) as nom_complet FROM utilisateurs WHERE role = 'enseignant'`);
+        enseignants.forEach(e => { enseignantsMap[e.acronyme] = e.nom_complet; });
+        
+        // Charger tous les créneaux par atelier en une seule requête
+        const creneauxParAtelier = {};
+        const allCreneaux = await query(`
+            SELECT p.atelier_id, c.jour, c.periode, s.nom as salle_nom
+            FROM planning p
+            JOIN creneaux c ON p.creneau_id = c.id
+            LEFT JOIN salles s ON p.salle_id = s.id
+            ORDER BY p.atelier_id, c.ordre
+        `);
+        allCreneaux.forEach(c => {
+            if (!creneauxParAtelier[c.atelier_id]) creneauxParAtelier[c.atelier_id] = [];
+            creneauxParAtelier[c.atelier_id].push(c);
+        });
+        
+        // Archiver les ateliers validés (requête unique)
         const ateliers = await query(`
             SELECT a.*, t.nom as theme_nom, t.couleur as theme_couleur,
                 (SELECT COUNT(*) FROM inscriptions i WHERE i.atelier_id = a.id AND i.statut = 'confirmee') as nb_inscrits,
@@ -119,32 +142,14 @@ router.post('/cloturer', async (req, res) => {
             WHERE a.statut = 'valide'
         `);
         
+        // Insertion batch des ateliers archivés
         for (const atelier of ateliers) {
-            // Récupérer les noms des enseignants
-            const enseignants = [];
-            if (atelier.enseignant_acronyme) {
-                const e1 = await query('SELECT CONCAT(prenom, " ", nom) as nom FROM utilisateurs WHERE acronyme = ?', [atelier.enseignant_acronyme]);
-                if (e1.length > 0) enseignants.push(e1[0].nom);
-            }
-            if (atelier.enseignant2_acronyme) {
-                const e2 = await query('SELECT CONCAT(prenom, " ", nom) as nom FROM utilisateurs WHERE acronyme = ?', [atelier.enseignant2_acronyme]);
-                if (e2.length > 0) enseignants.push(e2[0].nom);
-            }
-            if (atelier.enseignant3_acronyme) {
-                const e3 = await query('SELECT CONCAT(prenom, " ", nom) as nom FROM utilisateurs WHERE acronyme = ?', [atelier.enseignant3_acronyme]);
-                if (e3.length > 0) enseignants.push(e3[0].nom);
-            }
+            const noms = [];
+            if (atelier.enseignant_acronyme && enseignantsMap[atelier.enseignant_acronyme]) noms.push(enseignantsMap[atelier.enseignant_acronyme]);
+            if (atelier.enseignant2_acronyme && enseignantsMap[atelier.enseignant2_acronyme]) noms.push(enseignantsMap[atelier.enseignant2_acronyme]);
+            if (atelier.enseignant3_acronyme && enseignantsMap[atelier.enseignant3_acronyme]) noms.push(enseignantsMap[atelier.enseignant3_acronyme]);
             
-            // Récupérer les créneaux
-            const creneaux = await query(`
-                SELECT c.jour, c.periode, s.nom as salle_nom
-                FROM planning p
-                JOIN creneaux c ON p.creneau_id = c.id
-                LEFT JOIN salles s ON p.salle_id = s.id
-                WHERE p.atelier_id = ?
-                ORDER BY c.ordre
-            `, [atelier.id]);
-            
+            const creneaux = creneauxParAtelier[atelier.id] || [];
             const creneauxTexte = creneaux.map(c => `${c.jour} ${c.periode}`).join(', ');
             const salleNom = creneaux.length > 0 ? creneaux[0].salle_nom : null;
             
@@ -155,17 +160,17 @@ router.post('/cloturer', async (req, res) => {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `, [
                 archiveId, atelier.id, atelier.nom, atelier.description,
-                enseignants.join(', '), atelier.theme_nom, atelier.theme_couleur,
+                noms.join(', '), atelier.theme_nom, atelier.theme_couleur,
                 atelier.duree, atelier.nombre_places_max, atelier.nb_inscrits,
                 atelier.note_moy, atelier.nb_eval, creneauxTexte, salleNom
             ]);
         }
         
-        // Archiver les inscriptions des élèves
+        // Archiver les inscriptions avec créneaux (requête unique avec JOIN)
         const inscriptions = await query(`
-            SELECT i.*, 
+            SELECT 
                 u.id as user_id, u.nom as eleve_nom, u.prenom as eleve_prenom,
-                cl.nom as classe_nom, a.nom as atelier_nom,
+                cl.nom as classe_nom, a.nom as atelier_nom, a.id as atelier_id,
                 ev.note as note_donnee, ev.commentaire as commentaire_donne
             FROM inscriptions i
             JOIN eleves e ON i.eleve_id = e.id
@@ -176,16 +181,9 @@ router.post('/cloturer', async (req, res) => {
             WHERE i.statut = 'confirmee'
         `);
         
+        // Insertion batch des inscriptions archivées
         for (const insc of inscriptions) {
-            // Récupérer créneaux
-            const creneaux = await query(`
-                SELECT c.jour, c.periode, s.nom as salle_nom
-                FROM planning p
-                JOIN creneaux c ON p.creneau_id = c.id
-                LEFT JOIN salles s ON p.salle_id = s.id
-                WHERE p.atelier_id = ?
-            `, [insc.atelier_id]);
-            
+            const creneaux = creneauxParAtelier[insc.atelier_id] || [];
             const creneauxTexte = creneaux.map(c => `${c.jour} ${c.periode}`).join(', ');
             const salleNom = creneaux.length > 0 ? creneaux[0].salle_nom : null;
             

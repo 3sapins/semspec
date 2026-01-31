@@ -409,34 +409,49 @@ router.get('/mes-ateliers', async (req, res) => {
 
 /**
  * GET /api/enseignants/catalogue
+ * OPTIMISÉ : Une seule requête avec GROUP_CONCAT
  */
 router.get('/catalogue', async (req, res) => {
     try {
+        // Requête unique avec agrégation des créneaux
         const ateliers = await query(`
-            SELECT a.id, a.nom, a.description, a.duree, a.nombre_places_max, a.informations_eleves,
+            SELECT 
+                a.id, a.nom, a.description, a.duree, a.nombre_places_max, a.informations_eleves,
                 a.enseignant_acronyme, a.enseignant2_acronyme, a.enseignant3_acronyme,
                 t.id as theme_id, t.nom as theme_nom, t.couleur as theme_couleur, t.icone as theme_icone,
-                u.nom as enseignant_nom, u.prenom as enseignant_prenom
+                u.nom as enseignant_nom, u.prenom as enseignant_prenom,
+                GROUP_CONCAT(
+                    DISTINCT CONCAT_WS('|', c.jour, c.periode, COALESCE(s.nom, ''), COALESCE(
+                        (SELECT COUNT(*) FROM inscriptions i WHERE i.planning_id = p.id AND i.statut = 'confirmee'), 0
+                    ))
+                    ORDER BY c.ordre
+                    SEPARATOR ';'
+                ) as creneaux_raw
             FROM ateliers a
             LEFT JOIN themes t ON a.theme_id = t.id
             LEFT JOIN utilisateurs u ON a.enseignant_acronyme = u.acronyme
+            LEFT JOIN planning p ON p.atelier_id = a.id
+            LEFT JOIN creneaux c ON p.creneau_id = c.id
+            LEFT JOIN salles s ON p.salle_id = s.id
             WHERE a.statut = 'valide'
+            GROUP BY a.id
             ORDER BY t.nom, a.nom
         `);
         
-        const themes = await query('SELECT * FROM themes ORDER BY nom');
+        // Parser les créneaux côté JS
+        ateliers.forEach(atelier => {
+            if (atelier.creneaux_raw) {
+                atelier.creneaux = atelier.creneaux_raw.split(';').map(c => {
+                    const [jour, periode, salle, nb_inscrits] = c.split('|');
+                    return { jour, periode, salle: salle || null, nb_inscrits: parseInt(nb_inscrits) || 0 };
+                });
+            } else {
+                atelier.creneaux = [];
+            }
+            delete atelier.creneaux_raw;
+        });
         
-        for (const atelier of ateliers) {
-            const creneaux = await query(`
-                SELECT c.jour, c.periode, s.nom as salle,
-                    (SELECT COUNT(*) FROM inscriptions WHERE planning_id = p.id AND statut = 'confirmee') as nb_inscrits
-                FROM planning p
-                JOIN creneaux c ON p.creneau_id = c.id
-                LEFT JOIN salles s ON p.salle_id = s.id
-                WHERE p.atelier_id = ?
-            `, [atelier.id]);
-            atelier.creneaux = creneaux;
-        }
+        const themes = await query('SELECT * FROM themes ORDER BY nom');
         
         res.json({ success: true, data: { ateliers, themes } });
     } catch (error) {
@@ -816,11 +831,11 @@ router.get('/eleve/:eleveId/horaire', async (req, res) => {
 
 /**
  * GET /api/enseignants/catalogue-simple
- * Catalogue simplifié avec enseignants
+ * OPTIMISÉ : Requêtes regroupées, pas de boucles N+1
  */
 router.get('/catalogue-simple', async (req, res) => {
     try {
-        // Récupérer tous les ateliers validés avec les enseignants
+        // Récupérer tous les ateliers avec créneaux en une seule requête
         const ateliers = await query(`
             SELECT 
                 a.id,
@@ -835,46 +850,57 @@ router.get('/catalogue-simple', async (req, res) => {
                 t.id as theme_id,
                 t.nom as theme_nom,
                 t.couleur as theme_couleur,
-                t.icone as theme_icone
+                t.icone as theme_icone,
+                GROUP_CONCAT(
+                    DISTINCT CONCAT_WS('|', c.jour, c.periode, COALESCE(s.nom, ''))
+                    ORDER BY c.ordre
+                    SEPARATOR ';'
+                ) as creneaux_raw
             FROM ateliers a
             LEFT JOIN themes t ON a.theme_id = t.id
+            LEFT JOIN planning p ON p.atelier_id = a.id
+            LEFT JOIN creneaux c ON p.creneau_id = c.id
+            LEFT JOIN salles s ON p.salle_id = s.id
             WHERE a.statut = 'valide'
+            GROUP BY a.id
             ORDER BY t.nom, a.nom
         `);
         
-        // Pour chaque atelier, récupérer ses créneaux et les noms des enseignants
-        for (const atelier of ateliers) {
+        // Récupérer tous les enseignants en une seule requête
+        const enseignantsMap = {};
+        const enseignants = await query(`
+            SELECT acronyme, nom, prenom FROM utilisateurs WHERE role = 'enseignant'
+        `);
+        enseignants.forEach(e => {
+            enseignantsMap[e.acronyme] = `${e.prenom} ${e.nom}`;
+        });
+        
+        // Parser créneaux et assembler noms enseignants côté JS
+        ateliers.forEach(atelier => {
             // Créneaux
-            const creneaux = await query(`
-                SELECT 
-                    p.id as planning_id,
-                    c.jour,
-                    c.periode,
-                    s.nom as salle_nom
-                FROM planning p
-                JOIN creneaux c ON p.creneau_id = c.id
-                LEFT JOIN salles s ON p.salle_id = s.id
-                WHERE p.atelier_id = ?
-                ORDER BY c.ordre
-            `, [atelier.id]);
-            atelier.creneaux = creneaux;
+            if (atelier.creneaux_raw) {
+                atelier.creneaux = atelier.creneaux_raw.split(';').map(c => {
+                    const [jour, periode, salle_nom] = c.split('|');
+                    return { jour, periode, salle_nom: salle_nom || null };
+                });
+            } else {
+                atelier.creneaux = [];
+            }
+            delete atelier.creneaux_raw;
             
             // Noms des enseignants
-            const enseignants = [];
-            if (atelier.enseignant_acronyme) {
-                const ens1 = await query('SELECT nom, prenom FROM utilisateurs WHERE acronyme = ?', [atelier.enseignant_acronyme]);
-                if (ens1.length > 0) enseignants.push(`${ens1[0].prenom} ${ens1[0].nom}`);
+            const noms = [];
+            if (atelier.enseignant_acronyme && enseignantsMap[atelier.enseignant_acronyme]) {
+                noms.push(enseignantsMap[atelier.enseignant_acronyme]);
             }
-            if (atelier.enseignant2_acronyme) {
-                const ens2 = await query('SELECT nom, prenom FROM utilisateurs WHERE acronyme = ?', [atelier.enseignant2_acronyme]);
-                if (ens2.length > 0) enseignants.push(`${ens2[0].prenom} ${ens2[0].nom}`);
+            if (atelier.enseignant2_acronyme && enseignantsMap[atelier.enseignant2_acronyme]) {
+                noms.push(enseignantsMap[atelier.enseignant2_acronyme]);
             }
-            if (atelier.enseignant3_acronyme) {
-                const ens3 = await query('SELECT nom, prenom FROM utilisateurs WHERE acronyme = ?', [atelier.enseignant3_acronyme]);
-                if (ens3.length > 0) enseignants.push(`${ens3[0].prenom} ${ens3[0].nom}`);
+            if (atelier.enseignant3_acronyme && enseignantsMap[atelier.enseignant3_acronyme]) {
+                noms.push(enseignantsMap[atelier.enseignant3_acronyme]);
             }
-            atelier.enseignants = enseignants.join(', ') || '-';
-        }
+            atelier.enseignants = noms.join(', ') || '-';
+        });
         
         const themes = await query('SELECT * FROM themes ORDER BY nom');
         
