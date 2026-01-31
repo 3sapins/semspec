@@ -546,8 +546,7 @@ router.post('/ateliers', async (req, res) => {
     try {
         const acronyme = req.user.acronyme;
         const { nom, description, informations_eleves, duree, nombre_places_max, theme_id,
-            besoin_salle_specifique, type_salle_demande, materiel_necessaire, budget_max,
-            lieu_externe, deplacement_prevu, enseignant2_acronyme, enseignant3_acronyme, remarques } = req.body;
+            type_salle_demande, budget_max, enseignant2_acronyme, enseignant3_acronyme, remarques } = req.body;
         
         if (!nom || !duree || !nombre_places_max) {
             return res.status(400).json({ success: false, message: 'Nom, durée et places requis' });
@@ -555,19 +554,17 @@ router.post('/ateliers', async (req, res) => {
         
         const result = await query(`
             INSERT INTO ateliers (nom, description, informations_eleves, duree, nombre_places_max,
-                theme_id, besoin_salle_specifique, type_salle_demande, materiel_necessaire,
-                budget_max, lieu_externe, deplacement_prevu, enseignant_acronyme,
+                theme_id, type_salle_demande, budget_max, enseignant_acronyme,
                 enseignant2_acronyme, enseignant3_acronyme, remarques, statut)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'brouillon')
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'brouillon')
         `, [nom, description, informations_eleves, duree, nombre_places_max, theme_id || null,
-            besoin_salle_specifique || false, type_salle_demande, materiel_necessaire,
-            budget_max || 0, lieu_externe, deplacement_prevu || false, acronyme,
+            type_salle_demande || null, budget_max || 0, acronyme,
             enseignant2_acronyme || null, enseignant3_acronyme || null, remarques || null]);
         
         res.json({ success: true, message: 'Atelier créé', data: { id: result.insertId } });
     } catch (error) {
         console.error('Erreur création atelier:', error);
-        res.status(500).json({ success: false, message: 'Erreur serveur' });
+        res.status(500).json({ success: false, message: 'Erreur serveur: ' + error.message });
     }
 });
 
@@ -590,25 +587,31 @@ router.put('/ateliers/:id', async (req, res) => {
         }
         
         const { nom, description, informations_eleves, duree, nombre_places_max, theme_id,
-            besoin_salle_specifique, type_salle_demande, materiel_necessaire, budget_max,
-            lieu_externe, deplacement_prevu, enseignant2_acronyme, enseignant3_acronyme, remarques } = req.body;
+            type_salle_demande, budget_max, enseignant2_acronyme, enseignant3_acronyme, remarques } = req.body;
         
         await query(`
-            UPDATE ateliers SET nom = ?, description = ?, informations_eleves = ?, duree = ?,
-                nombre_places_max = ?, theme_id = ?, besoin_salle_specifique = ?,
-                type_salle_demande = ?, materiel_necessaire = ?, budget_max = ?,
-                lieu_externe = ?, deplacement_prevu = ?, enseignant2_acronyme = ?,
-                enseignant3_acronyme = ?, remarques = ?, statut = 'brouillon'
+            UPDATE ateliers SET 
+                nom = ?, 
+                description = ?, 
+                informations_eleves = ?, 
+                duree = ?,
+                nombre_places_max = ?, 
+                theme_id = ?, 
+                type_salle_demande = ?, 
+                budget_max = ?,
+                enseignant2_acronyme = ?,
+                enseignant3_acronyme = ?, 
+                remarques = ?, 
+                statut = 'brouillon'
             WHERE id = ?
         `, [nom, description, informations_eleves, duree, nombre_places_max, theme_id || null,
-            besoin_salle_specifique || false, type_salle_demande, materiel_necessaire,
-            budget_max || 0, lieu_externe, deplacement_prevu || false,
+            type_salle_demande || null, budget_max || 0,
             enseignant2_acronyme || null, enseignant3_acronyme || null, remarques || null, id]);
         
         res.json({ success: true, message: 'Atelier modifié (retour en brouillon)' });
     } catch (error) {
         console.error('Erreur modification atelier:', error);
-        res.status(500).json({ success: false, message: 'Erreur serveur' });
+        res.status(500).json({ success: false, message: 'Erreur serveur: ' + error.message });
     }
 });
 
