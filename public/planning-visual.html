@@ -325,17 +325,25 @@
                         if (atelier) {
                             const suiteClass = atelier.suite_atelier ? 'suite' : '';
                             const dureeInfo = atelier.duree > 2 ? `${atelier.duree}p` : '';
+                            const isPiquet = atelier.is_piquet || atelier.type === 'piquet' || atelier.type === 'degagement';
+                            
+                            // Style différent pour les piquets
+                            let cardStyle = '';
+                            if (isPiquet) {
+                                cardStyle = 'background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-left: 4px solid #f59e0b;';
+                            }
+                            
+                            // Affichage adapté
+                            const inscritsInfo = isPiquet ? '' : `<div class="atelier-info">${atelier.nombre_inscrits}/${atelier.nombre_places_max} inscrits</div>`;
                             
                             html += `<td>
-                                <div class="atelier-card ${suiteClass}">
+                                <div class="atelier-card ${suiteClass}" style="${cardStyle}">
                                     ${atelier.suite_atelier ? '↓ Suite<br>' : ''}
                                     <div class="atelier-name">${atelier.atelier_nom}</div>
                                     <div class="atelier-info">
                                         ${atelier.enseignants || atelier.enseignant_acronyme}
                                     </div>
-                                    <div class="atelier-info">
-                                        ${atelier.nombre_inscrits}/${atelier.nombre_places_max} inscrits
-                                    </div>
+                                    ${inscritsInfo}
                                     ${dureeInfo ? `<div class="badge">${dureeInfo}</div>` : ''}
                                 </div>
                             </td>`;
