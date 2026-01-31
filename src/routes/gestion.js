@@ -197,12 +197,16 @@ router.post('/inscriptions-classe', async (req, res) => {
         if (!planning_id || !classe_id) {
             return res.status(400).json({ success: false, message: 'Planning et classe requis' });
         }
-        const plannings = await query('SELECT p.*, a.nombre_places_max FROM planning p JOIN ateliers a ON p.atelier_id = a.id WHERE p.id = ?', [planning_id]);
+        const plannings = await query('SELECT p.*, a.nombre_places_max, a.id as atelier_id FROM planning p JOIN ateliers a ON p.atelier_id = a.id WHERE p.id = ?', [planning_id]);
         if (plannings.length === 0) {
             return res.status(404).json({ success: false, message: 'Créneau non trouvé' });
         }
         const planning = plannings[0];
         const eleves = await query('SELECT id FROM eleves WHERE classe_id = ?', [classe_id]);
+        
+        if (eleves.length === 0) {
+            return res.status(400).json({ success: false, message: 'Aucun élève dans cette classe' });
+        }
         
         let inscrit = 0;
         let conflits = [];
@@ -221,14 +225,26 @@ router.post('/inscriptions-classe', async (req, res) => {
                 conflits.push({ eleve_id: eleve.id, conflit: conflitHoraire[0].nom });
                 continue;
             }
-            await query(`INSERT INTO inscriptions (eleve_id, atelier_id, planning_id, statut, inscription_manuelle) VALUES (?, ?, ?, 'confirmee', TRUE)`,
-                [eleve.id, planning.atelier_id, planning_id]);
+            
+            // Tenter l'insertion avec inscription_manuelle, sinon sans
+            try {
+                await query(`INSERT INTO inscriptions (eleve_id, atelier_id, planning_id, statut, inscription_manuelle) VALUES (?, ?, ?, 'confirmee', TRUE)`,
+                    [eleve.id, planning.atelier_id, planning_id]);
+            } catch (insertError) {
+                // Si la colonne n'existe pas, insérer sans
+                if (insertError.code === 'ER_BAD_FIELD_ERROR') {
+                    await query(`INSERT INTO inscriptions (eleve_id, atelier_id, planning_id, statut) VALUES (?, ?, ?, 'confirmee')`,
+                        [eleve.id, planning.atelier_id, planning_id]);
+                } else {
+                    throw insertError;
+                }
+            }
             inscrit++;
         }
         res.json({ success: true, message: `${inscrit} élèves inscrits`, data: { inscrit, conflits } });
     } catch (error) {
-        console.error('Erreur:', error);
-        res.status(500).json({ success: false, message: 'Erreur serveur' });
+        console.error('Erreur inscriptions-classe:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur: ' + error.message });
     }
 });
 
@@ -238,7 +254,7 @@ router.post('/inscriptions-eleves', async (req, res) => {
         if (!planning_id || !Array.isArray(eleve_ids) || eleve_ids.length === 0) {
             return res.status(400).json({ success: false, message: 'Planning et liste d\'élèves requis' });
         }
-        const plannings = await query('SELECT p.*, a.nombre_places_max, a.nom as atelier_nom FROM planning p JOIN ateliers a ON p.atelier_id = a.id WHERE p.id = ?', [planning_id]);
+        const plannings = await query('SELECT p.*, a.nombre_places_max, a.nom as atelier_nom, a.id as atelier_id FROM planning p JOIN ateliers a ON p.atelier_id = a.id WHERE p.id = ?', [planning_id]);
         if (plannings.length === 0) {
             return res.status(404).json({ success: false, message: 'Créneau non trouvé' });
         }
@@ -263,14 +279,25 @@ router.post('/inscriptions-eleves', async (req, res) => {
                 conflits.push({ eleve: `${conflitHoraire[0].eleve_prenom} ${conflitHoraire[0].eleve_nom}`, conflit: conflitHoraire[0].nom });
                 continue;
             }
-            await query(`INSERT INTO inscriptions (eleve_id, atelier_id, planning_id, statut, inscription_manuelle) VALUES (?, ?, ?, 'confirmee', TRUE)`,
-                [eleveId, planning.atelier_id, planning_id]);
+            
+            // Tenter l'insertion avec inscription_manuelle, sinon sans
+            try {
+                await query(`INSERT INTO inscriptions (eleve_id, atelier_id, planning_id, statut, inscription_manuelle) VALUES (?, ?, ?, 'confirmee', TRUE)`,
+                    [eleveId, planning.atelier_id, planning_id]);
+            } catch (insertError) {
+                if (insertError.code === 'ER_BAD_FIELD_ERROR') {
+                    await query(`INSERT INTO inscriptions (eleve_id, atelier_id, planning_id, statut) VALUES (?, ?, ?, 'confirmee')`,
+                        [eleveId, planning.atelier_id, planning_id]);
+                } else {
+                    throw insertError;
+                }
+            }
             inscrit++;
         }
         res.json({ success: true, message: `${inscrit} élèves inscrits à "${planning.atelier_nom}"`, data: { inscrit, conflits } });
     } catch (error) {
-        console.error('Erreur:', error);
-        res.status(500).json({ success: false, message: 'Erreur serveur' });
+        console.error('Erreur inscriptions-eleves:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur: ' + error.message });
     }
 });
 
