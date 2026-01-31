@@ -522,33 +522,51 @@
                     html += '<th>Nom</th><th>Prénom</th><th>Classe</th><th>Login</th><th>Actions</th></tr></thead><tbody>';
                     result.data.forEach(e => {
                         const login = e.login || '-';
+                        const nomEsc = (e.nom || '').replace(/'/g, "\\'");
+                        const prenomEsc = (e.prenom || '').replace(/'/g, "\\'");
                         html += `<tr>
                             <td>${e.nom}</td>
                             <td>${e.prenom}</td>
                             <td>${e.classe_nom}</td>
                             <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;">${login}</code></td>
                             <td>
-                                <button class="btn btn-sm btn-warning" onclick="resetPasswordEleve(${e.id}, '${e.prenom} ${e.nom}')">🔑 Reset</button>
+                                <button class="btn btn-sm btn-primary" onclick="editEleve(${e.id}, '${nomEsc}', '${prenomEsc}', ${e.classe_id})">✏️</button>
+                                <button class="btn btn-sm btn-warning" onclick="resetPasswordEleve(${e.id}, '${prenomEsc} ${nomEsc}')">🔑</button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteEleve(${e.id}, '${prenomEsc} ${nomEsc}')">🗑️</button>
                             </td>
                         </tr>`;
                     });
                 } else if (type === 'classes') {
                     html += '<th>Nom</th><th>Niveau</th><th>Élèves</th><th>Actions</th></tr></thead><tbody>';
-                    result.data.forEach(c => html += `<tr>
-                        <td>${c.nom}</td>
-                        <td>${c.niveau || '-'}</td>
-                        <td>${c.nombre_eleves}</td>
-                        <td><button class="btn btn-sm btn-danger" onclick="deleteClasse(${c.id}, '${c.nom}')">🗑️</button></td>
-                    </tr>`);
+                    result.data.forEach(c => {
+                        const nomEsc = (c.nom || '').replace(/'/g, "\\'");
+                        const niveauEsc = (c.niveau || '').replace(/'/g, "\\'");
+                        html += `<tr>
+                            <td>${c.nom}</td>
+                            <td>${c.niveau || '-'}</td>
+                            <td>${c.nombre_eleves}</td>
+                            <td>
+                                <button class="btn btn-sm btn-primary" onclick="editClasse(${c.id}, '${nomEsc}', '${niveauEsc}')">✏️</button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteClasse(${c.id}, '${nomEsc}')">🗑️</button>
+                            </td>
+                        </tr>`;
+                    });
                 } else if (type === 'salles') {
                     html += '<th>Nom</th><th>Capacité</th><th>Type</th><th>Dispo</th><th>Actions</th></tr></thead><tbody>';
-                    result.data.forEach(s => html += `<tr>
-                        <td>${s.nom}</td>
-                        <td>${s.capacite}</td>
-                        <td>${s.type_salle || '-'}</td>
-                        <td>${s.disponible ? '✅' : '❌'}</td>
-                        <td><button class="btn btn-sm btn-danger" onclick="deleteSalle(${s.id}, '${s.nom}')">🗑️</button></td>
-                    </tr>`);
+                    result.data.forEach(s => {
+                        const nomEsc = (s.nom || '').replace(/'/g, "\\'");
+                        const typeEsc = (s.type_salle || '').replace(/'/g, "\\'");
+                        html += `<tr>
+                            <td>${s.nom}</td>
+                            <td>${s.capacite}</td>
+                            <td>${s.type_salle || '-'}</td>
+                            <td>${s.disponible ? '✅' : '❌'}</td>
+                            <td>
+                                <button class="btn btn-sm btn-primary" onclick="editSalle(${s.id}, '${nomEsc}', ${s.capacite}, '${typeEsc}', ${s.disponible})">✏️</button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteSalle(${s.id}, '${nomEsc}')">🗑️</button>
+                            </td>
+                        </tr>`;
+                    });
                 } else if (type === 'themes') {
                     html += '<th>Icône</th><th>Nom</th><th>Couleur</th><th>Description</th><th>Actions</th></tr></thead><tbody>';
                     result.data.forEach(t => html += `<tr>
@@ -864,6 +882,117 @@
                 });
                 const result = await response.json();
                 if (result.success) { showAlert('✅ Type de salle supprimé', 'success'); loadListe('types_salles'); loadTypesSalles(); }
+                else showAlert('❌ ' + result.message, 'error');
+            } catch (e) { showAlert('❌ Erreur', 'error'); }
+        }
+
+        // CRUD ELEVES
+        async function editEleve(id, nom, prenom, classeId) {
+            const newNom = prompt('Nom:', nom);
+            if (!newNom) return;
+            const newPrenom = prompt('Prénom:', prenom);
+            if (!newPrenom) return;
+            
+            // Charger les classes pour le choix
+            const classesResp = await fetch(`${API_BASE}/classes`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const classesData = await classesResp.json();
+            const classesStr = classesData.data.map(c => `${c.id}: ${c.nom}`).join('\n');
+            const newClasseId = prompt(`Classe actuelle: ${classeId}\n\nClasses disponibles:\n${classesStr}\n\nEntrez l'ID de la nouvelle classe:`, classeId);
+            if (!newClasseId) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/eleves/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ nom: newNom, prenom: newPrenom, classe_id: parseInt(newClasseId) })
+                });
+                const result = await response.json();
+                if (result.success) { showAlert('✅ Élève modifié', 'success'); loadListe('eleves'); chargerTousEleves(); }
+                else showAlert('❌ ' + result.message, 'error');
+            } catch (e) { showAlert('❌ Erreur', 'error'); }
+        }
+
+        async function deleteEleve(id, nom) {
+            if (!confirm(`Supprimer l'élève "${nom}" ?\n\n⚠️ Ses inscriptions seront également supprimées.`)) return;
+            try {
+                const response = await fetch(`${API_BASE}/eleves/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                if (result.success) { showAlert('✅ Élève supprimé', 'success'); loadListe('eleves'); chargerTousEleves(); }
+                else showAlert('❌ ' + result.message, 'error');
+            } catch (e) { showAlert('❌ Erreur', 'error'); }
+        }
+
+        // CRUD CLASSES
+        async function editClasse(id, nom, niveau) {
+            const newNom = prompt('Nom de la classe:', nom);
+            if (!newNom) return;
+            const newNiveau = prompt('Niveau (9, 10, 11...):', niveau);
+            
+            try {
+                const response = await fetch(`${API_BASE}/classes/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ nom: newNom, niveau: newNiveau || null })
+                });
+                const result = await response.json();
+                if (result.success) { showAlert('✅ Classe modifiée', 'success'); loadListe('classes'); }
+                else showAlert('❌ ' + result.message, 'error');
+            } catch (e) { showAlert('❌ Erreur', 'error'); }
+        }
+
+        async function deleteClasse(id, nom) {
+            if (!confirm(`Supprimer la classe "${nom}" ?\n\n⚠️ Les élèves de cette classe seront aussi supprimés !`)) return;
+            if (!confirm(`ATTENTION: Tous les élèves de ${nom} seront DÉFINITIVEMENT supprimés. Continuer ?`)) return;
+            try {
+                const response = await fetch(`${API_BASE}/classes/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                if (result.success) { showAlert('✅ Classe supprimée', 'success'); loadListe('classes'); }
+                else showAlert('❌ ' + result.message, 'error');
+            } catch (e) { showAlert('❌ Erreur', 'error'); }
+        }
+
+        // CRUD SALLES
+        async function editSalle(id, nom, capacite, typeSalle, disponible) {
+            const newNom = prompt('Nom de la salle:', nom);
+            if (!newNom) return;
+            const newCapacite = prompt('Capacité:', capacite);
+            if (!newCapacite) return;
+            
+            // Charger les types de salles
+            const typesResp = await fetch('/api/admin/types-salles', { headers: { 'Authorization': `Bearer ${token}` } });
+            const typesData = await typesResp.json();
+            const typesStr = typesData.data.map(t => t.nom).join(', ');
+            const newType = prompt(`Type actuel: ${typeSalle || 'aucun'}\n\nTypes disponibles: ${typesStr}\n\nNouveau type (laisser vide pour aucun):`, typeSalle);
+            
+            const newDispo = confirm('La salle est-elle disponible ?');
+            
+            try {
+                const response = await fetch(`${API_BASE}/salles/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ nom: newNom, capacite: parseInt(newCapacite), type_salle: newType || null, disponible: newDispo })
+                });
+                const result = await response.json();
+                if (result.success) { showAlert('✅ Salle modifiée', 'success'); loadListe('salles'); }
+                else showAlert('❌ ' + result.message, 'error');
+            } catch (e) { showAlert('❌ Erreur', 'error'); }
+        }
+
+        async function deleteSalle(id, nom) {
+            if (!confirm(`Supprimer la salle "${nom}" ?`)) return;
+            try {
+                const response = await fetch(`${API_BASE}/salles/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                if (result.success) { showAlert('✅ Salle supprimée', 'success'); loadListe('salles'); }
                 else showAlert('❌ ' + result.message, 'error');
             } catch (e) { showAlert('❌ Erreur', 'error'); }
         }
