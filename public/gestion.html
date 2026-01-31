@@ -50,7 +50,8 @@
         <div id="alert" class="alert"></div>
         <div class="tabs">
             <button class="tab active" onclick="switchTab('listes')">📋 Listes</button>
-            <button class="tab" onclick="switchTab('ajouter')">➕ Ajouter</button>
+            <button class="tab" onclick="switchTab('quotas')">📊 Quotas</button>
+            <button class="tab" onclick="switchTab('inscriptions-classes')">🔐 Inscriptions</button>
             <button class="tab" onclick="switchTab('inscrire')">✍️ Inscrire</button>
             <button class="tab" onclick="switchTab('piquet')">👮 Piquet</button>
             <button class="tab" onclick="switchTab('eleves-creneaux')">👁️ Élèves/Créneaux</button>
@@ -71,7 +72,32 @@
             <div id="listeContainer"></div>
         </div>
 
-        <!-- AJOUTER -->
+        <!-- QUOTAS -->
+        <div id="quotas" class="tab-content">
+            <h2 style="margin-bottom: 20px;">📊 Quotas d'inscription</h2>
+            <p style="margin-bottom:20px; color:#6b7280;">Contrôle le pourcentage des places disponibles pour les inscriptions élèves.</p>
+            <div style="background:#f9fafb; padding:20px; border-radius:10px; margin-bottom:20px;">
+                <label style="font-weight:600; margin-bottom:10px; display:block;">Quota actuel</label>
+                <div style="display:flex; align-items:center; gap:15px;">
+                    <input type="range" id="quotaSlider" min="0" max="100" value="100" style="flex:1; height:8px;" onchange="updateQuotaDisplay()">
+                    <span id="quotaValue" style="font-size:24px; font-weight:bold; color:#667eea; min-width:60px;">100%</span>
+                </div>
+                <p style="margin-top:10px; font-size:13px; color:#6b7280;">0% = inscriptions fermées, 100% = toutes les places disponibles</p>
+            </div>
+            <button class="btn btn-success" onclick="saveQuota()">💾 Enregistrer le quota</button>
+            <div id="quotaStatus" style="margin-top:15px;"></div>
+        </div>
+
+        <!-- INSCRIPTIONS CLASSES -->
+        <div id="inscriptions-classes" class="tab-content">
+            <h2 style="margin-bottom: 20px;">🔐 Inscriptions par Classe</h2>
+            <p style="margin-bottom:20px; color:#6b7280;">Ouvrir ou fermer les inscriptions pour chaque classe.</p>
+            <div style="margin-bottom:15px; display:flex; gap:10px;">
+                <button class="btn btn-success" onclick="ouvrirToutesClasses()">✅ Ouvrir toutes</button>
+                <button class="btn btn-danger" onclick="fermerToutesClasses()">🚫 Fermer toutes</button>
+            </div>
+            <div id="classesInscriptionsContainer">Chargement...</div>
+        </div>
         <div id="ajouter" class="tab-content">
             <h2 style="margin-bottom: 20px;">➕ Ajouter</h2>
             <div class="grid">
@@ -377,7 +403,25 @@
                 
                 const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
                 const result = await response.json();
-                let html = '<table><thead><tr>';
+                
+                // Bouton d'ajout en haut de la liste
+                let html = '<div style="margin-bottom:15px;">';
+                if (type === 'enseignants') {
+                    html += '<button class="btn btn-success" onclick="showAddModal(\'enseignant\')">➕ Ajouter un enseignant</button>';
+                } else if (type === 'eleves') {
+                    html += '<button class="btn btn-success" onclick="showAddModal(\'eleve\')">➕ Ajouter un élève</button>';
+                } else if (type === 'classes') {
+                    html += '<button class="btn btn-success" onclick="showAddModal(\'classe\')">➕ Ajouter une classe</button>';
+                } else if (type === 'salles') {
+                    html += '<button class="btn btn-success" onclick="showAddModal(\'salle\')">➕ Ajouter une salle</button>';
+                } else if (type === 'themes') {
+                    html += '<button class="btn btn-success" onclick="showAddModal(\'theme\')">➕ Ajouter un thème</button>';
+                } else if (type === 'types_salles') {
+                    html += '<button class="btn btn-success" onclick="showAddModal(\'type_salle\')">➕ Ajouter un type de salle</button>';
+                }
+                html += '</div>';
+                
+                html += '<table><thead><tr>';
                 if (type === 'enseignants') {
                     html += '<th>Acronyme</th><th>Nom</th><th>Prénom</th><th>Email</th><th>Charge</th><th>Ateliers</th><th>Actions</th></tr></thead><tbody>';
                     result.data.forEach(e => {
@@ -412,11 +456,22 @@
                         </tr>`;
                     });
                 } else if (type === 'classes') {
-                    html += '<th>Nom</th><th>Niveau</th><th>Élèves</th></tr></thead><tbody>';
-                    result.data.forEach(c => html += `<tr><td>${c.nom}</td><td>${c.niveau || '-'}</td><td>${c.nombre_eleves}</td></tr>`);
+                    html += '<th>Nom</th><th>Niveau</th><th>Élèves</th><th>Actions</th></tr></thead><tbody>';
+                    result.data.forEach(c => html += `<tr>
+                        <td>${c.nom}</td>
+                        <td>${c.niveau || '-'}</td>
+                        <td>${c.nombre_eleves}</td>
+                        <td><button class="btn btn-sm btn-danger" onclick="deleteClasse(${c.id}, '${c.nom}')">🗑️</button></td>
+                    </tr>`);
                 } else if (type === 'salles') {
-                    html += '<th>Nom</th><th>Capacité</th><th>Type</th><th>Dispo</th></tr></thead><tbody>';
-                    result.data.forEach(s => html += `<tr><td>${s.nom}</td><td>${s.capacite}</td><td>${s.type_salle || '-'}</td><td>${s.disponible ? '✅' : '❌'}</td></tr>`);
+                    html += '<th>Nom</th><th>Capacité</th><th>Type</th><th>Dispo</th><th>Actions</th></tr></thead><tbody>';
+                    result.data.forEach(s => html += `<tr>
+                        <td>${s.nom}</td>
+                        <td>${s.capacite}</td>
+                        <td>${s.type_salle || '-'}</td>
+                        <td>${s.disponible ? '✅' : '❌'}</td>
+                        <td><button class="btn btn-sm btn-danger" onclick="deleteSalle(${s.id}, '${s.nom}')">🗑️</button></td>
+                    </tr>`);
                 } else if (type === 'themes') {
                     html += '<th>Icône</th><th>Nom</th><th>Couleur</th><th>Description</th><th>Actions</th></tr></thead><tbody>';
                     result.data.forEach(t => html += `<tr>
@@ -442,17 +497,13 @@
                 }
                 html += '</tbody></table>';
                 
-                // Boutons d'ajout rapide et reset global
+                // Boutons reset global
                 if (type === 'enseignants') {
                     html += `<div style="margin-top:15px; display:flex; gap:10px; flex-wrap:wrap;">
                         <button class="btn btn-danger" onclick="resetAllPasswords('enseignants')">🔑 Réinitialiser TOUS les MDP</button>
                     </div>`;
                 } else if (type === 'eleves') {
                     html += `<div style="margin-top:15px;"><button class="btn btn-danger" onclick="resetAllPasswords('eleves')">🔑 Réinitialiser TOUS les MDP élèves</button></div>`;
-                } else if (type === 'themes') {
-                    html += `<div style="margin-top:15px;"><button class="btn btn-success" onclick="switchTab('ajouter'); setTimeout(() => document.getElementById('theme_nom').focus(), 100);">➕ Ajouter un thème</button></div>`;
-                } else if (type === 'types_salles') {
-                    html += `<div style="margin-top:15px;"><button class="btn btn-success" onclick="switchTab('ajouter'); setTimeout(() => document.getElementById('type_salle_nom').focus(), 100);">➕ Ajouter un type de salle</button></div>`;
                 }
                 
                 html += '<p style="margin-top:10px;color:#666;"><strong>' + result.data.length + '</strong> enregistrements</p>';
@@ -1193,6 +1244,291 @@
                 showAlert('❌ Erreur', 'error');
             }
         }
+
+        // ========== MODAL AJOUT ==========
+        let currentAddType = '';
+        
+        function showAddModal(type) {
+            currentAddType = type;
+            let title = '', content = '';
+            
+            if (type === 'enseignant') {
+                title = '👨‍🏫 Ajouter un enseignant';
+                content = `
+                    <div class="form-group"><label>Acronyme *</label><input type="text" id="modal_acronyme" required></div>
+                    <div class="form-group"><label>Nom *</label><input type="text" id="modal_nom" required></div>
+                    <div class="form-group"><label>Prénom *</label><input type="text" id="modal_prenom" required></div>
+                    <div class="form-group"><label>Email</label><input type="email" id="modal_email"></div>
+                    <div class="form-group"><label>Charge max (périodes)</label><input type="number" id="modal_charge" min="0" value="0"></div>
+                `;
+            } else if (type === 'eleve') {
+                title = '🎓 Ajouter un élève';
+                content = `
+                    <div class="form-group"><label>Nom *</label><input type="text" id="modal_nom" required></div>
+                    <div class="form-group"><label>Prénom *</label><input type="text" id="modal_prenom" required></div>
+                    <div class="form-group"><label>Classe *</label><select id="modal_classe" required></select></div>
+                `;
+                // Charger les classes
+                setTimeout(async () => {
+                    const resp = await fetch(`${API_BASE}/classes`, { headers: { 'Authorization': `Bearer ${token}` } });
+                    const data = await resp.json();
+                    const sel = document.getElementById('modal_classe');
+                    sel.innerHTML = '<option value="">-- Choisir --</option>' + data.data.map(c => `<option value="${c.id}">${c.nom}</option>`).join('');
+                }, 100);
+            } else if (type === 'classe') {
+                title = '🏫 Ajouter une classe';
+                content = `
+                    <div class="form-group"><label>Nom *</label><input type="text" id="modal_nom" required placeholder="ex: 9VP1"></div>
+                    <div class="form-group"><label>Niveau</label><select id="modal_niveau"><option value="">--</option><option>9VP</option><option>9VG</option><option>10VP</option><option>10VG</option></select></div>
+                `;
+            } else if (type === 'salle') {
+                title = '🚪 Ajouter une salle';
+                content = `
+                    <div class="form-group"><label>Nom *</label><input type="text" id="modal_nom" required></div>
+                    <div class="form-group"><label>Capacité</label><input type="number" id="modal_capacite" min="1" value="25"></div>
+                    <div class="form-group"><label>Type de salle</label><select id="modal_type_salle"></select></div>
+                `;
+                setTimeout(async () => {
+                    const resp = await fetch('/api/admin/types-salles', { headers: { 'Authorization': `Bearer ${token}` } });
+                    const data = await resp.json();
+                    const sel = document.getElementById('modal_type_salle');
+                    sel.innerHTML = '<option value="">-- Aucun --</option>' + data.data.map(t => `<option value="${t.id}">${t.nom}</option>`).join('');
+                }, 100);
+            } else if (type === 'theme') {
+                title = '🎨 Ajouter un thème';
+                content = `
+                    <div class="form-group"><label>Nom *</label><input type="text" id="modal_nom" required></div>
+                    <div class="form-group"><label>Icône</label><input type="text" id="modal_icone" placeholder="🎨"></div>
+                    <div class="form-group"><label>Couleur</label><input type="color" id="modal_couleur" value="#667eea"></div>
+                    <div class="form-group"><label>Description</label><textarea id="modal_description" rows="2"></textarea></div>
+                `;
+            } else if (type === 'type_salle') {
+                title = '🏷️ Ajouter un type de salle';
+                content = `
+                    <div class="form-group"><label>Nom *</label><input type="text" id="modal_nom" required></div>
+                    <div class="form-group"><label>Description</label><textarea id="modal_description" rows="2"></textarea></div>
+                `;
+            }
+            
+            document.getElementById('addModalTitle').textContent = title;
+            document.getElementById('addModalBody').innerHTML = content;
+            document.getElementById('addModal').style.display = 'flex';
+        }
+        
+        function closeAddModal() {
+            document.getElementById('addModal').style.display = 'none';
+        }
+        
+        async function submitAddModal() {
+            try {
+                let url = '', data = {};
+                
+                if (currentAddType === 'enseignant') {
+                    url = `${API_BASE}/enseignants`;
+                    data = {
+                        acronyme: document.getElementById('modal_acronyme').value.toUpperCase(),
+                        nom: document.getElementById('modal_nom').value,
+                        prenom: document.getElementById('modal_prenom').value,
+                        email: document.getElementById('modal_email').value || null,
+                        charge_max: parseInt(document.getElementById('modal_charge').value) || 0
+                    };
+                } else if (currentAddType === 'eleve') {
+                    url = `${API_BASE}/eleves`;
+                    data = {
+                        nom: document.getElementById('modal_nom').value,
+                        prenom: document.getElementById('modal_prenom').value,
+                        classe_id: document.getElementById('modal_classe').value
+                    };
+                } else if (currentAddType === 'classe') {
+                    url = `${API_BASE}/classes`;
+                    data = {
+                        nom: document.getElementById('modal_nom').value,
+                        niveau: document.getElementById('modal_niveau').value || null
+                    };
+                } else if (currentAddType === 'salle') {
+                    url = `${API_BASE}/salles`;
+                    data = {
+                        nom: document.getElementById('modal_nom').value,
+                        capacite: parseInt(document.getElementById('modal_capacite').value) || 25,
+                        type_salle_id: document.getElementById('modal_type_salle').value || null
+                    };
+                } else if (currentAddType === 'theme') {
+                    url = '/api/admin/themes';
+                    data = {
+                        nom: document.getElementById('modal_nom').value,
+                        icone: document.getElementById('modal_icone').value || null,
+                        couleur: document.getElementById('modal_couleur').value,
+                        description: document.getElementById('modal_description').value || null
+                    };
+                } else if (currentAddType === 'type_salle') {
+                    url = '/api/admin/types-salles';
+                    data = {
+                        nom: document.getElementById('modal_nom').value,
+                        description: document.getElementById('modal_description').value || null
+                    };
+                }
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    closeAddModal();
+                    showAlert('✅ Ajouté avec succès', 'success');
+                    // Recharger la liste correspondante
+                    const typeMap = { 'enseignant': 'enseignants', 'eleve': 'eleves', 'classe': 'classes', 'salle': 'salles', 'theme': 'themes', 'type_salle': 'types_salles' };
+                    loadListe(typeMap[currentAddType]);
+                } else {
+                    showAlert('❌ ' + result.message, 'error');
+                }
+            } catch (e) {
+                showAlert('❌ Erreur: ' + e.message, 'error');
+            }
+        }
+
+        // ========== QUOTAS ==========
+        async function loadQuota() {
+            try {
+                const response = await fetch('/api/admin/quota', { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await response.json();
+                if (data.success) {
+                    const quota = data.data.quota || 100;
+                    document.getElementById('quotaSlider').value = quota;
+                    updateQuotaDisplay();
+                }
+            } catch (e) {
+                console.error('Erreur chargement quota:', e);
+            }
+        }
+        
+        function updateQuotaDisplay() {
+            const val = document.getElementById('quotaSlider').value;
+            document.getElementById('quotaValue').textContent = val + '%';
+        }
+        
+        async function saveQuota() {
+            const quota = parseInt(document.getElementById('quotaSlider').value);
+            try {
+                const response = await fetch('/api/admin/quota', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ quota })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('quotaStatus').innerHTML = '<p style="color:#10b981;">✅ Quota enregistré: ' + quota + '%</p>';
+                } else {
+                    document.getElementById('quotaStatus').innerHTML = '<p style="color:#ef4444;">❌ ' + data.message + '</p>';
+                }
+            } catch (e) {
+                document.getElementById('quotaStatus').innerHTML = '<p style="color:#ef4444;">❌ Erreur</p>';
+            }
+        }
+
+        // ========== INSCRIPTIONS CLASSES ==========
+        async function loadClassesInscriptions() {
+            try {
+                const response = await fetch(`${API_BASE}/classes`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await response.json();
+                
+                let html = '<table><thead><tr><th>Classe</th><th>Niveau</th><th>Élèves</th><th>Inscriptions</th><th>Action</th></tr></thead><tbody>';
+                data.data.forEach(c => {
+                    const ouvert = c.inscriptions_ouvertes;
+                    const statusBadge = ouvert 
+                        ? '<span class="badge" style="background:#d1fae5;color:#065f46;">Ouvertes</span>'
+                        : '<span class="badge" style="background:#fee2e2;color:#991b1b;">Fermées</span>';
+                    const btnAction = ouvert
+                        ? `<button class="btn btn-sm btn-danger" onclick="toggleInscriptionClasse(${c.id}, false)">🔒 Fermer</button>`
+                        : `<button class="btn btn-sm btn-success" onclick="toggleInscriptionClasse(${c.id}, true)">🔓 Ouvrir</button>`;
+                    
+                    html += `<tr>
+                        <td><strong>${c.nom}</strong></td>
+                        <td>${c.niveau || '-'}</td>
+                        <td>${c.nombre_eleves}</td>
+                        <td>${statusBadge}</td>
+                        <td>${btnAction}</td>
+                    </tr>`;
+                });
+                html += '</tbody></table>';
+                document.getElementById('classesInscriptionsContainer').innerHTML = html;
+            } catch (e) {
+                document.getElementById('classesInscriptionsContainer').innerHTML = '<p style="color:red;">Erreur</p>';
+            }
+        }
+        
+        async function toggleInscriptionClasse(classeId, ouvrir) {
+            try {
+                const response = await fetch(`${API_BASE}/classes/${classeId}/inscriptions`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ ouvertes: ouvrir })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    loadClassesInscriptions();
+                } else {
+                    showAlert('❌ ' + data.message, 'error');
+                }
+            } catch (e) {
+                showAlert('❌ Erreur', 'error');
+            }
+        }
+        
+        async function ouvrirToutesClasses() {
+            if (!confirm('Ouvrir les inscriptions pour TOUTES les classes ?')) return;
+            try {
+                const response = await fetch(`${API_BASE}/classes/inscriptions/toutes`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ ouvertes: true })
+                });
+                loadClassesInscriptions();
+                showAlert('✅ Inscriptions ouvertes pour toutes les classes', 'success');
+            } catch (e) {
+                showAlert('❌ Erreur', 'error');
+            }
+        }
+        
+        async function fermerToutesClasses() {
+            if (!confirm('Fermer les inscriptions pour TOUTES les classes ?')) return;
+            try {
+                const response = await fetch(`${API_BASE}/classes/inscriptions/toutes`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ ouvertes: false })
+                });
+                loadClassesInscriptions();
+                showAlert('✅ Inscriptions fermées pour toutes les classes', 'success');
+            } catch (e) {
+                showAlert('❌ Erreur', 'error');
+            }
+        }
+
+        // Charger les données au switch d'onglet
+        const originalSwitchTab = switchTab;
+        switchTab = function(tabName) {
+            originalSwitchTab(tabName);
+            if (tabName === 'quotas') loadQuota();
+            if (tabName === 'inscriptions-classes') loadClassesInscriptions();
+        };
     </script>
+
+    <!-- Modal Ajout -->
+    <div id="addModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;">
+        <div style="background:white; padding:30px; border-radius:15px; max-width:500px; width:90%; max-height:80vh; overflow-y:auto;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h2 id="addModalTitle" style="margin:0; color:#667eea;"></h2>
+                <button onclick="closeAddModal()" style="background:none; border:none; font-size:24px; cursor:pointer;">&times;</button>
+            </div>
+            <div id="addModalBody"></div>
+            <div style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
+                <button class="btn btn-secondary" onclick="closeAddModal()">Annuler</button>
+                <button class="btn btn-success" onclick="submitAddModal()">Ajouter</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
