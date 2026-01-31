@@ -42,6 +42,24 @@ router.put('/admin/config', authMiddleware, adminMiddleware, async (req, res) =>
 });
 
 /**
+ * PUT /api/evaluations/admin/parametres
+ * Alias pour modifier configuration (compatibilité frontend)
+ */
+router.put('/admin/parametres', authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+        const { evaluations_ouvertes } = req.body;
+        await query(
+            "INSERT INTO configuration (cle, valeur) VALUES ('evaluations_ouvertes', ?) ON DUPLICATE KEY UPDATE valeur = ?",
+            [evaluations_ouvertes ? 'true' : 'false', evaluations_ouvertes ? 'true' : 'false']
+        );
+        res.json({ success: true, message: `Évaluations ${evaluations_ouvertes ? 'ouvertes' : 'fermées'}` });
+    } catch (error) {
+        console.error('Erreur config evaluations:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
  * GET /api/evaluations/admin/toutes
  * Liste de toutes les évaluations (admin)
  */
@@ -75,24 +93,28 @@ router.get('/admin/stats', authMiddleware, adminMiddleware, async (req, res) => 
         const stats = await query(`
             SELECT 
                 COUNT(*) as total_evaluations,
-                AVG(note) as note_moyenne,
+                AVG(note) as moyenne_generale,
+                COUNT(DISTINCT eleve_id) as nb_eleves_evaluateurs,
+                COUNT(DISTINCT atelier_id) as nb_ateliers_evalues,
                 COUNT(CASE WHEN note >= 5 THEN 1 END) as nb_positifs,
                 COUNT(CASE WHEN note <= 2 THEN 1 END) as nb_negatifs
             FROM evaluations
         `);
         
-        const parAtelier = await query(`
+        const topAteliers = await query(`
             SELECT a.id, a.nom, 
-                COUNT(ev.id) as nb_evaluations,
-                AVG(ev.note) as note_moyenne
+                COUNT(ev.id) as nb,
+                AVG(ev.note) as moyenne
             FROM ateliers a
-            LEFT JOIN evaluations ev ON ev.atelier_id = a.id
+            JOIN evaluations ev ON ev.atelier_id = a.id
             WHERE a.statut = 'valide'
             GROUP BY a.id
-            ORDER BY note_moyenne DESC
+            HAVING COUNT(ev.id) > 0
+            ORDER BY moyenne DESC
+            LIMIT 10
         `);
         
-        res.json({ success: true, data: { stats: stats[0], parAtelier } });
+        res.json({ success: true, data: { stats: stats[0], topAteliers } });
     } catch (error) {
         console.error('Erreur stats evaluations:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });

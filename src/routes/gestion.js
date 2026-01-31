@@ -185,13 +185,29 @@ router.post('/eleves', async (req, res) => {
         if (!nom || !prenom || !classe_id) {
             return res.status(400).json({ success: false, message: 'Nom, prénom et classe requis' });
         }
-        const acronyme = `${nom.substring(0, 3).toUpperCase()}${prenom.substring(0, 2).toUpperCase()}`;
-        const defaultPassword = await bcrypt.hash('eleve2026', 10);
+        
+        // Générer l'identifiant: prenomnom (sans accents, minuscules)
+        const normalizeString = (str) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '');
+        const baseLogin = normalizeString(prenom) + normalizeString(nom);
+        
+        // Vérifier si l'identifiant existe déjà
+        let login = baseLogin;
+        let counter = 1;
+        while (true) {
+            const existing = await query('SELECT id FROM utilisateurs WHERE acronyme = ?', [login]);
+            if (existing.length === 0) break;
+            counter++;
+            login = baseLogin + counter;
+        }
+        
+        // Mot de passe = même que login
+        const defaultPassword = await bcrypt.hash(login, 10);
+        
         const result = await query(`INSERT INTO utilisateurs (acronyme, nom, prenom, mot_de_passe, role) VALUES (?, ?, ?, ?, 'eleve')`,
-            [acronyme, nom, prenom, defaultPassword]);
+            [login, nom, prenom, defaultPassword]);
         await query(`INSERT INTO eleves (utilisateur_id, classe_id, numero_eleve) VALUES (?, ?, ?)`,
             [result.insertId, classe_id, numero_eleve || null]);
-        res.json({ success: true, message: 'Élève ajouté' });
+        res.json({ success: true, message: `Élève ajouté (identifiant: ${login})`, data: { login } });
     } catch (error) {
         console.error('Erreur:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
@@ -241,10 +257,10 @@ router.get('/salles', async (req, res) => {
 
 router.post('/salles', async (req, res) => {
     try {
-        const { nom, capacite, type_salle, batiment, etage, equipement } = req.body;
+        const { nom, capacite, type_salle, batiment, equipement } = req.body;
         if (!nom) { return res.status(400).json({ success: false, message: 'Nom de salle requis' }); }
-        await query(`INSERT INTO salles (nom, capacite, type_salle, batiment, etage, equipement, disponible) VALUES (?, ?, ?, ?, ?, ?, TRUE)`,
-            [nom, capacite || 25, type_salle, batiment, etage, equipement]);
+        await query(`INSERT INTO salles (nom, capacite, type_salle, batiment, equipement, disponible) VALUES (?, ?, ?, ?, ?, TRUE)`,
+            [nom, capacite || 25, type_salle || null, batiment || null, equipement || null]);
         res.json({ success: true, message: 'Salle ajoutée' });
     } catch (error) {
         if (error.code === 'ER_DUP_ENTRY') {
@@ -258,10 +274,10 @@ router.post('/salles', async (req, res) => {
 router.put('/salles/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { nom, capacite, type_salle, batiment, etage, equipement, disponible } = req.body;
+        const { nom, capacite, type_salle, batiment, equipement, disponible } = req.body;
         await query(`UPDATE salles SET nom = COALESCE(?, nom), capacite = COALESCE(?, capacite),
-            type_salle = ?, batiment = ?, etage = ?, equipement = ?, disponible = COALESCE(?, disponible) WHERE id = ?`,
-            [nom, capacite, type_salle, batiment, etage, equipement, disponible, id]);
+            type_salle = ?, batiment = ?, equipement = ?, disponible = COALESCE(?, disponible) WHERE id = ?`,
+            [nom, capacite, type_salle, batiment, equipement, disponible, id]);
         res.json({ success: true, message: 'Salle modifiée' });
     } catch (error) {
         console.error('Erreur:', error);
@@ -913,6 +929,41 @@ router.put('/reset-all-passwords', async (req, res) => {
         });
     } catch (error) {
         console.error('Erreur reset all passwords:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+// ========== INSCRIPTIONS PAR CLASSE (ouvrir/fermer) ==========
+
+/**
+ * PUT /api/gestion/classes/:id/inscriptions
+ * Ouvrir/fermer inscriptions pour une classe
+ */
+router.put('/classes/:id/inscriptions', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { ouvertes } = req.body;
+        
+        await query('UPDATE classes SET inscriptions_ouvertes = ? WHERE id = ?', [ouvertes ? 1 : 0, id]);
+        res.json({ success: true, message: ouvertes ? 'Inscriptions ouvertes' : 'Inscriptions fermées' });
+    } catch (error) {
+        console.error('Erreur toggle classe:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * PUT /api/gestion/classes/inscriptions/toutes
+ * Ouvrir/fermer inscriptions pour toutes les classes
+ */
+router.put('/classes/inscriptions/toutes', async (req, res) => {
+    try {
+        const { ouvertes } = req.body;
+        
+        await query('UPDATE classes SET inscriptions_ouvertes = ?', [ouvertes ? 1 : 0]);
+        res.json({ success: true, message: ouvertes ? 'Inscriptions ouvertes pour toutes les classes' : 'Inscriptions fermées pour toutes les classes' });
+    } catch (error) {
+        console.error('Erreur toggle toutes:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });

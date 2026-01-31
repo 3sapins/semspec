@@ -291,15 +291,19 @@ router.get('/dashboard', async (req, res) => {
 
 /**
  * GET /api/enseignants/mon-horaire
+ * Inclut les ateliers ET les piquets/dégagements
  */
 router.get('/mon-horaire', async (req, res) => {
     try {
         const acronyme = req.user.acronyme;
+        const userId = req.user.id;
         
+        // Ateliers de l'enseignant
         const horaire = await query(`
             SELECT p.id as planning_id, p.creneau_id, p.nombre_creneaux,
                 a.id as atelier_id, a.nom as atelier_nom, a.duree, a.nombre_places_max,
                 c.jour, c.periode, c.ordre, s.nom as salle_nom,
+                'atelier' as type,
                 (SELECT COUNT(*) FROM inscriptions WHERE planning_id = p.id AND statut = 'confirmee') as nb_inscrits
             FROM planning p
             JOIN ateliers a ON p.atelier_id = a.id
@@ -309,9 +313,41 @@ router.get('/mon-horaire', async (req, res) => {
             ORDER BY c.ordre
         `, [acronyme, acronyme, acronyme]);
         
+        // Piquets et dégagements de l'enseignant
+        const piquets = await query(`
+            SELECT ep.id, ep.creneau_id, ep.type, ep.commentaire,
+                c.jour, c.periode, c.ordre,
+                'Salle des maîtres' as salle_nom
+            FROM enseignants_piquet ep
+            JOIN creneaux c ON ep.creneau_id = c.id
+            WHERE ep.utilisateur_id = ?
+            ORDER BY c.ordre
+        `, [userId]);
+        
+        // Combiner les deux
+        const combined = [
+            ...horaire,
+            ...piquets.map(p => ({
+                planning_id: null,
+                creneau_id: p.creneau_id,
+                nombre_creneaux: 1,
+                atelier_id: null,
+                atelier_nom: p.type === 'piquet' ? '🚨 Piquet' : '📋 Dégagement',
+                duree: 2,
+                nombre_places_max: null,
+                jour: p.jour,
+                periode: p.periode,
+                ordre: p.ordre,
+                salle_nom: p.salle_nom,
+                type: p.type,
+                nb_inscrits: null,
+                commentaire: p.commentaire
+            }))
+        ].sort((a, b) => a.ordre - b.ordre);
+        
         const creneaux = await query('SELECT * FROM creneaux ORDER BY ordre');
         
-        res.json({ success: true, data: { ateliers: horaire, creneaux: creneaux } });
+        res.json({ success: true, data: { ateliers: combined, creneaux: creneaux } });
     } catch (error) {
         console.error('Erreur horaire:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
@@ -526,15 +562,33 @@ router.put('/disponibilites', async (req, res) => {
 
 /**
  * GET /api/enseignants/types-salles
+ * Récupère les types de salles (depuis la table types_salles et les salles existantes)
  */
 router.get('/types-salles', async (req, res) => {
     try {
-        const types = await query(`
+        // Essayer d'abord la table types_salles
+        let types = [];
+        try {
+            const typesTable = await query('SELECT nom FROM types_salles ORDER BY nom');
+            types = typesTable.map(t => t.nom);
+        } catch (e) {
+            // Table n'existe pas, on continue
+        }
+        
+        // Ajouter les types depuis les salles existantes
+        const typesSalles = await query(`
             SELECT DISTINCT type_salle FROM salles 
-            WHERE type_salle IS NOT NULL AND disponible = TRUE
+            WHERE type_salle IS NOT NULL AND type_salle != ''
             ORDER BY type_salle
         `);
-        res.json({ success: true, data: types.map(t => t.type_salle) });
+        typesSalles.forEach(t => {
+            if (!types.includes(t.type_salle)) {
+                types.push(t.type_salle);
+            }
+        });
+        
+        types.sort();
+        res.json({ success: true, data: types });
     } catch (error) {
         console.error('Erreur types salles:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
