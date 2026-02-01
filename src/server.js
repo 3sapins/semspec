@@ -15,6 +15,7 @@ const presenceRoutes = require('./routes/presence');
 const printRoutes = require('./routes/print');
 const catalogueRoutes = require('./routes/catalogue');
 const evaluationsRoutes = require('./routes/evaluations');
+console.log('✅ evaluationsRoutes chargé:', typeof evaluationsRoutes);
 const app = express();
 const PORT = process.env.PORT || 3001;
 
