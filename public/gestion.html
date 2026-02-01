@@ -51,6 +51,7 @@
         <div class="tabs">
             <button class="tab active" onclick="switchTab('listes')">📋 Listes</button>
             <button class="tab" onclick="switchTab('import')">📥 Import CSV</button>
+            <button class="tab" onclick="switchTab('config-semaine')">📅 Semaine</button>
             <button class="tab" onclick="switchTab('quotas')">📊 Quotas</button>
             <button class="tab" onclick="switchTab('inscriptions-classes')">🔐 Inscriptions</button>
             <button class="tab" onclick="switchTab('evaluations')">⭐ Évaluations</button>
@@ -242,6 +243,65 @@ Cuisine,15,Cuisine,Bâtiment B" style="width:100%; padding:10px; font-family:mon
             
             <div style="margin-top:20px;">
                 <a href="archives.html" class="btn btn-secondary">📚 Voir les archives existantes</a>
+            </div>
+        </div>
+
+        <!-- CONFIGURATION SEMAINE -->
+        <div id="config-semaine" class="tab-content">
+            <h2 style="margin-bottom: 20px;">📅 Configuration de la Semaine Spéciale</h2>
+            <p style="margin-bottom:20px; color:#6b7280;">Définissez les dates et les jours actifs de la semaine spéciale.</p>
+            
+            <div class="grid">
+                <div class="card">
+                    <h3 style="margin-bottom:15px; color:#667eea;">📆 Dates</h3>
+                    <div class="form-group">
+                        <label>Date de début</label>
+                        <input type="date" id="semaineDebut">
+                    </div>
+                    <div class="form-group">
+                        <label>Date de fin</label>
+                        <input type="date" id="semaineFin">
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3 style="margin-bottom:15px; color:#667eea;">✅ Jours actifs</h3>
+                    <p style="margin-bottom:15px; font-size:13px; color:#6b7280;">Décochez les jours où il n'y a pas d'ateliers.</p>
+                    <div style="display:flex; flex-direction:column; gap:10px;">
+                        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:normal;">
+                            <input type="checkbox" id="jourLundi" value="lundi" style="width:20px; height:20px;">
+                            <span>Lundi</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:normal;">
+                            <input type="checkbox" id="jourMardi" value="mardi" style="width:20px; height:20px;">
+                            <span>Mardi</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:normal;">
+                            <input type="checkbox" id="jourMercredi" value="mercredi" style="width:20px; height:20px;">
+                            <span>Mercredi</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:normal;">
+                            <input type="checkbox" id="jourJeudi" value="jeudi" style="width:20px; height:20px;">
+                            <span>Jeudi</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:normal;">
+                            <input type="checkbox" id="jourVendredi" value="vendredi" style="width:20px; height:20px;">
+                            <span>Vendredi</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-top:20px;">
+                <button class="btn btn-primary" onclick="sauvegarderConfigSemaine()">💾 Enregistrer la configuration</button>
+            </div>
+            
+            <div class="card" style="margin-top:20px; background:#fef3c7; border:1px solid #f59e0b;">
+                <h4 style="color:#92400e; margin-bottom:10px;">⚠️ Attention</h4>
+                <p style="font-size:13px; color:#92400e;">
+                    Les jours désactivés ne seront plus disponibles pour le planning et les inscriptions.<br>
+                    Les créneaux existants sur ces jours seront masqués mais pas supprimés.
+                </p>
             </div>
         </div>
 
@@ -1794,6 +1854,73 @@ Cuisine,15,Cuisine,Bâtiment B" style="width:100%; padding:10px; font-family:mon
             }
         }
 
+        // ========== CONFIGURATION SEMAINE ==========
+        async function loadConfigSemaine() {
+            try {
+                const response = await fetch('/api/admin/parametres', { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await response.json();
+                if (data.success) {
+                    const params = data.data || [];
+                    
+                    // Dates
+                    const dateDebut = params.find(p => p.cle === 'semaine_date_debut');
+                    const dateFin = params.find(p => p.cle === 'semaine_date_fin');
+                    const joursActifs = params.find(p => p.cle === 'semaine_jours_actifs');
+                    
+                    if (dateDebut) document.getElementById('semaineDebut').value = dateDebut.valeur;
+                    if (dateFin) document.getElementById('semaineFin').value = dateFin.valeur;
+                    
+                    // Jours actifs
+                    const jours = joursActifs ? joursActifs.valeur.split(',') : ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
+                    document.getElementById('jourLundi').checked = jours.includes('lundi');
+                    document.getElementById('jourMardi').checked = jours.includes('mardi');
+                    document.getElementById('jourMercredi').checked = jours.includes('mercredi');
+                    document.getElementById('jourJeudi').checked = jours.includes('jeudi');
+                    document.getElementById('jourVendredi').checked = jours.includes('vendredi');
+                }
+            } catch (e) {
+                console.error('Erreur chargement config semaine:', e);
+            }
+        }
+        
+        async function sauvegarderConfigSemaine() {
+            try {
+                const dateDebut = document.getElementById('semaineDebut').value;
+                const dateFin = document.getElementById('semaineFin').value;
+                
+                const joursActifs = [];
+                if (document.getElementById('jourLundi').checked) joursActifs.push('lundi');
+                if (document.getElementById('jourMardi').checked) joursActifs.push('mardi');
+                if (document.getElementById('jourMercredi').checked) joursActifs.push('mercredi');
+                if (document.getElementById('jourJeudi').checked) joursActifs.push('jeudi');
+                if (document.getElementById('jourVendredi').checked) joursActifs.push('vendredi');
+                
+                if (joursActifs.length === 0) {
+                    showAlert('❌ Vous devez sélectionner au moins un jour', 'error');
+                    return;
+                }
+                
+                const response = await fetch('/api/gestion/config-semaine', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({
+                        date_debut: dateDebut,
+                        date_fin: dateFin,
+                        jours_actifs: joursActifs.join(',')
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showAlert('✅ Configuration enregistrée', 'success');
+                } else {
+                    showAlert('❌ ' + result.message, 'error');
+                }
+            } catch (e) {
+                showAlert('❌ Erreur: ' + e.message, 'error');
+            }
+        }
+
         // ========== QUOTAS ==========
         async function loadQuota() {
             try {
@@ -1919,6 +2046,7 @@ Cuisine,15,Cuisine,Bâtiment B" style="width:100%; padding:10px; font-family:mon
             if (tabName === 'quotas') loadQuota();
             if (tabName === 'inscriptions-classes') loadClassesInscriptions();
             if (tabName === 'evaluations') loadEvaluationsAdmin();
+            if (tabName === 'config-semaine') loadConfigSemaine();
             if (tabName === 'cloturer') initCloturer();
         };
 
