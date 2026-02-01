@@ -31,7 +31,7 @@ router.delete('/reset/all', async (req, res) => {
  */
 router.get('/creneaux', async (req, res) => {
     try {
-        const creneaux = await query('SELECT * FROM creneaux ORDER BY ordre');
+        const creneaux = await query('SELECT * FROM creneaux WHERE actif = 1 ORDER BY ordre');
         res.json({ success: true, data: creneaux });
     } catch (error) {
         console.error('Erreur:', error);
@@ -128,7 +128,7 @@ router.post('/allouer', async (req, res) => {
         console.log(`📋 ${ateliersBase.length} ateliers validés à répartir`);
         
         // 2. Charger les créneaux ordonnés
-        const creneaux = await query('SELECT * FROM creneaux ORDER BY ordre');
+        const creneaux = await query('SELECT * FROM creneaux WHERE actif = 1 ORDER BY ordre');
         const creneauxMap = {};
         creneaux.forEach(c => { creneauxMap[c.id] = c; });
         
@@ -625,7 +625,7 @@ router.post('/placer-manuel', async (req, res) => {
         }
         
         // Récupérer tous les créneaux pour calculer correctement les créneaux consécutifs
-        const tousCreneaux = await query('SELECT * FROM creneaux ORDER BY ordre');
+        const tousCreneaux = await query('SELECT * FROM creneaux WHERE actif = 1 ORDER BY ordre');
         const creneauDebut = tousCreneaux.find(c => c.id === parseInt(creneau_id));
         if (!creneauDebut) {
             return res.status(404).json({ success: false, message: 'Créneau non trouvé' });

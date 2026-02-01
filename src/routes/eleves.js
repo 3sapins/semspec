@@ -131,7 +131,7 @@ router.get('/mon-horaire', async (req, res) => {
             ORDER BY c.ordre
         `, [eleve[0].id]);
         
-        const creneaux = await query('SELECT * FROM creneaux ORDER BY ordre');
+        const creneaux = await query('SELECT * FROM creneaux WHERE actif = 1 ORDER BY ordre');
         
         res.json({
             success: true,
@@ -262,7 +262,7 @@ router.get('/catalogue', async (req, res) => {
  */
 router.get('/creneaux', async (req, res) => {
     try {
-        const creneaux = await query('SELECT * FROM creneaux ORDER BY ordre');
+        const creneaux = await query('SELECT * FROM creneaux WHERE actif = 1 ORDER BY ordre');
         res.json({ success: true, data: creneaux });
     } catch (error) {
         console.error('Erreur créneaux:', error);

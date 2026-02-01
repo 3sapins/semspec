@@ -1585,4 +1585,51 @@ router.post('/import/salles', async (req, res) => {
     }
 });
 
+/**
+ * POST /api/gestion/config-semaine
+ * Configurer les dates et jours de la semaine spéciale
+ */
+router.post('/config-semaine', async (req, res) => {
+    try {
+        const { date_debut, date_fin, jours_actifs } = req.body;
+        
+        // Sauvegarder les dates
+        if (date_debut) {
+            await query(
+                "INSERT INTO configuration (cle, valeur) VALUES ('semaine_date_debut', ?) ON DUPLICATE KEY UPDATE valeur = ?",
+                [date_debut, date_debut]
+            );
+        }
+        
+        if (date_fin) {
+            await query(
+                "INSERT INTO configuration (cle, valeur) VALUES ('semaine_date_fin', ?) ON DUPLICATE KEY UPDATE valeur = ?",
+                [date_fin, date_fin]
+            );
+        }
+        
+        // Sauvegarder les jours actifs
+        if (jours_actifs) {
+            await query(
+                "INSERT INTO configuration (cle, valeur) VALUES ('semaine_jours_actifs', ?) ON DUPLICATE KEY UPDATE valeur = ?",
+                [jours_actifs, jours_actifs]
+            );
+            
+            // Mettre à jour les créneaux : activer/désactiver selon les jours
+            const joursArray = jours_actifs.split(',');
+            const tousLesJours = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
+            
+            for (const jour of tousLesJours) {
+                const actif = joursArray.includes(jour) ? 1 : 0;
+                await query('UPDATE creneaux SET actif = ? WHERE jour = ?', [actif, jour]);
+            }
+        }
+        
+        res.json({ success: true, message: 'Configuration enregistrée' });
+    } catch (error) {
+        console.error('Erreur config semaine:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
 module.exports = router;
