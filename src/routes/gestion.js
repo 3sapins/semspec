@@ -6,6 +6,131 @@ const bcrypt = require('bcrypt');
 
 router.use(authMiddleware, adminMiddleware);
 
+// ========== FONCTIONS UTILITAIRES CONFLITS HORAIRES ==========
+
+/**
+ * Vérifie si un élève a un conflit horaire avec un planning donné
+ * @param {number} eleveId - ID de l'élève
+ * @param {number} planningId - ID du planning à vérifier
+ * @returns {Object|null} - Détails du conflit ou null si pas de conflit
+ */
+async function verifierConflitEleveHoraire(eleveId, planningId) {
+    // Récupérer les infos du planning cible
+    const planningCible = await query(`
+        SELECT p.creneau_id, p.nombre_creneaux, c.jour, c.ordre, c.periode, a.nom as atelier_nom
+        FROM planning p
+        JOIN creneaux c ON p.creneau_id = c.id
+        JOIN ateliers a ON p.atelier_id = a.id
+        WHERE p.id = ?
+    `, [planningId]);
+    
+    if (planningCible.length === 0) return null;
+    
+    const cible = planningCible[0];
+    const ordreDebut = cible.ordre;
+    const ordreFin = cible.ordre + (cible.nombre_creneaux || 1) - 1;
+    
+    // Chercher les inscriptions existantes qui chevauchent ces créneaux
+    const conflits = await query(`
+        SELECT a.nom as atelier_conflit, c.jour, c.periode
+        FROM inscriptions i
+        JOIN planning p ON i.planning_id = p.id
+        JOIN creneaux c ON p.creneau_id = c.id
+        JOIN ateliers a ON p.atelier_id = a.id
+        WHERE i.eleve_id = ? 
+        AND i.statut = 'confirmee'
+        AND i.planning_id != ?
+        AND c.jour = ?
+        AND (
+            (c.ordre <= ? AND c.ordre + COALESCE(p.nombre_creneaux, 1) - 1 >= ?)
+            OR (c.ordre >= ? AND c.ordre <= ?)
+        )
+    `, [eleveId, planningId, cible.jour, ordreFin, ordreDebut, ordreDebut, ordreFin]);
+    
+    if (conflits.length > 0) {
+        return {
+            type: 'eleve',
+            atelier_conflit: conflits[0].atelier_conflit,
+            jour: conflits[0].jour,
+            periode: conflits[0].periode
+        };
+    }
+    
+    return null;
+}
+
+/**
+ * Vérifie si un enseignant a un conflit horaire sur un créneau donné
+ * @param {string} acronyme - Acronyme de l'enseignant
+ * @param {number} creneauId - ID du créneau de départ
+ * @param {number} nombreCreneaux - Nombre de créneaux (durée)
+ * @param {number|null} excludePlanningId - Planning à exclure (pour modifications)
+ * @returns {Object|null} - Détails du conflit ou null si pas de conflit
+ */
+async function verifierConflitEnseignantHoraire(acronyme, creneauId, nombreCreneaux = 1, excludePlanningId = null) {
+    // Récupérer les créneaux concernés
+    const creneauDepart = await query('SELECT jour, ordre FROM creneaux WHERE id = ?', [creneauId]);
+    if (creneauDepart.length === 0) return null;
+    
+    const ordreDebut = creneauDepart[0].ordre;
+    const ordreFin = ordreDebut + nombreCreneaux - 1;
+    const jour = creneauDepart[0].jour;
+    
+    // 1. Vérifier les ateliers planifiés
+    let excludeClause = excludePlanningId ? 'AND p.id != ?' : '';
+    let params = [acronyme, acronyme, acronyme, jour, ordreFin, ordreDebut, ordreDebut, ordreFin];
+    if (excludePlanningId) params.push(excludePlanningId);
+    
+    const conflitsAteliers = await query(`
+        SELECT a.nom as activite_nom, 'atelier' as type_activite, c.periode
+        FROM planning p
+        JOIN ateliers a ON p.atelier_id = a.id
+        JOIN creneaux c ON p.creneau_id = c.id
+        WHERE (a.enseignant_acronyme = ? OR a.enseignant2_acronyme = ? OR a.enseignant3_acronyme = ?)
+        AND c.jour = ?
+        AND (
+            (c.ordre <= ? AND c.ordre + COALESCE(p.nombre_creneaux, 1) - 1 >= ?)
+            OR (c.ordre >= ? AND c.ordre <= ?)
+        )
+        ${excludeClause}
+    `, params);
+    
+    if (conflitsAteliers.length > 0) {
+        return {
+            type: 'enseignant',
+            activite_type: 'atelier',
+            activite_nom: conflitsAteliers[0].activite_nom,
+            jour: jour,
+            periode: conflitsAteliers[0].periode
+        };
+    }
+    
+    // 2. Vérifier les piquets/dégagements
+    const userId = await query('SELECT id FROM utilisateurs WHERE acronyme = ?', [acronyme]);
+    if (userId.length > 0) {
+        const conflitsPiquet = await query(`
+            SELECT ep.type as activite_type, c.periode
+            FROM enseignants_piquet ep
+            JOIN creneaux c ON ep.creneau_id = c.id
+            WHERE ep.utilisateur_id = ?
+            AND c.jour = ?
+            AND c.ordre >= ? AND c.ordre <= ?
+        `, [userId[0].id, jour, ordreDebut, ordreFin]);
+        
+        if (conflitsPiquet.length > 0) {
+            return {
+                type: 'enseignant',
+                activite_type: conflitsPiquet[0].activite_type,
+                activite_nom: conflitsPiquet[0].activite_type === 'piquet' ? 'Piquet' : 'Dégagement',
+                jour: jour,
+                periode: conflitsPiquet[0].periode
+            };
+        }
+    }
+    
+    return null;
+}
+
 // ========== ENSEIGNANTS ==========
 router.get('/enseignants', async (req, res) => {
     try {
@@ -665,7 +790,7 @@ router.post('/piquet', async (req, res) => {
         }
         
         // Vérifier que l'enseignant existe
-        const enseignant = await query('SELECT id, nom, prenom FROM utilisateurs WHERE id = ?', [utilisateur_id]);
+        const enseignant = await query('SELECT id, nom, prenom, acronyme FROM utilisateurs WHERE id = ?', [utilisateur_id]);
         if (enseignant.length === 0) {
             return res.status(404).json({ success: false, message: 'Enseignant non trouvé' });
         }
@@ -676,10 +801,20 @@ router.post('/piquet', async (req, res) => {
             return res.status(404).json({ success: false, message: 'Créneau non trouvé' });
         }
         
-        // Vérifier si déjà existant
+        // Vérifier si déjà existant (piquet/dégagement)
         const existing = await query('SELECT id FROM enseignants_piquet WHERE utilisateur_id = ? AND creneau_id = ?', [utilisateur_id, creneau_id]);
         if (existing.length > 0) {
             return res.status(400).json({ success: false, message: 'Cet enseignant est déjà affecté sur ce créneau' });
+        }
+        
+        // NOUVEAU: Vérifier conflit avec ateliers planifiés
+        const conflit = await verifierConflitEnseignantHoraire(enseignant[0].acronyme, creneau_id, 1, null);
+        if (conflit) {
+            return res.status(400).json({ 
+                success: false, 
+                message: `Conflit horaire: ${enseignant[0].prenom} ${enseignant[0].nom} a déjà "${conflit.activite_nom}" sur ce créneau (${creneau[0].jour} ${creneau[0].periode})`,
+                conflit: conflit
+            });
         }
         
         // Essayer d'insérer avec commentaire
@@ -867,11 +1002,12 @@ router.put('/eleve/:eleveId/devalider', async (req, res) => {
 /**
  * POST /api/gestion/eleve/:eleveId/inscription
  * Ajouter une inscription pour un élève (admin)
+ * AVEC vérification des conflits horaires
  */
 router.post('/eleve/:eleveId/inscription', async (req, res) => {
     try {
         const { eleveId } = req.params;
-        const { planning_id, notifier } = req.body;
+        const { planning_id, notifier, forcer } = req.body;
         
         // Vérifier élève
         const eleve = await query('SELECT id FROM eleves WHERE id = ?', [eleveId]);
@@ -896,6 +1032,19 @@ router.post('/eleve/:eleveId/inscription', async (req, res) => {
         const existing = await query('SELECT id FROM inscriptions WHERE eleve_id = ? AND planning_id = ?', [eleveId, planning_id]);
         if (existing.length > 0) {
             return res.status(400).json({ success: false, message: 'Déjà inscrit à ce créneau' });
+        }
+        
+        // NOUVEAU: Vérifier conflit horaire (sauf si forcé par admin)
+        if (!forcer) {
+            const conflit = await verifierConflitEleveHoraire(eleveId, planning_id);
+            if (conflit) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: `Conflit horaire: déjà inscrit à "${conflit.atelier_conflit}" (${conflit.jour} ${conflit.periode})`,
+                    conflit: conflit,
+                    peut_forcer: true
+                });
+            }
         }
         
         // Inscrire

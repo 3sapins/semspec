@@ -31,15 +31,98 @@ router.get('/profil', async (req, res) => {
             WHERE a.enseignant_acronyme = ? OR a.enseignant2_acronyme = ? OR a.enseignant3_acronyme = ?
         `, [user[0].acronyme, user[0].acronyme, user[0].acronyme]);
         
+        // Compter les notifications non lues
+        let nbNotifications = 0;
+        try {
+            const notifs = await query(`
+                SELECT COUNT(*) as total FROM notifications_enseignants
+                WHERE utilisateur_id = ? AND lue = FALSE
+            `, [userId]);
+            nbNotifications = notifs[0]?.total || 0;
+        } catch (e) {
+            // Table n'existe pas encore, ignorer
+        }
+        
         res.json({ 
             success: true, 
             data: {
                 ...user[0],
-                charge_actuelle: chargeActuelle[0]?.charge || 0
+                charge_actuelle: chargeActuelle[0]?.charge || 0,
+                nb_notifications: nbNotifications
             }
         });
     } catch (error) {
         console.error('Erreur profil:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * GET /api/enseignants/notifications
+ * Liste des notifications de l'enseignant
+ */
+router.get('/notifications', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        const notifications = await query(`
+            SELECT id, type, titre, message, lien, data, lue, created_at
+            FROM notifications_enseignants
+            WHERE utilisateur_id = ?
+            ORDER BY created_at DESC
+            LIMIT 50
+        `, [userId]);
+        
+        res.json({ success: true, data: notifications });
+    } catch (error) {
+        console.error('Erreur notifications:', error);
+        // Si la table n'existe pas, retourner vide
+        if (error.code === 'ER_NO_SUCH_TABLE') {
+            return res.json({ success: true, data: [] });
+        }
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * PUT /api/enseignants/notifications/:id/lue
+ * Marquer une notification comme lue
+ */
+router.put('/notifications/:id/lue', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+        
+        await query(`
+            UPDATE notifications_enseignants 
+            SET lue = TRUE, read_at = NOW()
+            WHERE id = ? AND utilisateur_id = ?
+        `, [id, userId]);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Erreur:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * PUT /api/enseignants/notifications/lire-toutes
+ * Marquer toutes les notifications comme lues
+ */
+router.put('/notifications/lire-toutes', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        await query(`
+            UPDATE notifications_enseignants 
+            SET lue = TRUE, read_at = NOW()
+            WHERE utilisateur_id = ? AND lue = FALSE
+        `, [userId]);
+        
+        res.json({ success: true, message: 'Toutes les notifications marquées comme lues' });
+    } catch (error) {
+        console.error('Erreur:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });

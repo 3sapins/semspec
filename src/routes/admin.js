@@ -292,12 +292,49 @@ router.put('/ateliers/:id/valider', adminMiddleware, async (req, res) => {
             return res.status(404).json({ success: false, message: 'Atelier non trouvé' });
         }
         
+        const atelier = ateliers[0];
+        
         await query('UPDATE ateliers SET statut = "valide" WHERE id = ?', [id]);
         
         await query(
             'INSERT INTO historique (utilisateur_id, action, table_cible, id_cible, details) VALUES (?, ?, ?, ?, ?)',
             [req.user.id, 'VALIDATE', 'ateliers', id, 'Validation atelier']
         );
+        
+        // Notifier l'enseignant principal
+        const enseignant = await query('SELECT id FROM utilisateurs WHERE acronyme = ?', [atelier.enseignant_acronyme]);
+        if (enseignant.length > 0) {
+            await query(`
+                INSERT INTO notifications_enseignants (utilisateur_id, type, titre, message, lien, data)
+                VALUES (?, 'atelier_valide', ?, ?, ?, ?)
+            `, [
+                enseignant[0].id,
+                '✅ Atelier validé',
+                `Votre atelier "${atelier.nom}" a été validé par l'administration. Il sera prochainement ajouté au planning.`,
+                `/enseignants.html#mes-ateliers`,
+                JSON.stringify({ atelier_id: id, atelier_nom: atelier.nom })
+            ]);
+        }
+        
+        // Notifier les enseignants secondaires
+        if (atelier.enseignant2_acronyme) {
+            const ens2 = await query('SELECT id FROM utilisateurs WHERE acronyme = ?', [atelier.enseignant2_acronyme]);
+            if (ens2.length > 0) {
+                await query(`
+                    INSERT INTO notifications_enseignants (utilisateur_id, type, titre, message, lien, data)
+                    VALUES (?, 'atelier_valide', ?, ?, ?, ?)
+                `, [ens2[0].id, '✅ Atelier validé', `L'atelier "${atelier.nom}" (co-animation) a été validé.`, `/enseignants.html#mes-ateliers`, JSON.stringify({ atelier_id: id })]);
+            }
+        }
+        if (atelier.enseignant3_acronyme) {
+            const ens3 = await query('SELECT id FROM utilisateurs WHERE acronyme = ?', [atelier.enseignant3_acronyme]);
+            if (ens3.length > 0) {
+                await query(`
+                    INSERT INTO notifications_enseignants (utilisateur_id, type, titre, message, lien, data)
+                    VALUES (?, 'atelier_valide', ?, ?, ?, ?)
+                `, [ens3[0].id, '✅ Atelier validé', `L'atelier "${atelier.nom}" (co-animation) a été validé.`, `/enseignants.html#mes-ateliers`, JSON.stringify({ atelier_id: id })]);
+            }
+        }
         
         res.json({ success: true, message: 'Atelier validé' });
     } catch (error) {
@@ -312,7 +349,30 @@ router.put('/ateliers/:id/refuser', adminMiddleware, async (req, res) => {
         const { id } = req.params;
         const { motif } = req.body;
         
-        await query('UPDATE ateliers SET statut = "refuse", motif_refus = ? WHERE id = ?', [motif || 'Non spécifié', id]);
+        const ateliers = await query('SELECT * FROM ateliers WHERE id = ?', [id]);
+        if (ateliers.length === 0) {
+            return res.status(404).json({ success: false, message: 'Atelier non trouvé' });
+        }
+        
+        const atelier = ateliers[0];
+        const motifFinal = motif || 'Non spécifié';
+        
+        await query('UPDATE ateliers SET statut = "refuse", motif_refus = ? WHERE id = ?', [motifFinal, id]);
+        
+        // Notifier l'enseignant
+        const enseignant = await query('SELECT id FROM utilisateurs WHERE acronyme = ?', [atelier.enseignant_acronyme]);
+        if (enseignant.length > 0) {
+            await query(`
+                INSERT INTO notifications_enseignants (utilisateur_id, type, titre, message, lien, data)
+                VALUES (?, 'atelier_refuse', ?, ?, ?, ?)
+            `, [
+                enseignant[0].id,
+                '❌ Atelier refusé',
+                `Votre atelier "${atelier.nom}" a été refusé. Motif : ${motifFinal}`,
+                `/enseignants.html#mes-ateliers`,
+                JSON.stringify({ atelier_id: id, atelier_nom: atelier.nom, motif: motifFinal })
+            ]);
+        }
         
         res.json({ success: true, message: 'Atelier refusé' });
     } catch (error) {
