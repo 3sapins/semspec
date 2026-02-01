@@ -1587,12 +1587,13 @@ router.post('/import/salles', async (req, res) => {
 
 /**
  * POST /api/gestion/config-semaine
- * Configurer les dates de la semaine spéciale
+ * Configurer les dates et jours de la semaine spéciale
  */
 router.post('/config-semaine', async (req, res) => {
     try {
-        const { date_debut, date_fin } = req.body;
+        const { date_debut, date_fin, jours_actifs } = req.body;
         
+        // Sauvegarder les dates
         if (date_debut) {
             await query(
                 "INSERT INTO configuration (cle, valeur) VALUES ('semaine_date_debut', ?) ON DUPLICATE KEY UPDATE valeur = ?",
@@ -1607,103 +1608,27 @@ router.post('/config-semaine', async (req, res) => {
             );
         }
         
+        // Sauvegarder les jours actifs
+        if (jours_actifs) {
+            await query(
+                "INSERT INTO configuration (cle, valeur) VALUES ('semaine_jours_actifs', ?) ON DUPLICATE KEY UPDATE valeur = ?",
+                [jours_actifs, jours_actifs]
+            );
+            
+            // Mettre à jour les créneaux : activer/désactiver selon les jours
+            const joursArray = jours_actifs.split(',');
+            const tousLesJours = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
+            
+            for (const jour of tousLesJours) {
+                const actif = joursArray.includes(jour) ? 1 : 0;
+                await query('UPDATE creneaux SET actif = ? WHERE jour = ?', [actif, jour]);
+            }
+        }
+        
         res.json({ success: true, message: 'Configuration enregistrée' });
     } catch (error) {
         console.error('Erreur config semaine:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
-    }
-});
-
-/**
- * POST /api/gestion/generer-creneaux
- * Générer les créneaux pour la semaine spéciale
- * ATTENTION: Supprime tout le planning existant !
- */
-router.post('/generer-creneaux', async (req, res) => {
-    try {
-        const { date_debut, date_fin } = req.body;
-        
-        if (!date_debut || !date_fin) {
-            return res.status(400).json({ success: false, message: 'Dates requises' });
-        }
-        
-        // Calculer les jours ouvrés
-        const joursNoms = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
-        const jours = [];
-        const current = new Date(date_debut);
-        const fin = new Date(date_fin);
-        let numero = 1;
-        
-        while (current <= fin) {
-            const dayOfWeek = current.getDay();
-            if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Pas samedi/dimanche
-                jours.push({
-                    numero: numero++,
-                    date: current.toISOString().split('T')[0],
-                    jour: joursNoms[dayOfWeek]
-                });
-            }
-            current.setDate(current.getDate() + 1);
-        }
-        
-        if (jours.length === 0) {
-            return res.status(400).json({ success: false, message: 'Aucun jour ouvré dans cette période' });
-        }
-        
-        // Vider les tables dépendantes
-        await query('SET FOREIGN_KEY_CHECKS = 0');
-        await query('DELETE FROM inscriptions');
-        await query('DELETE FROM planning');
-        await query('DELETE FROM disponibilites_enseignants');
-        await query('DELETE FROM enseignants_piquet');
-        await query('DELETE FROM creneaux');
-        await query('ALTER TABLE creneaux AUTO_INCREMENT = 1');
-        await query('SET FOREIGN_KEY_CHECKS = 1');
-        
-        // Périodes standard
-        const periodes = [
-            { periode: 'P1-2', heure_debut: '08:30:00', heure_fin: '10:05:00' },
-            { periode: 'P3-4', heure_debut: '10:25:00', heure_fin: '12:00:00' },
-            { periode: 'P6-7', heure_debut: '13:15:00', heure_fin: '14:50:00' }
-        ];
-        
-        let ordre = 1;
-        let creneauxCrees = 0;
-        
-        for (const j of jours) {
-            // Pour chaque jour, créer les périodes
-            const periodesJour = j.jour === 'mercredi' 
-                ? periodes.filter(p => p.periode !== 'P6-7') // Pas d'après-midi le mercredi
-                : periodes;
-            
-            for (const p of periodesJour) {
-                await query(`
-                    INSERT INTO creneaux (jour, periode, heure_debut, heure_fin, ordre, actif, date_jour, numero_jour)
-                    VALUES (?, ?, ?, ?, ?, 1, ?, ?)
-                `, [j.jour, p.periode, p.heure_debut, p.heure_fin, ordre++, j.date, j.numero]);
-                creneauxCrees++;
-            }
-        }
-        
-        // Sauvegarder les dates dans la configuration
-        await query(
-            "INSERT INTO configuration (cle, valeur) VALUES ('semaine_date_debut', ?) ON DUPLICATE KEY UPDATE valeur = ?",
-            [date_debut, date_debut]
-        );
-        await query(
-            "INSERT INTO configuration (cle, valeur) VALUES ('semaine_date_fin', ?) ON DUPLICATE KEY UPDATE valeur = ?",
-            [date_fin, date_fin]
-        );
-        
-        res.json({ 
-            success: true, 
-            message: `${creneauxCrees} créneaux créés`,
-            creneaux_crees: creneauxCrees,
-            jours: jours.length
-        });
-    } catch (error) {
-        console.error('Erreur génération créneaux:', error);
-        res.status(500).json({ success: false, message: 'Erreur serveur: ' + error.message });
     }
 });
 

@@ -249,71 +249,59 @@ Cuisine,15,Cuisine,Bâtiment B" style="width:100%; padding:10px; font-family:mon
         <!-- CONFIGURATION SEMAINE -->
         <div id="config-semaine" class="tab-content">
             <h2 style="margin-bottom: 20px;">📅 Configuration de la Semaine Spéciale</h2>
-            <p style="margin-bottom:20px; color:#6b7280;">Définissez les dates de la semaine spéciale. Les créneaux seront générés automatiquement pour chaque jour ouvré (lundi-vendredi).</p>
+            <p style="margin-bottom:20px; color:#6b7280;">Définissez les dates et les jours actifs de la semaine spéciale.</p>
             
             <div class="grid">
                 <div class="card">
-                    <h3 style="margin-bottom:15px; color:#667eea;">📆 Dates de la semaine</h3>
+                    <h3 style="margin-bottom:15px; color:#667eea;">📆 Dates</h3>
                     <div class="form-group">
                         <label>Date de début</label>
-                        <input type="date" id="semaineDebut" onchange="previewJours()">
+                        <input type="date" id="semaineDebut">
                     </div>
                     <div class="form-group">
                         <label>Date de fin</label>
-                        <input type="date" id="semaineFin" onchange="previewJours()">
+                        <input type="date" id="semaineFin">
                     </div>
-                    <p style="font-size:13px; color:#6b7280; margin-top:10px;">
-                        💡 Les samedis et dimanches sont automatiquement exclus.
-                    </p>
                 </div>
                 
                 <div class="card">
-                    <h3 style="margin-bottom:15px; color:#667eea;">👁️ Aperçu des jours</h3>
-                    <div id="previewJoursContainer" style="min-height:150px;">
-                        <p style="color:#9ca3af;">Sélectionnez les dates pour voir l'aperçu</p>
+                    <h3 style="margin-bottom:15px; color:#667eea;">✅ Jours actifs</h3>
+                    <p style="margin-bottom:15px; font-size:13px; color:#6b7280;">Décochez les jours où il n'y a pas d'ateliers.</p>
+                    <div style="display:flex; flex-direction:column; gap:10px;">
+                        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:normal;">
+                            <input type="checkbox" id="jourLundi" value="lundi" style="width:20px; height:20px;">
+                            <span>Lundi</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:normal;">
+                            <input type="checkbox" id="jourMardi" value="mardi" style="width:20px; height:20px;">
+                            <span>Mardi</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:normal;">
+                            <input type="checkbox" id="jourMercredi" value="mercredi" style="width:20px; height:20px;">
+                            <span>Mercredi</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:normal;">
+                            <input type="checkbox" id="jourJeudi" value="jeudi" style="width:20px; height:20px;">
+                            <span>Jeudi</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:normal;">
+                            <input type="checkbox" id="jourVendredi" value="vendredi" style="width:20px; height:20px;">
+                            <span>Vendredi</span>
+                        </label>
                     </div>
                 </div>
             </div>
             
-            <div class="card" style="margin-top:20px;">
-                <h3 style="margin-bottom:15px; color:#667eea;">⏰ Périodes horaires</h3>
-                <p style="margin-bottom:15px; font-size:13px; color:#6b7280;">Ces périodes seront créées pour chaque jour de la semaine.</p>
-                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:10px;">
-                    <div style="background:#e0f2fe; padding:10px; border-radius:6px;">
-                        <strong>P1-2</strong><br><span style="font-size:13px; color:#6b7280;">08:30 - 10:05</span>
-                    </div>
-                    <div style="background:#e0f2fe; padding:10px; border-radius:6px;">
-                        <strong>P3-4</strong><br><span style="font-size:13px; color:#6b7280;">10:25 - 12:00</span>
-                    </div>
-                    <div style="background:#e0f2fe; padding:10px; border-radius:6px;">
-                        <strong>P6-7</strong><br><span style="font-size:13px; color:#6b7280;">13:15 - 14:50</span>
-                    </div>
-                </div>
-                <p style="font-size:12px; color:#9ca3af; margin-top:10px;">Note: Mercredi n'a pas de P6-7 (après-midi libre)</p>
+            <div style="margin-top:20px;">
+                <button class="btn btn-primary" onclick="sauvegarderConfigSemaine()">💾 Enregistrer la configuration</button>
             </div>
             
-            <div style="margin-top:20px; display:flex; gap:15px; flex-wrap:wrap;">
-                <button class="btn btn-primary" onclick="sauvegarderConfigSemaine()">💾 Enregistrer les dates</button>
-                <button class="btn btn-success" onclick="genererCreneaux()">🔄 Générer les créneaux</button>
-            </div>
-            
-            <div class="card" style="margin-top:20px; background:#fee2e2; border:1px solid #ef4444;" id="warningCreneaux">
-                <h4 style="color:#991b1b; margin-bottom:10px;">⚠️ Attention</h4>
-                <p style="font-size:13px; color:#991b1b;">
-                    <strong>Générer les créneaux supprimera :</strong><br>
-                    • Tous les créneaux existants<br>
-                    • Tout le planning<br>
-                    • Toutes les inscriptions<br>
-                    • Toutes les disponibilités enseignants<br><br>
-                    À utiliser uniquement en début de configuration ou après une archive.
+            <div class="card" style="margin-top:20px; background:#fef3c7; border:1px solid #f59e0b;">
+                <h4 style="color:#92400e; margin-bottom:10px;">⚠️ Attention</h4>
+                <p style="font-size:13px; color:#92400e;">
+                    Les jours désactivés ne seront plus disponibles pour le planning et les inscriptions.<br>
+                    Les créneaux existants sur ces jours seront masqués mais pas supprimés.
                 </p>
-            </div>
-            
-            <div class="card" style="margin-top:20px;">
-                <h3 style="margin-bottom:15px; color:#667eea;">📋 Créneaux actuels</h3>
-                <div id="creneauxActuelsContainer">
-                    <p style="color:#9ca3af;">Chargement...</p>
-                </div>
             </div>
         </div>
 
@@ -1867,74 +1855,6 @@ Cuisine,15,Cuisine,Bâtiment B" style="width:100%; padding:10px; font-family:mon
         }
 
         // ========== CONFIGURATION SEMAINE ==========
-        const joursNoms = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
-        const moisNoms = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-        
-        function formatDateLong(date) {
-            const d = new Date(date);
-            const jour = joursNoms[d.getDay()];
-            const jourMois = d.getDate();
-            const mois = moisNoms[d.getMonth()];
-            return `${jour.charAt(0).toUpperCase() + jour.slice(1)} ${jourMois} ${mois}`;
-        }
-        
-        function getJoursOuvres(dateDebut, dateFin) {
-            const jours = [];
-            const current = new Date(dateDebut);
-            const fin = new Date(dateFin);
-            let numero = 1;
-            
-            while (current <= fin) {
-                const dayOfWeek = current.getDay();
-                // Exclure samedi (6) et dimanche (0)
-                if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-                    jours.push({
-                        numero: numero++,
-                        date: current.toISOString().split('T')[0],
-                        jour: joursNoms[dayOfWeek],
-                        label: formatDateLong(current)
-                    });
-                }
-                current.setDate(current.getDate() + 1);
-            }
-            return jours;
-        }
-        
-        function previewJours() {
-            const debut = document.getElementById('semaineDebut').value;
-            const fin = document.getElementById('semaineFin').value;
-            const container = document.getElementById('previewJoursContainer');
-            
-            if (!debut || !fin) {
-                container.innerHTML = '<p style="color:#9ca3af;">Sélectionnez les dates pour voir l\'aperçu</p>';
-                return;
-            }
-            
-            if (new Date(fin) < new Date(debut)) {
-                container.innerHTML = '<p style="color:#ef4444;">❌ La date de fin doit être après la date de début</p>';
-                return;
-            }
-            
-            const jours = getJoursOuvres(debut, fin);
-            
-            if (jours.length === 0) {
-                container.innerHTML = '<p style="color:#ef4444;">❌ Aucun jour ouvré dans cette période</p>';
-                return;
-            }
-            
-            let html = '<div style="display:flex; flex-direction:column; gap:8px;">';
-            jours.forEach(j => {
-                html += `<div style="background:#d1fae5; padding:8px 12px; border-radius:6px; display:flex; justify-content:space-between;">
-                    <span><strong>Jour ${j.numero}</strong></span>
-                    <span>${j.label}</span>
-                </div>`;
-            });
-            html += '</div>';
-            html += `<p style="margin-top:10px; font-size:13px; color:#059669;"><strong>${jours.length} jour(s)</strong> de semaine spéciale</p>`;
-            
-            container.innerHTML = html;
-        }
-        
         async function loadConfigSemaine() {
             try {
                 const response = await fetch('/api/admin/parametres', { headers: { 'Authorization': `Bearer ${token}` } });
@@ -1942,62 +1862,24 @@ Cuisine,15,Cuisine,Bâtiment B" style="width:100%; padding:10px; font-family:mon
                 if (data.success) {
                     const params = data.data || [];
                     
+                    // Dates
                     const dateDebut = params.find(p => p.cle === 'semaine_date_debut');
                     const dateFin = params.find(p => p.cle === 'semaine_date_fin');
+                    const joursActifs = params.find(p => p.cle === 'semaine_jours_actifs');
                     
                     if (dateDebut) document.getElementById('semaineDebut').value = dateDebut.valeur;
                     if (dateFin) document.getElementById('semaineFin').value = dateFin.valeur;
                     
-                    previewJours();
+                    // Jours actifs
+                    const jours = joursActifs ? joursActifs.valeur.split(',') : ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
+                    document.getElementById('jourLundi').checked = jours.includes('lundi');
+                    document.getElementById('jourMardi').checked = jours.includes('mardi');
+                    document.getElementById('jourMercredi').checked = jours.includes('mercredi');
+                    document.getElementById('jourJeudi').checked = jours.includes('jeudi');
+                    document.getElementById('jourVendredi').checked = jours.includes('vendredi');
                 }
-                
-                // Charger les créneaux actuels
-                await loadCreneauxActuels();
             } catch (e) {
                 console.error('Erreur chargement config semaine:', e);
-            }
-        }
-        
-        async function loadCreneauxActuels() {
-            try {
-                const response = await fetch('/api/planning/creneaux', { headers: { 'Authorization': `Bearer ${token}` } });
-                const data = await response.json();
-                const container = document.getElementById('creneauxActuelsContainer');
-                
-                if (data.success && data.data && data.data.length > 0) {
-                    // Grouper par numero_jour
-                    const parJour = {};
-                    data.data.forEach(c => {
-                        const key = c.numero_jour || c.jour;
-                        if (!parJour[key]) parJour[key] = { creneaux: [], label: '', date: c.date_jour };
-                        parJour[key].creneaux.push(c);
-                        if (c.date_jour) {
-                            parJour[key].label = formatDateLong(c.date_jour);
-                        } else {
-                            parJour[key].label = c.jour.charAt(0).toUpperCase() + c.jour.slice(1);
-                        }
-                    });
-                    
-                    let html = '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:15px;">';
-                    Object.keys(parJour).sort((a,b) => a - b).forEach(key => {
-                        const jour = parJour[key];
-                        html += `<div style="background:#f0fdf4; padding:12px; border-radius:8px; border:1px solid #86efac;">
-                            <strong style="color:#166534;">${jour.label}</strong>
-                            <div style="margin-top:8px; font-size:13px; color:#6b7280;">`;
-                        jour.creneaux.forEach(c => {
-                            html += `<div>${c.periode}</div>`;
-                        });
-                        html += '</div></div>';
-                    });
-                    html += '</div>';
-                    html += `<p style="margin-top:10px; font-size:13px; color:#6b7280;">${data.data.length} créneaux au total</p>`;
-                    container.innerHTML = html;
-                } else {
-                    container.innerHTML = '<p style="color:#f59e0b;">⚠️ Aucun créneau configuré. Utilisez "Générer les créneaux".</p>';
-                }
-            } catch (e) {
-                console.error('Erreur chargement créneaux:', e);
-                document.getElementById('creneauxActuelsContainer').innerHTML = '<p style="color:#ef4444;">Erreur de chargement</p>';
             }
         }
         
@@ -2006,58 +1888,31 @@ Cuisine,15,Cuisine,Bâtiment B" style="width:100%; padding:10px; font-family:mon
                 const dateDebut = document.getElementById('semaineDebut').value;
                 const dateFin = document.getElementById('semaineFin').value;
                 
-                if (!dateDebut || !dateFin) {
-                    showAlert('❌ Veuillez sélectionner les dates', 'error');
+                const joursActifs = [];
+                if (document.getElementById('jourLundi').checked) joursActifs.push('lundi');
+                if (document.getElementById('jourMardi').checked) joursActifs.push('mardi');
+                if (document.getElementById('jourMercredi').checked) joursActifs.push('mercredi');
+                if (document.getElementById('jourJeudi').checked) joursActifs.push('jeudi');
+                if (document.getElementById('jourVendredi').checked) joursActifs.push('vendredi');
+                
+                if (joursActifs.length === 0) {
+                    showAlert('❌ Vous devez sélectionner au moins un jour', 'error');
                     return;
                 }
                 
                 const response = await fetch('/api/gestion/config-semaine', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ date_debut: dateDebut, date_fin: dateFin })
+                    body: JSON.stringify({
+                        date_debut: dateDebut,
+                        date_fin: dateFin,
+                        jours_actifs: joursActifs.join(',')
+                    })
                 });
                 
                 const result = await response.json();
                 if (result.success) {
-                    showAlert('✅ Dates enregistrées', 'success');
-                } else {
-                    showAlert('❌ ' + result.message, 'error');
-                }
-            } catch (e) {
-                showAlert('❌ Erreur: ' + e.message, 'error');
-            }
-        }
-        
-        async function genererCreneaux() {
-            const dateDebut = document.getElementById('semaineDebut').value;
-            const dateFin = document.getElementById('semaineFin').value;
-            
-            if (!dateDebut || !dateFin) {
-                showAlert('❌ Veuillez d\'abord sélectionner les dates', 'error');
-                return;
-            }
-            
-            const jours = getJoursOuvres(dateDebut, dateFin);
-            if (jours.length === 0) {
-                showAlert('❌ Aucun jour ouvré dans cette période', 'error');
-                return;
-            }
-            
-            if (!confirm(`⚠️ ATTENTION !\n\nCette action va :\n- Supprimer TOUS les créneaux existants\n- Supprimer TOUT le planning\n- Supprimer TOUTES les inscriptions\n- Supprimer TOUTES les disponibilités\n\nCréer ${jours.length} jours de semaine spéciale ?\n\n${jours.map(j => j.label).join('\n')}`)) {
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/gestion/generer-creneaux', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ date_debut: dateDebut, date_fin: dateFin })
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                    showAlert(`✅ ${result.creneaux_crees} créneaux créés pour ${result.jours} jours`, 'success');
-                    await loadCreneauxActuels();
+                    showAlert('✅ Configuration enregistrée', 'success');
                 } else {
                     showAlert('❌ ' + result.message, 'error');
                 }
