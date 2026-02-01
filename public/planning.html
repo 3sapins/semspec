@@ -238,7 +238,7 @@
                 const result = await response.json();
                 if (result.success) {
                     planningData = result.data;
-                    displayPlanning(result.data);
+                    displayPlanning(result.data, result.creneaux);
                     updateStats(result.data);
                     buildLegend();
                 }
@@ -266,15 +266,60 @@
             return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
         }
 
-        function displayPlanning(grid) {
-            const jours = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
-            const periodes = ['P1-2', 'P3-4', 'P6-7'];
+        function displayPlanning(grid, creneaux) {
+            const moisNoms = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
             
-            const creneaux = [];
-            jours.forEach(jour => {
-                periodes.forEach(periode => {
-                    if (jour === 'mercredi' && periode === 'P6-7') return;
-                    creneaux.push({ jour, periode, label: `${jour.charAt(0).toUpperCase() + jour.slice(1)}<br>${periode}` });
+            // Construire la liste des jours et périodes depuis les créneaux
+            const joursMap = {};
+            const periodes = new Set();
+            
+            if (creneaux && creneaux.length > 0) {
+                creneaux.forEach(c => {
+                    const jourKey = c.numero_jour ? `jour_${c.numero_jour}` : c.jour;
+                    if (!joursMap[jourKey]) {
+                        let label = c.jour.charAt(0).toUpperCase() + c.jour.slice(1);
+                        if (c.date_jour) {
+                            const d = new Date(c.date_jour);
+                            const jourMois = d.getDate();
+                            const mois = moisNoms[d.getMonth()];
+                            label = `${c.jour.charAt(0).toUpperCase() + c.jour.slice(1)} ${jourMois} ${mois}`;
+                        }
+                        joursMap[jourKey] = { 
+                            key: jourKey, 
+                            label: label,
+                            ordre: c.numero_jour || 0,
+                            jour: c.jour,
+                            periodes: []
+                        };
+                    }
+                    joursMap[jourKey].periodes.push(c.periode);
+                    periodes.add(c.periode);
+                });
+            } else {
+                // Fallback : jours classiques
+                const jours = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
+                jours.forEach((j, i) => {
+                    joursMap[j] = { key: j, label: j.charAt(0).toUpperCase() + j.slice(1), ordre: i+1, jour: j, periodes: ['P1-2', 'P3-4', 'P6-7'] };
+                });
+            }
+            
+            // Trier les jours par ordre
+            const joursArray = Object.values(joursMap).sort((a, b) => a.ordre - b.ordre);
+            const periodesArray = ['P1-2', 'P3-4', 'P6-7'];
+            
+            // Créer la liste des créneaux pour l'affichage
+            const creneauxDisplay = [];
+            joursArray.forEach(jour => {
+                periodesArray.forEach(periode => {
+                    // Vérifier si ce jour a cette période
+                    if (jour.periodes.includes(periode)) {
+                        creneauxDisplay.push({ 
+                            jourKey: jour.key, 
+                            jour: jour.jour,
+                            periode: periode, 
+                            label: `${jour.label}<br>${periode}` 
+                        });
+                    }
                 });
             });
 
@@ -288,15 +333,15 @@
             const sallesArray = Array.from(salles).sort();
 
             let headerHtml = '<tr><th>Salle</th>';
-            creneaux.forEach(c => headerHtml += `<th style="min-width: 110px;">${c.label}</th>`);
+            creneauxDisplay.forEach(c => headerHtml += `<th style="min-width: 110px;">${c.label}</th>`);
             headerHtml += '</tr>';
             document.querySelector('#planningTable thead').innerHTML = headerHtml;
 
             let bodyHtml = '';
             sallesArray.forEach(salle => {
                 bodyHtml += `<tr><td><strong>${salle}</strong></td>`;
-                creneaux.forEach(c => {
-                    const atelier = grid[c.jour]?.[c.periode]?.[salle];
+                creneauxDisplay.forEach(c => {
+                    const atelier = grid[c.jourKey]?.[c.periode]?.[salle];
                     if (atelier) {
                         const isSuite = atelier.suite_atelier;
                         const color = getAtelierColor(atelier);
@@ -310,7 +355,7 @@
                         }
                         bodyHtml += `<td>
                             <div class="atelier-card ${isSuite ? 'suite' : ''}" style="${bgStyle}" 
-                                 onclick="openModifier(${atelier.planning_id}, '${(atelier.atelier_nom || '').replace(/'/g, "\\'")}', '${salle}', '${c.jour}', '${c.periode}')">
+                                 onclick="openModifier(${atelier.planning_id}, '${(atelier.atelier_nom || '').replace(/'/g, "\\'")}', '${salle}', '${c.jourKey}', '${c.periode}')">
                                 ${isSuite ? '<small style="opacity:0.8;">⬆️</small> ' : ''}
                                 <div class="atelier-name">${isSuite ? '' : (atelier.atelier_nom || 'Atelier')}</div>
                                 ${isSuite ? '' : `<div class="atelier-info">${atelier.enseignant_acronyme || ''}</div>`}
