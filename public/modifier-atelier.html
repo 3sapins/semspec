@@ -299,6 +299,15 @@
                     <textarea id="remarques"></textarea>
                 </div>
 
+                <!-- Options spéciales -->
+                <div class="form-group" style="background:#fef3c7; padding:15px; border-radius:8px; border:1px solid #f59e0b;">
+                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                        <input type="checkbox" id="hors_catalogue" style="width:20px; height:20px;">
+                        <span>🔒 Hors catalogue</span>
+                    </label>
+                    <p class="helper-text" style="margin-top:8px;">Si coché, cet atelier ne sera pas visible dans le catalogue élèves.</p>
+                </div>
+
                 <!-- Boutons -->
                 <div class="buttons">
                     <button type="button" class="btn btn-secondary" onclick="window.history.back()">
@@ -517,6 +526,7 @@
                 document.getElementById('type_salle').value = atelier.type_salle_demande || '';
                 document.getElementById('infos_eleves').value = atelier.informations_eleves || '';
                 document.getElementById('remarques').value = atelier.remarques || '';
+                document.getElementById('hors_catalogue').checked = atelier.hors_catalogue == 1;
 
                 // Charger les créneaux impératifs existants
                 if (atelier.creneaux_imperatifs) {
@@ -557,7 +567,8 @@
                 type_salle_demande: document.getElementById('type_salle').value || null,
                 remarques: document.getElementById('remarques').value || null,
                 informations_eleves: document.getElementById('infos_eleves').value || null,
-                creneaux_imperatifs: getCreneauxImperatifs()
+                creneaux_imperatifs: getCreneauxImperatifs(),
+                hors_catalogue: document.getElementById('hors_catalogue').checked ? 1 : 0
             };
 
             try {

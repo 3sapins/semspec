@@ -438,12 +438,18 @@
                 let html = '<div style="display: grid; gap: 15px;">';
                 result.data.forEach(atelier => {
                     const statusText = atelier.statut === 'valide' ? '✅ Validé' : atelier.statut === 'refuse' ? '❌ Refusé' : '⏳ En attente';
+                    const horsCatalogue = atelier.hors_catalogue ? '🔒 ' : '';
+                    const horsCatalogueBadge = atelier.hors_catalogue ? '<span style="background:#f59e0b; color:white; padding:2px 6px; border-radius:4px; font-size:11px; margin-left:8px;">Hors catalogue</span>' : '';
+                    
+                    // Infos élèves et remarques
+                    const infosEleves = atelier.informations_eleves ? `<div style="background:#e0f2fe; padding:8px 12px; border-radius:6px; margin-top:8px; font-size:13px;"><strong>📋 Infos élèves:</strong> ${atelier.informations_eleves}</div>` : '';
+                    const remarques = atelier.remarques ? `<div style="background:#fef3c7; padding:8px 12px; border-radius:6px; margin-top:8px; font-size:13px;"><strong>📝 Remarques:</strong> ${atelier.remarques}</div>` : '';
                     
                     html += `
-                        <div style="background: #f9fafb; padding: 20px; border-radius: 10px; border-left: 4px solid #667eea;">
+                        <div style="background: #f9fafb; padding: 20px; border-radius: 10px; border-left: 4px solid ${atelier.hors_catalogue ? '#f59e0b' : '#667eea'};">
                             <div style="display: flex; justify-content: space-between; align-items: start;">
                                 <div style="flex: 1;">
-                                    <h3 style="color: #1f2937; margin-bottom: 10px;">${atelier.nom}</h3>
+                                    <h3 style="color: #1f2937; margin-bottom: 10px;">${horsCatalogue}${atelier.nom}${horsCatalogueBadge}</h3>
                                     <p style="color: #6b7280; font-size: 14px; margin-bottom: 8px;">
                                         👨‍🏫 ${atelier.enseignant_prenom || ''} ${atelier.enseignant_nom || ''} (${atelier.enseignant_acronyme || ''})
                                         ${atelier.enseignant2_acronyme ? ` + ${atelier.enseignant2_acronyme}` : ''}
@@ -457,6 +463,8 @@
                                     <p style="color: #6b7280; font-size: 14px;">
                                         ${statusText}
                                     </p>
+                                    ${infosEleves}
+                                    ${remarques}
                                 </div>
                                 <div style="display: flex; gap: 8px; flex-direction: column;">
                                     <button class="btn btn-primary" style="padding: 8px 16px; font-size: 12px;" onclick="window.location.href='modifier-atelier.html?id=${atelier.id}'">

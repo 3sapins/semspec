@@ -364,6 +364,8 @@
                 const statusText = atelier.statut === 'valide' ? '✅ Validé' : 
                                    atelier.statut === 'refuse' ? '❌ Refusé' : '⏳ En attente';
                 const statusClass = `status-${atelier.statut}`;
+                const horsCatalogue = atelier.hors_catalogue ? '🔒 ' : '';
+                const horsCatalogueBadge = atelier.hors_catalogue ? '<span style="background:#f59e0b; color:white; padding:2px 6px; border-radius:4px; font-size:11px; margin-left:8px;">Hors catalogue</span>' : '';
 
                 const enseignants = [
                     atelier.enseignant_acronyme,
@@ -371,10 +373,13 @@
                     atelier.enseignant3_acronyme
                 ].filter(Boolean).join(' + ');
 
+                const infosEleves = atelier.informations_eleves ? `<div style="background:#e0f2fe; padding:8px 12px; border-radius:6px; margin-top:10px; font-size:13px;"><strong>📋 Infos élèves:</strong> ${atelier.informations_eleves}</div>` : '';
+                const remarques = atelier.remarques ? `<div style="background:#fef3c7; padding:8px 12px; border-radius:6px; margin-top:8px; font-size:13px;"><strong>📝 Remarques:</strong> ${atelier.remarques}</div>` : '';
+
                 html += `
-                    <div class="atelier-card ${atelier.statut}">
+                    <div class="atelier-card ${atelier.statut}" style="${atelier.hors_catalogue ? 'border-left: 4px solid #f59e0b;' : ''}">
                         <div class="atelier-header">
-                            <div class="atelier-name">${atelier.nom}</div>
+                            <div class="atelier-name">${horsCatalogue}${atelier.nom}${horsCatalogueBadge}</div>
                             <span class="atelier-status ${statusClass}">${statusText}</span>
                         </div>
                         
@@ -394,6 +399,8 @@
                         </div>
 
                         ${atelier.description ? `<div class="atelier-description">${atelier.description}</div>` : ''}
+                        ${infosEleves}
+                        ${remarques}
 
                         <div class="atelier-actions">
                             <a href="modifier-atelier.html?id=${atelier.id}" class="btn btn-primary btn-small">
