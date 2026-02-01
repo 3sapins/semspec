@@ -61,7 +61,7 @@ router.post('/ateliers/creer', adminMiddleware, async (req, res) => {
         const {
             nom, description, theme_id, enseignant_acronyme, enseignant2_acronyme, enseignant3_acronyme,
             duree, nombre_places_max, budget_max, type_salle_demande, remarques, informations_eleves,
-            creneaux_imperatifs
+            creneaux_imperatifs, hors_catalogue
         } = req.body;
         
         if (!nom || !duree || !nombre_places_max || !enseignant_acronyme) {
@@ -78,11 +78,11 @@ router.post('/ateliers/creer', adminMiddleware, async (req, res) => {
             INSERT INTO ateliers (
                 nom, description, theme_id, enseignant_acronyme, enseignant2_acronyme, enseignant3_acronyme,
                 duree, nombre_places_max, budget_max, type_salle_demande, remarques, informations_eleves, 
-                creneaux_imperatifs, statut
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'valide')
+                creneaux_imperatifs, hors_catalogue, statut
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'valide')
         `, [nom, description, theme_id || null, enseignant_acronyme, enseignant2_acronyme || null, enseignant3_acronyme || null,
             duree, nombre_places_max, budget_max || 0, type_salle_demande, remarques, informations_eleves, 
-            creneaux_imperatifs || null]);
+            creneaux_imperatifs || null, hors_catalogue || 0]);
         
         await query('INSERT INTO historique (utilisateur_id, action, table_cible, id_cible, details) VALUES (?, ?, ?, ?, ?)',
             [req.user.id, 'CREATE_ADMIN', 'ateliers', result.insertId, `Création admin: ${nom}`]);
@@ -392,7 +392,7 @@ router.put('/ateliers/:id/modifier', adminMiddleware, async (req, res) => {
             nom, description, informations_eleves, duree, nombre_places_max,
             theme_id, type_salle_demande, budget_max, remarques,
             enseignant_acronyme, enseignant2_acronyme, enseignant3_acronyme,
-            creneaux_imperatifs
+            creneaux_imperatifs, hors_catalogue
         } = req.body;
         
         const ateliers = await query('SELECT * FROM ateliers WHERE id = ?', [id]);
@@ -414,12 +414,13 @@ router.put('/ateliers/:id/modifier', adminMiddleware, async (req, res) => {
                 enseignant_acronyme = COALESCE(?, enseignant_acronyme),
                 enseignant2_acronyme = ?,
                 enseignant3_acronyme = ?,
-                creneaux_imperatifs = ?
+                creneaux_imperatifs = ?,
+                hors_catalogue = ?
             WHERE id = ?
         `, [nom, description, informations_eleves, duree, nombre_places_max,
             theme_id || null, type_salle_demande || null, budget_max, remarques,
             enseignant_acronyme, enseignant2_acronyme || null, enseignant3_acronyme || null,
-            creneaux_imperatifs || null, id]);
+            creneaux_imperatifs || null, hors_catalogue || 0, id]);
         
         await query('INSERT INTO historique (utilisateur_id, action, table_cible, id_cible, details) VALUES (?, ?, ?, ?, ?)',
             [req.user.id, 'UPDATE_ADMIN', 'ateliers', id, `Modification admin: ${nom}`]);

@@ -237,7 +237,7 @@ router.get('/catalogue', async (req, res) => {
             JOIN creneaux c ON p.creneau_id = c.id
             LEFT JOIN salles s ON p.salle_id = s.id
             LEFT JOIN themes t ON a.theme_id = t.id
-            WHERE a.statut = 'valide'
+            WHERE a.statut = 'valide' AND (a.hors_catalogue IS NULL OR a.hors_catalogue = 0)
             ORDER BY c.ordre, a.nom
         `);
         
