@@ -739,6 +739,7 @@ router.get('/grid', async (req, res) => {
                 t.nom as theme_nom, t.couleur as theme_couleur,
                 u.nom as enseignant_nom, u.prenom as enseignant_prenom,
                 s.nom as salle_nom, c.jour, c.periode, c.ordre,
+                c.date_jour, c.numero_jour,
                 (SELECT COUNT(*) FROM inscriptions WHERE planning_id = p.id AND statut = 'confirmee') as nombre_inscrits
             FROM planning p
             JOIN ateliers a ON p.atelier_id = a.id
@@ -748,13 +749,16 @@ router.get('/grid', async (req, res) => {
             JOIN creneaux c ON p.creneau_id = c.id
         `);
         
+        // Charger tous les créneaux pour avoir la liste des jours
+        const creneaux = await query('SELECT * FROM creneaux WHERE actif = 1 ORDER BY ordre');
+        
         // Charger aussi les piquets/dégagements
         let piquets = [];
         try {
             piquets = await query(`
                 SELECT ep.id, ep.utilisateur_id, ep.creneau_id, ep.type,
                     u.nom as enseignant_nom, u.prenom as enseignant_prenom, u.acronyme as enseignant_acronyme,
-                    c.jour, c.periode, c.ordre,
+                    c.jour, c.periode, c.ordre, c.date_jour, c.numero_jour,
                     'Salle des maîtres' as salle_nom
                 FROM enseignants_piquet ep
                 JOIN utilisateurs u ON ep.utilisateur_id = u.id
@@ -765,16 +769,15 @@ router.get('/grid', async (req, res) => {
             console.error('Erreur chargement piquets pour grid:', e);
         }
         
+        // Créer la grille avec clé basée sur numero_jour (ou jour si pas de numero_jour)
         const grid = {};
-        const allCreneaux = ['lundi-P1-2', 'lundi-P3-4', 'lundi-P6-7', 'mardi-P1-2', 'mardi-P3-4', 'mardi-P6-7', 
-            'mercredi-P1-2', 'mercredi-P3-4', 'jeudi-P1-2', 'jeudi-P3-4', 'jeudi-P6-7', 
-            'vendredi-P1-2', 'vendredi-P3-4', 'vendredi-P6-7'];
         
         planning.forEach(p => {
-            if (!grid[p.jour]) grid[p.jour] = {};
-            if (!grid[p.jour][p.periode]) grid[p.jour][p.periode] = {};
+            const jourKey = p.numero_jour ? `jour_${p.numero_jour}` : p.jour;
+            if (!grid[jourKey]) grid[jourKey] = {};
+            if (!grid[jourKey][p.periode]) grid[jourKey][p.periode] = {};
             
-            grid[p.jour][p.periode][p.salle_nom] = {
+            grid[jourKey][p.periode][p.salle_nom] = {
                 planning_id: p.planning_id,
                 atelier_id: p.atelier_id,
                 atelier_nom: p.atelier_nom,
@@ -784,7 +787,9 @@ router.get('/grid', async (req, res) => {
                 nombre_creneaux: p.nombre_creneaux,
                 duree: p.duree,
                 theme_nom: p.theme_nom,
-                theme_couleur: p.theme_couleur
+                theme_couleur: p.theme_couleur,
+                date_jour: p.date_jour,
+                numero_jour: p.numero_jour
             };
             
             // Marquer créneaux suite
@@ -846,7 +851,7 @@ router.get('/grid', async (req, res) => {
             }
         });
         
-        res.json({ success: true, data: grid });
+        res.json({ success: true, data: grid, creneaux: creneaux });
     } catch (error) {
         console.error('Erreur:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
