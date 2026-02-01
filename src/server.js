@@ -14,7 +14,7 @@ const gestionRoutes = require('./routes/gestion');
 const presenceRoutes = require('./routes/presence');
 const printRoutes = require('./routes/print');
 const catalogueRoutes = require('./routes/catalogue');
-
+const evaluationsRoutes = require('./routes/evaluations');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -38,6 +38,7 @@ app.use('/api/eleves', elevesRoutes);
 app.use('/api/gestion', gestionRoutes);
 app.use('/api/presence', presenceRoutes);
 app.use('/api/print', printRoutes);
+app.use('/api/evaluations', evaluationsRoutes);
 app.use('/api/catalogue', catalogueRoutes);
 
 // Route de test
