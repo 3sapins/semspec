@@ -276,6 +276,18 @@
                     </select>
                 </div>
 
+                <!-- Créneaux impératifs -->
+                <div class="form-group">
+                    <label>Créneaux impératifs (optionnel)</label>
+                    <div id="creneauxImperatifsContainer" style="background: #f9fafb; padding: 15px; border-radius: 8px;">
+                        <p class="helper-text" style="margin-bottom: 10px;">📌 Si l'atelier DOIT avoir lieu à un créneau précis</p>
+                        <div id="creneauxImperatifsList"></div>
+                        <button type="button" class="btn btn-sm" onclick="ajouterCreneauImperatif()" style="margin-top: 10px;">
+                            ➕ Ajouter un créneau impératif
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Informations complémentaires -->
                 <div class="form-group">
                     <label>Informations pour les élèves</label>
@@ -302,6 +314,8 @@
 
     <script>
         let atelierId = null;
+        let tousLesCreneaux = [];
+        let creneauxImperatifsCount = 0;
 
         document.addEventListener('DOMContentLoaded', async () => {
             // Récupérer l'ID de l'atelier depuis l'URL
@@ -317,8 +331,82 @@
             await loadEnseignants();
             await loadThemes();
             await loadTypesSalles();
+            await loadCreneaux();
             await loadAtelier();
         });
+
+        // Charger les créneaux
+        async function loadCreneaux() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch('/api/planning/creneaux', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    tousLesCreneaux = result.data;
+                }
+            } catch (error) {
+                console.error('Erreur chargement créneaux:', error);
+            }
+        }
+
+        // Ajouter un créneau impératif
+        function ajouterCreneauImperatif(valeurDefaut = '') {
+            creneauxImperatifsCount++;
+            const container = document.getElementById('creneauxImperatifsList');
+            
+            const div = document.createElement('div');
+            div.id = `creneauImperatif_${creneauxImperatifsCount}`;
+            div.style.cssText = 'display: flex; gap: 10px; align-items: center; margin-bottom: 8px;';
+            
+            let optionsHtml = '<option value="">-- Sélectionner --</option>';
+            const jours = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
+            jours.forEach(jour => {
+                const creneauxJour = tousLesCreneaux.filter(c => c.jour === jour);
+                if (creneauxJour.length > 0) {
+                    optionsHtml += `<optgroup label="${jour.charAt(0).toUpperCase() + jour.slice(1)}">`;
+                    creneauxJour.forEach(c => {
+                        const selected = (valeurDefaut && parseInt(valeurDefaut) === c.id) ? 'selected' : '';
+                        optionsHtml += `<option value="${c.id}" ${selected}>${c.periode} (${c.heure_debut.substring(0,5)}-${c.heure_fin.substring(0,5)})</option>`;
+                    });
+                    optionsHtml += '</optgroup>';
+                }
+            });
+            
+            div.innerHTML = `
+                <select class="creneau-imperatif-select" style="flex: 1; padding: 8px; border: 2px solid #e5e7eb; border-radius: 6px;">
+                    ${optionsHtml}
+                </select>
+                <button type="button" onclick="supprimerCreneauImperatif(${creneauxImperatifsCount})" style="background: #ef4444; color: white; border: none; border-radius: 6px; padding: 8px 12px; cursor: pointer;">✕</button>
+            `;
+            
+            container.appendChild(div);
+        }
+
+        function supprimerCreneauImperatif(id) {
+            const div = document.getElementById(`creneauImperatif_${id}`);
+            if (div) div.remove();
+        }
+
+        function getCreneauxImperatifs() {
+            const selects = document.querySelectorAll('.creneau-imperatif-select');
+            const creneaux = [];
+            selects.forEach(select => {
+                if (select.value) creneaux.push(parseInt(select.value));
+            });
+            return creneaux.length > 0 ? creneaux.join(',') : null;
+        }
+
+        // Charger les créneaux impératifs existants
+        function chargerCreneauxImperatifsExistants(creneauxStr) {
+            if (!creneauxStr) return;
+            const creneaux = creneauxStr.split(',').filter(c => c);
+            creneaux.forEach(cId => {
+                ajouterCreneauImperatif(cId);
+            });
+        }
 
         // Charger les types de salles
         async function loadTypesSalles() {
@@ -430,6 +518,11 @@
                 document.getElementById('infos_eleves').value = atelier.informations_eleves || '';
                 document.getElementById('remarques').value = atelier.remarques || '';
 
+                // Charger les créneaux impératifs existants
+                if (atelier.creneaux_imperatifs) {
+                    chargerCreneauxImperatifsExistants(atelier.creneaux_imperatifs);
+                }
+
                 // Afficher le formulaire
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('formContainer').style.display = 'block';
@@ -463,7 +556,8 @@
                 budget_max: parseFloat(document.getElementById('budget').value) || 0,
                 type_salle_demande: document.getElementById('type_salle').value || null,
                 remarques: document.getElementById('remarques').value || null,
-                informations_eleves: document.getElementById('infos_eleves').value || null
+                informations_eleves: document.getElementById('infos_eleves').value || null,
+                creneaux_imperatifs: getCreneauxImperatifs()
             };
 
             try {
