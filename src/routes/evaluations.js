@@ -69,11 +69,12 @@ router.get('/admin/toutes', authMiddleware, adminMiddleware, async (req, res) =>
             SELECT ev.*, 
                 u.nom as eleve_nom, u.prenom as eleve_prenom,
                 a.nom as atelier_nom, a.enseignant_acronyme,
-                t.nom as theme_nom, t.couleur as theme_couleur
+                t.nom as theme_nom, t.couleur as theme_couleur,
+                DATE_FORMAT(ev.date_evaluation, '%d/%m/%Y %H:%i') as date_formatee
             FROM evaluations ev
             JOIN eleves e ON ev.eleve_id = e.id
             JOIN utilisateurs u ON e.utilisateur_id = u.id
-            JOIN ateliers a ON ev.atelier_id = a.id
+            LEFT JOIN ateliers a ON ev.atelier_id = a.id
             LEFT JOIN themes t ON a.theme_id = t.id
             ORDER BY ev.date_evaluation DESC
         `);
@@ -134,6 +135,22 @@ router.put('/admin/atelier/:id/bloquer', authMiddleware, adminMiddleware, async 
         res.json({ success: true, message: `Évaluations ${bloquer ? 'bloquées' : 'débloquées'} pour cet atelier` });
     } catch (error) {
         console.error('Erreur blocage:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * PUT /api/evaluations/admin/:id/moderer
+ * Modérer une évaluation (masquer/afficher)
+ */
+router.put('/admin/:id/moderer', authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { visible } = req.body;
+        await query('UPDATE evaluations SET visible = ? WHERE id = ?', [visible ? 1 : 0, id]);
+        res.json({ success: true, message: `Évaluation ${visible ? 'visible' : 'masquée'}` });
+    } catch (error) {
+        console.error('Erreur modération:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
