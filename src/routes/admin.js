@@ -60,7 +60,8 @@ router.post('/ateliers/creer', adminMiddleware, async (req, res) => {
     try {
         const {
             nom, description, theme_id, enseignant_acronyme, enseignant2_acronyme, enseignant3_acronyme,
-            duree, nombre_places_max, budget_max, type_salle_demande, remarques, informations_eleves
+            duree, nombre_places_max, budget_max, type_salle_demande, remarques, informations_eleves,
+            creneaux_imperatifs
         } = req.body;
         
         if (!nom || !duree || !nombre_places_max || !enseignant_acronyme) {
@@ -76,10 +77,12 @@ router.post('/ateliers/creer', adminMiddleware, async (req, res) => {
         const result = await query(`
             INSERT INTO ateliers (
                 nom, description, theme_id, enseignant_acronyme, enseignant2_acronyme, enseignant3_acronyme,
-                duree, nombre_places_max, budget_max, type_salle_demande, remarques, informations_eleves, statut
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'valide')
+                duree, nombre_places_max, budget_max, type_salle_demande, remarques, informations_eleves, 
+                creneaux_imperatifs, statut
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'valide')
         `, [nom, description, theme_id || null, enseignant_acronyme, enseignant2_acronyme || null, enseignant3_acronyme || null,
-            duree, nombre_places_max, budget_max || 0, type_salle_demande, remarques, informations_eleves]);
+            duree, nombre_places_max, budget_max || 0, type_salle_demande, remarques, informations_eleves, 
+            creneaux_imperatifs || null]);
         
         await query('INSERT INTO historique (utilisateur_id, action, table_cible, id_cible, details) VALUES (?, ?, ?, ?, ?)',
             [req.user.id, 'CREATE_ADMIN', 'ateliers', result.insertId, `Création admin: ${nom}`]);
@@ -388,7 +391,8 @@ router.put('/ateliers/:id/modifier', adminMiddleware, async (req, res) => {
         const {
             nom, description, informations_eleves, duree, nombre_places_max,
             theme_id, type_salle_demande, budget_max, remarques,
-            enseignant_acronyme, enseignant2_acronyme, enseignant3_acronyme
+            enseignant_acronyme, enseignant2_acronyme, enseignant3_acronyme,
+            creneaux_imperatifs
         } = req.body;
         
         const ateliers = await query('SELECT * FROM ateliers WHERE id = ?', [id]);
@@ -409,11 +413,13 @@ router.put('/ateliers/:id/modifier', adminMiddleware, async (req, res) => {
                 remarques = ?,
                 enseignant_acronyme = COALESCE(?, enseignant_acronyme),
                 enseignant2_acronyme = ?,
-                enseignant3_acronyme = ?
+                enseignant3_acronyme = ?,
+                creneaux_imperatifs = ?
             WHERE id = ?
         `, [nom, description, informations_eleves, duree, nombre_places_max,
             theme_id || null, type_salle_demande || null, budget_max, remarques,
-            enseignant_acronyme, enseignant2_acronyme || null, enseignant3_acronyme || null, id]);
+            enseignant_acronyme, enseignant2_acronyme || null, enseignant3_acronyme || null,
+            creneaux_imperatifs || null, id]);
         
         await query('INSERT INTO historique (utilisateur_id, action, table_cible, id_cible, details) VALUES (?, ?, ?, ?, ?)',
             [req.user.id, 'UPDATE_ADMIN', 'ateliers', id, `Modification admin: ${nom}`]);
@@ -946,6 +952,20 @@ router.delete('/types-salles/:id', adminMiddleware, async (req, res) => {
         res.json({ success: true, message: 'Type de salle supprimé' });
     } catch (error) {
         console.error('Erreur suppression type salle:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * GET /api/admin/parametres
+ * Liste tous les paramètres de configuration
+ */
+router.get('/parametres', adminMiddleware, async (req, res) => {
+    try {
+        const params = await query('SELECT cle, valeur, description FROM configuration');
+        res.json({ success: true, data: params });
+    } catch (error) {
+        console.error('Erreur paramètres:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
