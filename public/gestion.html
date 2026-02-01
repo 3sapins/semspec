@@ -1927,20 +1927,31 @@ Cuisine,15,Cuisine,Bâtiment B" style="width:100%; padding:10px; font-family:mon
             // Charger le statut global
             try {
                 const paramResp = await fetch('/api/admin/parametres', { headers: { 'Authorization': `Bearer ${token}` } });
-                const paramData = await paramResp.json();
-                const evalOuvertes = paramData.data?.find(p => p.cle === 'evaluations_ouvertes')?.valeur === 'true';
-                updateEvalStatus(evalOuvertes);
+                if (paramResp.ok) {
+                    const paramData = await paramResp.json();
+                    const evalOuvertes = paramData.data?.find(p => p.cle === 'evaluations_ouvertes')?.valeur === 'true';
+                    updateEvalStatus(evalOuvertes);
+                } else {
+                    console.error('Erreur API parametres:', paramResp.status);
+                    document.getElementById('evalStatus').textContent = '⚠️ Erreur chargement';
+                    document.getElementById('evalStatus').style.color = '#f59e0b';
+                }
             } catch (e) {
                 console.error('Erreur paramètres:', e);
+                document.getElementById('evalStatus').textContent = '⚠️ Erreur connexion';
+                document.getElementById('evalStatus').style.color = '#f59e0b';
             }
             
             // Charger les stats
             try {
                 const statsResp = await fetch('/api/evaluations/admin/stats', { headers: { 'Authorization': `Bearer ${token}` } });
+                if (!statsResp.ok) {
+                    throw new Error('Erreur API stats: ' + statsResp.status);
+                }
                 const statsData = await statsResp.json();
                 
                 if (statsData.success) {
-                    const s = statsData.data.stats;
+                    const s = statsData.data.stats || {};
                     document.getElementById('evalStatsContainer').innerHTML = `
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                             <div><strong>${s.total_evaluations || 0}</strong> évaluations</div>
@@ -1960,11 +1971,15 @@ Cuisine,15,Cuisine,Bâtiment B" style="width:100%; padding:10px; font-family:mon
                             </div>
                         `).join('');
                     } else {
-                        document.getElementById('evalTopContainer').innerHTML = '<p style="color:#9ca3af;">Pas assez de données</p>';
+                        document.getElementById('evalTopContainer').innerHTML = '<p style="color:#9ca3af;">Pas encore d\'évaluations</p>';
                     }
+                } else {
+                    throw new Error(statsData.message);
                 }
             } catch (e) {
                 console.error('Erreur stats:', e);
+                document.getElementById('evalStatsContainer').innerHTML = '<p style="color:#ef4444;">Erreur: ' + e.message + '</p>';
+                document.getElementById('evalTopContainer').innerHTML = '<p style="color:#ef4444;">Erreur chargement</p>';
             }
             
             // Charger les dernières évaluations
@@ -2015,9 +2030,13 @@ Cuisine,15,Cuisine,Bâtiment B" style="width:100%; padding:10px; font-family:mon
                 if (data.success) {
                     updateEvalStatus(ouvrir);
                     showAlert(data.message, 'success');
+                } else {
+                    showAlert('Erreur: ' + (data.message || 'Impossible de modifier'), 'error');
+                    console.error('Erreur toggle evaluations:', data);
                 }
             } catch (e) {
-                showAlert('Erreur', 'error');
+                showAlert('Erreur de connexion: ' + e.message, 'error');
+                console.error('Erreur toggle evaluations:', e);
             }
         }
         
