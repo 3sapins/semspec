@@ -1238,8 +1238,17 @@ router.post('/import/eleves', async (req, res) => {
         const classeMap = {};
         classes.forEach(c => { classeMap[c.nom.toLowerCase().trim()] = c.id; });
         
-        // Fonction pour normaliser les strings (enlever accents)
-        const normalizeString = (str) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '');
+        // Fonction pour générer un login propre : enlève accents, espaces, tirets, apostrophes
+        const generateLogin = (prenom, nom) => {
+            const normalize = (str) => {
+                return str
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '') // Enlever accents
+                    .toLowerCase()
+                    .replace(/[^a-z]/g, ''); // Ne garder que les lettres (enlève espaces, tirets, apostrophes)
+            };
+            return normalize(prenom) + normalize(nom);
+        };
         
         for (const row of data) {
             try {
@@ -1259,8 +1268,14 @@ router.post('/import/eleves', async (req, res) => {
                     continue;
                 }
                 
-                // Générer login unique
-                const baseLogin = normalizeString(prenom) + normalizeString(nom);
+                // Générer login unique (prénom + nom sans accents ni espaces)
+                const baseLogin = generateLogin(prenom, nom);
+                
+                if (!baseLogin || baseLogin.length < 2) {
+                    results.errors.push(`Login invalide généré pour ${prenom} ${nom}`);
+                    continue;
+                }
+                
                 let login = baseLogin;
                 let counter = 1;
                 while (true) {
