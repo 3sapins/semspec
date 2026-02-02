@@ -342,6 +342,24 @@ router.post('/inscription', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Vous êtes déjà inscrit à cet atelier' });
         }
         
+        // Vérifier si déjà inscrit à une AUTRE itération du même atelier
+        const autreIteration = await query(`
+            SELECT p.id, c.jour, c.periode 
+            FROM inscriptions i
+            JOIN planning p ON i.planning_id = p.id
+            JOIN creneaux c ON p.creneau_id = c.id
+            WHERE i.eleve_id = ? AND p.atelier_id = ? AND i.statut = 'confirmee'
+        `, [eleve[0].id, p.atelier_id]);
+        
+        if (autreIteration.length > 0) {
+            const iter = autreIteration[0];
+            const jourCap = iter.jour.charAt(0).toUpperCase() + iter.jour.slice(1);
+            return res.status(400).json({ 
+                success: false, 
+                message: `Vous êtes déjà inscrit à cet atelier (${jourCap} ${iter.periode}). Vous ne pouvez pas vous inscrire à plusieurs itérations du même atelier.` 
+            });
+        }
+        
         // Inscrire - utiliser INSERT IGNORE pour éviter les doublons
         try {
             await query(`
@@ -447,6 +465,24 @@ router.post('/inscrire/:planningId', async (req, res) => {
         
         if (dejaInscrit.length > 0) {
             return res.status(400).json({ success: false, message: 'Tu es déjà inscrit à cet atelier' });
+        }
+        
+        // Vérifier si déjà inscrit à une AUTRE itération du même atelier
+        const autreIteration = await query(`
+            SELECT pl.id, c.jour, c.periode 
+            FROM inscriptions i
+            JOIN planning pl ON i.planning_id = pl.id
+            JOIN creneaux c ON pl.creneau_id = c.id
+            WHERE i.eleve_id = ? AND pl.atelier_id = ? AND i.statut = 'confirmee'
+        `, [eleve[0].id, p.atelier_id]);
+        
+        if (autreIteration.length > 0) {
+            const iter = autreIteration[0];
+            const jourCap = iter.jour.charAt(0).toUpperCase() + iter.jour.slice(1);
+            return res.status(400).json({ 
+                success: false, 
+                message: `Tu es déjà inscrit à cet atelier (${jourCap} ${iter.periode}). Tu ne peux pas t'inscrire à plusieurs itérations du même atelier.` 
+            });
         }
         
         // Inscrire
