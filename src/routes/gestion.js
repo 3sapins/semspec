@@ -390,7 +390,7 @@ router.delete('/eleves/:id', async (req, res) => {
 router.get('/classes', async (req, res) => {
     try {
         const classes = await query(`
-            SELECT c.id, c.nom, c.niveau, COUNT(e.id) as nombre_eleves
+            SELECT c.id, c.nom, c.niveau, c.inscriptions_ouvertes, COUNT(e.id) as nombre_eleves
             FROM classes c LEFT JOIN eleves e ON c.id = e.classe_id
             GROUP BY c.id ORDER BY c.nom
         `);
