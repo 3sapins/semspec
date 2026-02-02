@@ -313,6 +313,37 @@
                 <tbody></tbody>
             </table>
         </div>
+
+        <!-- Modal Modifier/Supprimer -->
+        <div id="modalModifier" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;">
+            <div style="background:white; padding:30px; border-radius:15px; max-width:500px; width:90%; max-height:90vh; overflow-y:auto;">
+                <h3 style="margin-bottom:20px; color:#667eea;">📝 Modifier le placement</h3>
+                <div id="modalInfo" style="background:#f3f4f6; padding:15px; border-radius:8px; margin-bottom:20px;"></div>
+                
+                <div style="margin-bottom:15px;">
+                    <label style="font-weight:600; display:block; margin-bottom:5px;">Nouvelle salle :</label>
+                    <select id="modalSalle" style="width:100%; padding:10px; border:2px solid #e5e7eb; border-radius:8px;">
+                        <option value="">-- Ne pas changer --</option>
+                    </select>
+                </div>
+                
+                <div style="margin-bottom:20px;">
+                    <label style="font-weight:600; display:block; margin-bottom:5px;">Nouveau créneau :</label>
+                    <select id="modalCreneau" style="width:100%; padding:10px; border:2px solid #e5e7eb; border-radius:8px;">
+                        <option value="">-- Ne pas changer --</option>
+                    </select>
+                </div>
+                
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <button onclick="saveModification()" class="btn btn-primary">💾 Enregistrer</button>
+                    <button onclick="confirmSupprimer()" class="btn" style="background:#ef4444; color:white;">🗑️ Supprimer</button>
+                    <button onclick="closeModal()" class="btn btn-secondary">Annuler</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alert -->
+        <div id="alertBox" style="display:none; position:fixed; top:20px; right:20px; padding:15px 25px; border-radius:10px; z-index:1001; font-weight:600;"></div>
     </div>
 
     <script>
@@ -320,12 +351,111 @@
         if (!token) window.location.href = 'login.html';
 
         let themesMap = {};
+        let sallesList = [];
+        let creneauxList = [];
+        let currentPlanningId = null;
         const DEFAULT_COLOR = '#667eea';
 
         document.addEventListener('DOMContentLoaded', async () => {
             await loadThemes();
+            await loadSallesEtCreneaux();
             await loadPlanningEnseignants();
         });
+
+        async function loadSallesEtCreneaux() {
+            try {
+                const [sallesResp, creneauxResp] = await Promise.all([
+                    fetch('/api/admin/salles', { headers: { 'Authorization': `Bearer ${token}` } }),
+                    fetch('/api/planning/creneaux', { headers: { 'Authorization': `Bearer ${token}` } })
+                ]);
+                const sallesData = await sallesResp.json();
+                const creneauxData = await creneauxResp.json();
+                sallesList = sallesData.data || [];
+                creneauxList = creneauxData.data || [];
+                
+                // Remplir les selects du modal
+                const salleSelect = document.getElementById('modalSalle');
+                const creneauSelect = document.getElementById('modalCreneau');
+                
+                salleSelect.innerHTML = '<option value="">-- Ne pas changer --</option>';
+                sallesList.forEach(s => salleSelect.innerHTML += `<option value="${s.id}">${s.nom}</option>`);
+                
+                creneauSelect.innerHTML = '<option value="">-- Ne pas changer --</option>';
+                creneauxList.forEach(c => {
+                    const jourCap = c.jour.charAt(0).toUpperCase() + c.jour.slice(1);
+                    creneauSelect.innerHTML += `<option value="${c.id}">${jourCap} ${c.periode}</option>`;
+                });
+            } catch (e) { console.error('Erreur chargement salles/créneaux:', e); }
+        }
+
+        function showAlert(message, type) {
+            const alert = document.getElementById('alertBox');
+            alert.textContent = message;
+            alert.style.background = type === 'success' ? '#d1fae5' : '#fee2e2';
+            alert.style.color = type === 'success' ? '#065f46' : '#991b1b';
+            alert.style.display = 'block';
+            setTimeout(() => alert.style.display = 'none', 3000);
+        }
+
+        function openModifier(planningId, atelierNom, salle, jour, periode) {
+            currentPlanningId = planningId;
+            const jourCap = jour.charAt(0).toUpperCase() + jour.slice(1);
+            document.getElementById('modalInfo').innerHTML = `
+                <p><strong>Atelier:</strong> ${atelierNom}</p>
+                <p><strong>Position:</strong> ${salle} - ${jourCap} ${periode}</p>
+            `;
+            document.getElementById('modalModifier').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('modalModifier').style.display = 'none';
+            currentPlanningId = null;
+        }
+
+        async function saveModification() {
+            const salleId = document.getElementById('modalSalle').value;
+            const creneauId = document.getElementById('modalCreneau').value;
+            if (!salleId && !creneauId) { 
+                showAlert('Sélectionnez une salle ou un créneau', 'error'); 
+                return; 
+            }
+            try {
+                const response = await fetch(`/api/planning/${currentPlanningId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ 
+                        salle_id: salleId || undefined, 
+                        creneau_id: creneauId || undefined 
+                    })
+                });
+                const result = await response.json();
+                if (result.success) { 
+                    showAlert('✅ Modifié', 'success'); 
+                    closeModal(); 
+                    loadPlanningEnseignants(); 
+                } else {
+                    showAlert('❌ ' + result.message, 'error');
+                }
+            } catch (e) { showAlert('❌ Erreur', 'error'); }
+        }
+
+        async function confirmSupprimer() {
+            if (!confirm('Supprimer ce placement ?')) return;
+            try {
+                const response = await fetch(`/api/planning/${currentPlanningId}`, { 
+                    method: 'DELETE', 
+                    headers: { 'Authorization': `Bearer ${token}` } 
+                });
+                const result = await response.json();
+                if (result.success) { 
+                    showAlert('✅ Supprimé', 'success'); 
+                    closeModal(); 
+                    loadPlanningEnseignants(); 
+                } else {
+                    showAlert('❌ ' + result.message, 'error');
+                }
+            } catch (e) { showAlert('❌ Erreur', 'error'); }
+        }
 
         async function loadThemes() {
             try {
@@ -492,7 +622,9 @@
                                 if (isSuite) {
                                     bgStyle = `background: repeating-linear-gradient(45deg, ${color}, ${color} 5px, ${adjustColor(color, -20)} 5px, ${adjustColor(color, -20)} 10px);`;
                                 }
-                                cellContent += `<div class="atelier-mini ${isSuite ? 'suite' : ''}" style="${bgStyle}" title="${a.atelier_nom} - ${a.salle}">${isSuite ? '↓' : ''} ${a.atelier_nom}</div>`;
+                                const atelierNomEscaped = (a.atelier_nom || '').replace(/'/g, "\\'");
+                                const clickable = a.planning_id && !isSuite ? `onclick="openModifier(${a.planning_id}, '${atelierNomEscaped}', '${a.salle}', '${jour}', '${periode}')" style="${bgStyle} cursor:pointer;"` : `style="${bgStyle}"`;
+                                cellContent += `<div class="atelier-mini ${isSuite ? 'suite' : ''}" ${clickable} title="${a.atelier_nom} - ${a.salle}${a.planning_id && !isSuite ? ' (cliquer pour modifier)' : ''}">${isSuite ? '↓' : ''} ${a.atelier_nom}</div>`;
                                 if (!isSuite) {
                                     totalPeriodes += a.duree || 2;
                                 }
