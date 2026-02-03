@@ -94,8 +94,8 @@
                             <th style="padding: 10px 12px; text-align: left;">Enseignant(s)</th>
                             <th style="padding: 10px 12px; text-align: center;">Durée</th>
                             <th style="padding: 10px 12px; text-align: center;">Places</th>
-                            <th style="padding: 10px 12px; text-align: left;">Salle souhaitée</th>
-                            <th style="padding: 10px 12px; text-align: left;">Créneau souhaité</th>
+                            <th style="padding: 10px 12px; text-align: left;">Type de salle</th>
+                            <th style="padding: 10px 12px; text-align: left;">Créneau impératif</th>
                             <th style="padding: 10px 12px; text-align: left;">Remarques</th>
                         </tr>
                     </thead>
@@ -285,15 +285,15 @@
                 let html = '';
                 result.data.forEach(a => {
                     const acronymes = [a.enseignant_acronyme, a.enseignant2_acronyme, a.enseignant3_acronyme].filter(Boolean).join(', ');
-                    const imperatif = a.creneau_imperatif ? ' 🔒' : '';
+                    const imperatif = a.creneaux_imperatifs ? ' 🔒' : '';
                     html += `<tr style="border-bottom: 1px solid #f3f4f6;">
                         <td style="padding: 10px 12px; font-weight: 600;">${a.nom}</td>
                         <td style="padding: 10px 12px;">${acronymes}</td>
                         <td style="padding: 10px 12px; text-align: center;">${a.duree || 2}p</td>
                         <td style="padding: 10px 12px; text-align: center;">${a.nombre_places_max || '-'}</td>
-                        <td style="padding: 10px 12px;">${a.salle_preferee || '—'}</td>
-                        <td style="padding: 10px 12px;">${a.creneau_prefere || '—'}${imperatif}</td>
-                        <td style="padding: 10px 12px; font-size: 13px; color: #6b7280;">${a.remarques_admin || '—'}</td>
+                        <td style="padding: 10px 12px;">${a.type_salle_demande || '—'}</td>
+                        <td style="padding: 10px 12px;">${a.creneaux_imperatifs || '—'}${imperatif}</td>
+                        <td style="padding: 10px 12px; font-size: 13px; color: #6b7280;">${a.remarques || '—'}</td>
                     </tr>`;
                 });
                 document.getElementById('nonPlacesBody').innerHTML = html;
