@@ -1924,10 +1924,11 @@ Cuisine,15,Cuisine,Bâtiment B" style="width:100%; padding:10px; font-family:mon
         // ========== QUOTAS ==========
         async function loadQuota() {
             try {
-                const response = await fetch('/api/admin/quota', { headers: { 'Authorization': `Bearer ${token}` } });
+                const response = await fetch('/api/admin/configuration', { headers: { 'Authorization': `Bearer ${token}` } });
                 const data = await response.json();
                 if (data.success) {
-                    const quota = data.data.quota || 100;
+                    const quotaConfig = data.data.find(c => c.cle === 'quota_places_pourcent');
+                    const quota = quotaConfig ? parseFloat(quotaConfig.valeur) : 100;
                     document.getElementById('quotaSlider').value = quota;
                     updateQuotaDisplay();
                 }
@@ -1944,7 +1945,7 @@ Cuisine,15,Cuisine,Bâtiment B" style="width:100%; padding:10px; font-family:mon
         async function saveQuota() {
             const quota = parseInt(document.getElementById('quotaSlider').value);
             try {
-                const response = await fetch('/api/admin/quota', {
+                const response = await fetch('/api/admin/configuration/quota', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                     body: JSON.stringify({ quota })
