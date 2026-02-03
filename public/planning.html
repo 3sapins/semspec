@@ -275,9 +275,18 @@
 
         async function loadNonPlaces() {
             try {
+                console.log('🔍 Chargement ateliers non placés...');
                 const response = await fetch('/api/planning/ateliers-non-places', { headers: { 'Authorization': `Bearer ${token}` } });
+                console.log('📡 Réponse status:', response.status);
                 const result = await response.json();
-                if (!result.success || result.data.length === 0) {
+                console.log('📦 Données:', result);
+                if (!result.success) {
+                    console.error('❌ Erreur API:', result.message);
+                    document.getElementById('nonPlacesContainer').style.display = 'none';
+                    return;
+                }
+                if (result.data.length === 0) {
+                    console.log('✅ Tous les ateliers sont placés');
                     document.getElementById('nonPlacesContainer').style.display = 'none';
                     return;
                 }
@@ -298,8 +307,9 @@
                 });
                 document.getElementById('nonPlacesBody').innerHTML = html;
                 document.getElementById('nonPlacesContainer').style.display = 'block';
+                console.log('✅ Tableau affiché avec', result.data.length, 'ateliers');
             } catch (e) {
-                console.error('Erreur chargement ateliers non placés:', e);
+                console.error('❌ Erreur chargement ateliers non placés:', e);
             }
         }
 
