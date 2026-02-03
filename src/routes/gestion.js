@@ -509,6 +509,29 @@ router.delete('/salles/:id', async (req, res) => {
     }
 });
 
+// ========== ATELIERS NON PLACÉS ==========
+router.get('/ateliers-non-places', async (req, res) => {
+    try {
+        let idsPlaces = [];
+        try {
+            const places = await query('SELECT DISTINCT atelier_id FROM planning');
+            idsPlaces = places.map(p => p.atelier_id);
+        } catch (e) { /* table planning vide ou inexistante */ }
+        
+        let sql = "SELECT * FROM ateliers WHERE statut = 'valide'";
+        if (idsPlaces.length > 0) {
+            sql += ` AND id NOT IN (${idsPlaces.join(',')})`;
+        }
+        sql += ' ORDER BY nom';
+        
+        const ateliers = await query(sql);
+        res.json({ success: true, data: ateliers });
+    } catch (error) {
+        console.error('Erreur ateliers non placés:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
 // ========== ATELIERS PLANIFIÉS (pour inscriptions) ==========
 router.get('/ateliers-planifies', async (req, res) => {
     try {
