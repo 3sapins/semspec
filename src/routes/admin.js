@@ -636,8 +636,10 @@ router.put('/configuration/quota', adminMiddleware, async (req, res) => {
             ON DUPLICATE KEY UPDATE valeur = ?
         `, [quota.toString(), quota.toString()]);
         
-        await query('INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
-            [req.user.id, 'UPDATE_QUOTA', `Quota mis à ${quota}%`]);
+        try {
+            await query('INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
+                [req.user.id, 'UPDATE_QUOTA', `Quota mis à ${quota}%`]);
+        } catch (e) { /* table historique optionnelle */ }
         
         res.json({ success: true, message: `Quota mis à jour: ${quota}%` });
     } catch (error) {
