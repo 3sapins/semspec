@@ -48,8 +48,7 @@ router.get('/ateliers-non-places', async (req, res) => {
         const ateliers = await query(`
             SELECT a.id, a.nom, a.duree, a.nombre_places_max,
                 a.enseignant_acronyme, a.enseignant2_acronyme, a.enseignant3_acronyme,
-                a.salle_preferee, a.creneau_prefere, a.remarques_admin,
-                a.creneau_imperatif,
+                a.type_salle_demande, a.creneaux_imperatifs, a.remarques,
                 u.nom as enseignant_nom, u.prenom as enseignant_prenom
             FROM ateliers a
             LEFT JOIN utilisateurs u ON a.enseignant_acronyme = u.acronyme
@@ -59,7 +58,7 @@ router.get('/ateliers-non-places', async (req, res) => {
         `);
         res.json({ success: true, data: ateliers });
     } catch (error) {
-        console.error('Erreur:', error);
+        console.error('Erreur ateliers non placés:', error);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
