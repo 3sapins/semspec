@@ -241,9 +241,20 @@ router.get('/catalogue', async (req, res) => {
             ORDER BY c.ordre, a.nom
         `);
         
-        // Ajouter places_restantes et complet
+        // Charger le quota
+        let quotaPourcent = 100;
+        try {
+            const configResult = await query("SELECT valeur FROM configuration WHERE cle = 'quota_places_pourcent'");
+            if (configResult.length > 0) {
+                quotaPourcent = parseFloat(configResult[0].valeur) || 100;
+            }
+        } catch (e) { /* table configuration optionnelle */ }
+        
+        // Ajouter places_restantes et complet (avec quota appliqué)
         ateliers.forEach(a => {
-            a.places_restantes = a.nombre_places_max - a.nb_inscrits;
+            const placesAvecQuota = Math.ceil(a.nombre_places_max * quotaPourcent / 100);
+            a.places_disponibles = placesAvecQuota;
+            a.places_restantes = placesAvecQuota - a.nb_inscrits;
             a.complet = a.places_restantes <= 0;
         });
         
@@ -321,14 +332,20 @@ router.post('/inscription', async (req, res) => {
             }
         }
         
-        // VERROUILLAGE: Vérifier places disponibles avec FOR UPDATE (si supporté) ou double-check
-        // On vérifie juste avant l'insertion
+        // VERROUILLAGE: Vérifier places disponibles (avec quota)
+        let quotaPourcent = 100;
+        try {
+            const configResult = await query("SELECT valeur FROM configuration WHERE cle = 'quota_places_pourcent'");
+            if (configResult.length > 0) quotaPourcent = parseFloat(configResult[0].valeur) || 100;
+        } catch (e) { /* table configuration optionnelle */ }
+        const placesAvecQuota = Math.ceil(p.nombre_places_max * quotaPourcent / 100);
+        
         const inscrits = await query(
             'SELECT COUNT(*) as nb FROM inscriptions WHERE planning_id = ? AND statut = "confirmee"', 
             [planning_id]
         );
         
-        if (inscrits[0].nb >= p.nombre_places_max) {
+        if (inscrits[0].nb >= placesAvecQuota) {
             return res.status(400).json({ success: false, message: 'Désolé, plus de places disponibles' });
         }
         
@@ -380,7 +397,7 @@ router.post('/inscription', async (req, res) => {
             [planning_id]
         );
         
-        if (totalApres[0].nb > p.nombre_places_max) {
+        if (totalApres[0].nb > placesAvecQuota) {
             // Trop d'inscriptions, annuler la nôtre (dernier arrivé = premier servi inversé)
             await query(
                 'DELETE FROM inscriptions WHERE eleve_id = ? AND planning_id = ?',
@@ -447,13 +464,20 @@ router.post('/inscrire/:planningId', async (req, res) => {
             }
         }
         
-        // Vérifier places disponibles
+        // Vérifier places disponibles (avec quota)
+        let quotaPourcent2 = 100;
+        try {
+            const configResult2 = await query("SELECT valeur FROM configuration WHERE cle = 'quota_places_pourcent'");
+            if (configResult2.length > 0) quotaPourcent2 = parseFloat(configResult2[0].valeur) || 100;
+        } catch (e) { /* table configuration optionnelle */ }
+        const placesAvecQuota2 = Math.ceil(p.nombre_places_max * quotaPourcent2 / 100);
+        
         const inscrits = await query(
             'SELECT COUNT(*) as nb FROM inscriptions WHERE planning_id = ? AND statut = "confirmee"', 
             [planningId]
         );
         
-        if (inscrits[0].nb >= p.nombre_places_max) {
+        if (inscrits[0].nb >= placesAvecQuota2) {
             return res.status(400).json({ success: false, message: 'Désolé, plus de places disponibles' });
         }
         
@@ -497,7 +521,7 @@ router.post('/inscrire/:planningId', async (req, res) => {
             [planningId]
         );
         
-        if (totalApres[0].nb > p.nombre_places_max) {
+        if (totalApres[0].nb > placesAvecQuota2) {
             await query('DELETE FROM inscriptions WHERE eleve_id = ? AND planning_id = ?', [eleve[0].id, planningId]);
             return res.status(400).json({ success: false, message: 'Désolé, la dernière place vient d\'être prise' });
         }
