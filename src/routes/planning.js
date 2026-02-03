@@ -46,7 +46,11 @@ router.get('/creneaux', async (req, res) => {
 router.get('/ateliers-non-places', async (req, res) => {
     try {
         const ateliers = await query(`
-            SELECT a.*, u.nom as enseignant_nom, u.prenom as enseignant_prenom
+            SELECT a.id, a.nom, a.duree, a.nombre_places_max,
+                a.enseignant_acronyme, a.enseignant2_acronyme, a.enseignant3_acronyme,
+                a.salle_preferee, a.creneau_prefere, a.remarques_admin,
+                a.creneau_imperatif,
+                u.nom as enseignant_nom, u.prenom as enseignant_prenom
             FROM ateliers a
             LEFT JOIN utilisateurs u ON a.enseignant_acronyme = u.acronyme
             LEFT JOIN planning p ON a.id = p.atelier_id
