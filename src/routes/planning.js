@@ -45,21 +45,28 @@ router.get('/creneaux', async (req, res) => {
  */
 router.get('/ateliers-non-places', async (req, res) => {
     try {
-        const ateliers = await query(`
-            SELECT a.id, a.nom, a.duree, a.nombre_places_max,
-                a.enseignant_acronyme, a.enseignant2_acronyme, a.enseignant3_acronyme,
-                a.type_salle_demande, a.creneaux_imperatifs, a.remarques,
-                u.nom as enseignant_nom, u.prenom as enseignant_prenom
-            FROM ateliers a
-            LEFT JOIN utilisateurs u ON a.enseignant_acronyme = u.acronyme
-            LEFT JOIN planning p ON a.id = p.atelier_id
-            WHERE a.statut = 'valide' AND p.id IS NULL
-            ORDER BY a.nom
-        `);
+        // Étape 1: récupérer les IDs des ateliers déjà placés
+        let idsPlaces = [];
+        try {
+            const places = await query('SELECT DISTINCT atelier_id FROM planning');
+            idsPlaces = places.map(p => p.atelier_id);
+        } catch (e) {
+            console.error('Erreur lecture planning:', e.message);
+        }
+        
+        // Étape 2: récupérer tous les ateliers validés
+        let sql = "SELECT * FROM ateliers WHERE statut = 'valide'";
+        if (idsPlaces.length > 0) {
+            sql += ` AND id NOT IN (${idsPlaces.join(',')})`;
+        }
+        sql += ' ORDER BY nom';
+        
+        const ateliers = await query(sql);
+        console.log(`📋 Ateliers non placés: ${ateliers.length} (placés: ${idsPlaces.length})`);
         res.json({ success: true, data: ateliers });
     } catch (error) {
-        console.error('Erreur ateliers non placés:', error);
-        res.status(500).json({ success: false, message: 'Erreur serveur' });
+        console.error('Erreur ateliers non placés:', error.message);
+        res.status(500).json({ success: false, message: error.message });
     }
 });
 
