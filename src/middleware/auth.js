@@ -96,7 +96,7 @@ const generateToken = (user) => {
             prenom: user.prenom
         },
         process.env.JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+        { expiresIn: process.env.JWT_EXPIRES_IN || '60d' }
     );
 };
 
