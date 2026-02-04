@@ -531,7 +531,13 @@ router.post('/allouer', async (req, res) => {
         console.log('📌 PHASE 3: Multiplication round-robin (même salle)');
         console.log('═══════════════════════════════════════════════════════');
         
-        const ateliersPlaces = ateliersBase.filter(a => atelierIterations[a.id] > 0);
+        const ateliersPlaces = ateliersBase.filter(a => {
+            if (atelierIterations[a.id] === 0) return false;
+            // Exclure les ateliers avec créneaux impératifs : pas de multiplication
+            const ci = a.creneaux_imperatifs ? String(a.creneaux_imperatifs).trim() : '';
+            if (ci && ci !== 'null' && ci !== '0') return false;
+            return true;
+        });
         const ateliersPlacesParEns = {};
         ateliersPlaces.forEach(a => {
             if (!ateliersPlacesParEns[a.enseignant_acronyme]) {
@@ -587,13 +593,124 @@ router.post('/allouer', async (req, res) => {
         }
         
         // ═══════════════════════════════════════════════════════════
-        // RÉSULTAT FINAL
+        // RÉSULTAT FINAL + DIAGNOSTIC DES ÉCHECS
         // ═══════════════════════════════════════════════════════════
         
         await query('INSERT INTO historique (utilisateur_id, action, details) VALUES (?, ?, ?)',
             [req.user.id, 'AUTO_ALLOCATION', `${resultat.placed} placements, ${resultat.failed.length} échecs`]);
         
         const ateliersUniquesPlaces = Object.values(atelierIterations).filter(n => n > 0).length;
+        
+        // Diagnostic détaillé pour chaque atelier non placé
+        const ateliersNonPlaces = ateliersBase.filter(a => atelierIterations[a.id] === 0);
+        const diagnostics = [];
+        
+        for (const atelier of ateliersNonPlaces) {
+            const diag = {
+                id: atelier.id,
+                nom: atelier.nom,
+                enseignant: atelier.enseignant_acronyme,
+                enseignant2: atelier.enseignant2_acronyme || null,
+                enseignant3: atelier.enseignant3_acronyme || null,
+                duree: atelier.duree,
+                type_salle: atelier.type_salle_demande || null,
+                creneaux_imperatifs: atelier.creneaux_imperatifs ? String(atelier.creneaux_imperatifs) : null,
+                problemes: []
+            };
+            
+            const acronyme = atelier.enseignant_acronyme;
+            const nombreCreneaux = Math.ceil(atelier.duree / 2);
+            
+            // Vérifier disponibilités enseignant principal
+            if (dispoMap[acronyme] && dispoMap[acronyme].size > 0) {
+                const dispoIds = [...dispoMap[acronyme]];
+                const dispoDetails = dispoIds.map(id => {
+                    const c = creneauxMap[id];
+                    return c ? `${c.jour} ${c.periode}` : `ID ${id}`;
+                });
+                diag.problemes.push(`${acronyme} disponible uniquement sur : ${dispoDetails.join(', ')}`);
+                
+                // Vérifier si les créneaux impératifs sont dans les dispos
+                if (atelier.creneaux_imperatifs) {
+                    const imperatifs = String(atelier.creneaux_imperatifs).split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+                    imperatifs.forEach(impId => {
+                        if (!dispoMap[acronyme].has(impId)) {
+                            const c = creneauxMap[impId];
+                            const label = c ? `${c.jour} ${c.periode}` : `ID ${impId}`;
+                            diag.problemes.push(`Créneau impératif ${label} hors disponibilités de ${acronyme}`);
+                        }
+                    });
+                }
+            } else {
+                diag.problemes.push(`${acronyme} : toutes disponibilités (pas de restriction)`);
+            }
+            
+            // Vérifier enseignant 2
+            if (atelier.enseignant2_acronyme) {
+                const acr2 = atelier.enseignant2_acronyme;
+                if (dispoMap[acr2] && dispoMap[acr2].size > 0) {
+                    const dispoIds2 = [...dispoMap[acr2]];
+                    const dispoDetails2 = dispoIds2.map(id => {
+                        const c = creneauxMap[id];
+                        return c ? `${c.jour} ${c.periode}` : `ID ${id}`;
+                    });
+                    diag.problemes.push(`${acr2} (ens. 2) disponible uniquement sur : ${dispoDetails2.join(', ')}`);
+                }
+            }
+            
+            // Vérifier enseignant 3
+            if (atelier.enseignant3_acronyme) {
+                const acr3 = atelier.enseignant3_acronyme;
+                if (dispoMap[acr3] && dispoMap[acr3].size > 0) {
+                    const dispoIds3 = [...dispoMap[acr3]];
+                    const dispoDetails3 = dispoIds3.map(id => {
+                        const c = creneauxMap[id];
+                        return c ? `${c.jour} ${c.periode}` : `ID ${id}`;
+                    });
+                    diag.problemes.push(`${acr3} (ens. 3) disponible uniquement sur : ${dispoDetails3.join(', ')}`);
+                }
+            }
+            
+            // Vérifier compatibilité dispos multi-enseignants
+            if (atelier.enseignant2_acronyme || atelier.enseignant3_acronyme) {
+                const tousAcr = [acronyme, atelier.enseignant2_acronyme, atelier.enseignant3_acronyme].filter(Boolean);
+                const tousOntDispos = tousAcr.every(a => dispoMap[a] && dispoMap[a].size > 0);
+                if (tousOntDispos) {
+                    // Intersection des dispos
+                    let inter = new Set(dispoMap[tousAcr[0]]);
+                    for (let i = 1; i < tousAcr.length; i++) {
+                        inter = new Set([...inter].filter(x => dispoMap[tousAcr[i]].has(x)));
+                    }
+                    if (inter.size === 0) {
+                        diag.problemes.push(`Aucun créneau commun entre les enseignants ${tousAcr.join(', ')}`);
+                    } else {
+                        const communDetails = [...inter].map(id => {
+                            const c = creneauxMap[id];
+                            return c ? `${c.jour} ${c.periode}` : `ID ${id}`;
+                        });
+                        diag.problemes.push(`Créneaux communs possibles : ${communDetails.join(', ')}`);
+                    }
+                }
+            }
+            
+            // Vérifier salles compatibles
+            if (atelier.type_salle_demande) {
+                const sallesCompatibles = salles.filter(s => s.type_salle === atelier.type_salle_demande);
+                if (sallesCompatibles.length === 0) {
+                    diag.problemes.push(`Aucune salle de type "${atelier.type_salle_demande}" disponible`);
+                } else {
+                    diag.problemes.push(`${sallesCompatibles.length} salle(s) de type "${atelier.type_salle_demande}" : ${sallesCompatibles.map(s => s.nom).join(', ')}`);
+                }
+            }
+            
+            // Raisons des échecs enregistrées
+            const echecsAtelier = resultat.failed.filter(f => f.id === atelier.id);
+            if (echecsAtelier.length > 0) {
+                diag.raisons_echec = echecsAtelier.map(e => e.raison);
+            }
+            
+            diagnostics.push(diag);
+        }
         
         console.log('');
         console.log('╔══════════════════════════════════════════════════════════════╗');
@@ -611,9 +728,10 @@ router.post('/allouer', async (req, res) => {
             ateliers_places: resultat.placed,
             ateliers_uniques_places: ateliersUniquesPlaces,
             ateliers_total: ateliersBase.length,
-            ateliers_non_places: resultat.failed.length,
+            ateliers_non_places: ateliersNonPlaces.length,
             repartition_jours: occupationParJour,
-            echecs: resultat.failed
+            echecs: resultat.failed,
+            diagnostics: diagnostics
         });
         
     } catch (error) {
