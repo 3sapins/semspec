@@ -227,13 +227,29 @@ router.post('/allouer', async (req, res) => {
         });
         
         // Catégoriser les ateliers
-        const ateliersAvecImperatif = ateliersBase.filter(a => a.creneaux_imperatifs && a.creneaux_imperatifs.trim() !== '');
-        const ateliersMultiEns = ateliersBase.filter(a => !a.creneaux_imperatifs && (a.enseignant2_acronyme || a.enseignant3_acronyme));
-        const ateliersMonoEns = ateliersBase.filter(a => !a.creneaux_imperatifs && !a.enseignant2_acronyme && !a.enseignant3_acronyme);
+        const ateliersAvecImperatif = ateliersBase.filter(a => {
+            if (!a.creneaux_imperatifs) return false;
+            const val = String(a.creneaux_imperatifs).trim();
+            return val !== '' && val !== 'null' && val !== '0';
+        });
+        const ateliersMultiEns = ateliersBase.filter(a => {
+            const hasImperatif = a.creneaux_imperatifs && String(a.creneaux_imperatifs).trim() !== '' && String(a.creneaux_imperatifs).trim() !== 'null' && String(a.creneaux_imperatifs).trim() !== '0';
+            return !hasImperatif && (a.enseignant2_acronyme || a.enseignant3_acronyme);
+        });
+        const ateliersMonoEns = ateliersBase.filter(a => {
+            const hasImperatif = a.creneaux_imperatifs && String(a.creneaux_imperatifs).trim() !== '' && String(a.creneaux_imperatifs).trim() !== 'null' && String(a.creneaux_imperatifs).trim() !== '0';
+            return !hasImperatif && !a.enseignant2_acronyme && !a.enseignant3_acronyme;
+        });
         
         console.log(`📌 ${ateliersAvecImperatif.length} ateliers avec créneaux impératifs`);
+        if (ateliersAvecImperatif.length > 0) {
+            ateliersAvecImperatif.forEach(a => {
+                console.log(`   → "${a.nom}" imperatifs=[${a.creneaux_imperatifs}] type=${typeof a.creneaux_imperatifs} ens=${a.enseignant_acronyme}`);
+            });
+        }
         console.log(`👥 ${ateliersMultiEns.length} ateliers multi-enseignants`);
         console.log(`👤 ${ateliersMonoEns.length} ateliers mono-enseignant`);
+        console.log(`📊 Total ateliers base: ${ateliersBase.length} (impératifs:${ateliersAvecImperatif.length} + multi:${ateliersMultiEns.length} + mono:${ateliersMonoEns.length} = ${ateliersAvecImperatif.length + ateliersMultiEns.length + ateliersMonoEns.length})`);
         
         const resultat = { placed: 0, failed: [], iterations: [] };
         
@@ -306,9 +322,13 @@ router.post('/allouer', async (req, res) => {
         async function placerAtelierSurCreneau(atelier, creneauDebutId, ignoreChargeMax = false) {
             const nombreCreneaux = Math.ceil(atelier.duree / 2);
             const acronyme = atelier.enseignant_acronyme;
+            creneauDebutId = parseInt(creneauDebutId);
             const creneauDebut = creneauxMap[creneauDebutId];
             
-            if (!creneauDebut) return { success: false, raison: 'Créneau non trouvé' };
+            if (!creneauDebut) {
+                console.log(`    ⚠️ Créneau ID ${creneauDebutId} non trouvé dans creneauxMap (${Object.keys(creneauxMap).length} créneaux connus: [${Object.keys(creneauxMap).slice(0,10).join(',')}...])`);
+                return { success: false, raison: `Créneau ${creneauDebutId} non trouvé` };
+            }
             
             if (!ignoreChargeMax && chargeRestante(acronyme) < atelier.duree) {
                 return { success: false, raison: 'Charge max atteinte' };
@@ -396,8 +416,10 @@ router.post('/allouer', async (req, res) => {
         console.log('═══════════════════════════════════════════════════════');
         
         for (const atelier of ateliersAvecImperatif) {
-            const creneauxStr = atelier.creneaux_imperatifs.split(',').filter(c => c.trim());
+            const creneauxStr = String(atelier.creneaux_imperatifs).split(',').filter(c => c.trim());
             let placementReussi = 0;
+            
+            console.log(`  📎 "${atelier.nom}" - créneaux impératifs: [${creneauxStr.join(', ')}]`);
             
             for (const creneauIdStr of creneauxStr) {
                 const creneauId = parseInt(creneauIdStr.trim());
