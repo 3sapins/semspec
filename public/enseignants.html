@@ -438,6 +438,73 @@
             color: #065f46;
         }
 
+        /* Responsive mobile */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            
+            .header { 
+                flex-direction: column; 
+                align-items: stretch; 
+                padding: 15px;
+                text-align: center;
+            }
+            .header h1 { font-size: 18px; }
+            .header div:last-child { 
+                display: flex; 
+                flex-wrap: wrap; 
+                gap: 8px; 
+                justify-content: center; 
+            }
+            .header .btn { flex: 1; min-width: 120px; text-align: center; }
+            
+            .tabs-container { padding: 4px; gap: 3px; }
+            .tab-btn { 
+                padding: 8px 10px; 
+                font-size: 12px; 
+                flex: 1; 
+                text-align: center;
+                min-width: 0;
+            }
+            
+            .card-header { font-size: 14px; padding: 12px 15px; flex-direction: column; gap: 8px; }
+            .card-body { padding: 12px; }
+            
+            /* Horaire en scroll horizontal */
+            .horaire-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .horaire-table td { min-width: 110px; height: auto; padding: 6px; font-size: 11px; }
+            .horaire-table th { padding: 8px; font-size: 12px; }
+            
+            /* Ateliers */
+            .filtres { flex-direction: column; align-items: stretch; }
+            .filtre-group { flex-direction: column; align-items: stretch; }
+            .filtre-group select, .filtre-group input { width: 100%; }
+            
+            .atelier-header { padding: 12px; }
+            .atelier-title { flex-wrap: wrap; gap: 6px; }
+            .atelier-title h3 { font-size: 14px; }
+            .atelier-content { padding: 12px; }
+            
+            .creneau-row { flex-direction: column; gap: 6px; align-items: stretch; }
+            
+            /* Disponibilités */
+            .dispo-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .dispo-table th, .dispo-table td { padding: 8px; font-size: 12px; }
+            .dispo-checkbox { width: 24px; height: 24px; }
+            
+            /* Modal */
+            .modal { width: 95%; max-height: 90vh; }
+            .modal-header h2 { font-size: 16px; }
+            
+            /* Login */
+            .login-box { margin: 20px auto; padding: 25px; }
+        }
+        
+        @media (max-width: 480px) {
+            .header h1 { font-size: 16px; }
+            .tab-btn { padding: 6px 8px; font-size: 11px; }
+            .badge { font-size: 10px; padding: 2px 8px; }
+        }
+
         /* Print styles */
         @media print {
             body { background: white; padding: 0; }

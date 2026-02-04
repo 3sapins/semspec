@@ -476,10 +476,63 @@
         }
 
         @media (max-width: 768px) {
+            body { padding: 10px; }
+            
+            .header { 
+                flex-direction: column; 
+                align-items: stretch; 
+                padding: 15px;
+                text-align: center;
+            }
+            .header h1 { font-size: 18px; }
+            .header .btn { width: 100%; text-align: center; }
+            
+            .card-header { font-size: 14px; padding: 12px 15px; }
+            .card-body { padding: 12px; }
+            
             .filtres { flex-direction: column; align-items: stretch; }
+            .filtre-group { flex-direction: column; align-items: stretch; }
+            .filtre-group select { width: 100%; }
+            
             .tabs { justify-content: center; }
-            .tab { padding: 8px 12px; font-size: 12px; }
-            .creneau-item { flex-direction: column; gap: 10px; align-items: stretch; }
+            .tab { padding: 8px 12px; font-size: 12px; flex: 1; text-align: center; min-width: 0; }
+            
+            /* Horaire en mode liste sur mobile */
+            .horaire-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .horaire-table td { min-width: 100px; height: auto; padding: 6px; font-size: 11px; }
+            .horaire-table th { padding: 6px; font-size: 11px; }
+            .atelier-mini .nom { font-size: 10px; }
+            .atelier-mini .salle { font-size: 9px; }
+            
+            /* Accordéon ateliers */
+            .atelier-accordeon-header { padding: 12px; }
+            .atelier-accordeon-title { flex-wrap: wrap; gap: 6px; }
+            .atelier-accordeon-title h3 { font-size: 14px; }
+            .atelier-accordeon-content { padding: 12px; }
+            
+            /* Créneaux d'inscription */
+            .creneau-item { 
+                flex-direction: column; 
+                gap: 8px; 
+                align-items: stretch;
+                padding: 12px;
+            }
+            .creneau-info { flex-wrap: wrap; }
+            .btn-inscrire { width: 100%; padding: 10px; font-size: 14px; }
+            .btn-inscrit-ailleurs { width: 100%; text-align: center; }
+            
+            /* Login */
+            .login-box { margin: 20px auto; padding: 25px; }
+            
+            /* Validation */
+            .validation-box { padding: 12px 15px; font-size: 13px; }
+        }
+        
+        @media (max-width: 480px) {
+            .header h1 { font-size: 16px; }
+            .tab { padding: 6px 8px; font-size: 11px; }
+            .atelier-accordeon-title .duree-badge,
+            .atelier-accordeon-title .theme-badge { font-size: 10px; }
         }
     </style>
 </head>

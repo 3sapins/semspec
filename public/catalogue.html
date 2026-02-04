@@ -403,10 +403,12 @@
         }
         
         @media (max-width: 768px) {
+            .header { padding: 15px; }
             .header-content {
                 flex-direction: column;
                 align-items: stretch;
             }
+            .header h1 { font-size: 1.3em; text-align: center; }
             
             .filters {
                 flex-direction: column;
@@ -415,14 +417,38 @@
             .search-box {
                 width: 100%;
             }
+            .filter-select { width: 100%; }
+            
+            .container { padding: 15px 10px; }
             
             .ateliers-grid {
                 grid-template-columns: 1fr;
+                padding: 12px;
+                gap: 12px;
             }
             
             .stats-bar {
                 flex-direction: column;
+                padding: 15px;
+                gap: 10px;
             }
+            .stat-value { font-size: 1.5em; }
+            
+            .theme-header { padding: 15px; gap: 10px; }
+            .theme-name { font-size: 1.1em; }
+            .theme-icon { font-size: 1.5em; width: 40px; height: 40px; }
+            .theme-count { padding: 5px 12px; font-size: 13px; }
+            
+            .atelier-header { padding: 15px; }
+            .atelier-body { padding: 15px; }
+            .atelier-nom { font-size: 1.1em; }
+            
+            .creneau-row { flex-direction: column; gap: 6px; align-items: stretch; }
+        }
+        
+        @media (max-width: 480px) {
+            .header h1 { font-size: 1.1em; }
+            .theme-description { display: none; }
         }
         
         @media print {
