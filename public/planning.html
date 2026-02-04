@@ -519,9 +519,84 @@
             try {
                 const response = await fetch('/api/planning/allouer', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
                 const result = await response.json();
-                if (result.success) { showAlert(`✅ ${result.message}`, 'success'); loadPlanning(); }
+                if (result.success) {
+                    showAlert(`✅ ${result.message}`, 'success');
+                    loadPlanning();
+                    
+                    // Afficher diagnostic si des ateliers n'ont pas été placés
+                    if (result.diagnostics && result.diagnostics.length > 0) {
+                        afficherDiagnostics(result);
+                    }
+                }
                 else showAlert('❌ ' + result.message, 'error');
             } catch (e) { showAlert('❌ Erreur', 'error'); }
+        }
+        
+        function afficherDiagnostics(result) {
+            // Supprimer ancien modal si existe
+            const ancien = document.getElementById('diagModal');
+            if (ancien) ancien.remove();
+            
+            let html = `<div id="diagModal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;">
+                <div style="background:white;border-radius:15px;max-width:800px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                    <div style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:20px 25px;border-radius:15px 15px 0 0;">
+                        <h2 style="margin:0;">📊 Résultat de l'allocation</h2>
+                        <p style="margin:8px 0 0;opacity:0.9;">${result.ateliers_uniques_places}/${result.ateliers_total} ateliers placés — ${result.ateliers_places} itérations au total</p>
+                    </div>
+                    <div style="padding:25px;">`;
+            
+            // Répartition par jour
+            if (result.repartition_jours) {
+                html += `<div style="margin-bottom:20px;padding:15px;background:#f0fdf4;border-radius:10px;">
+                    <strong>📅 Répartition par jour :</strong> `;
+                const jours = ['lundi','mardi','mercredi','jeudi','vendredi'];
+                html += jours.filter(j => result.repartition_jours[j]).map(j => 
+                    `${j.charAt(0).toUpperCase()+j.slice(1)}: ${result.repartition_jours[j]}`
+                ).join(' · ');
+                html += `</div>`;
+            }
+            
+            // Diagnostics des ateliers non placés
+            html += `<div style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;padding:12px 18px;border-radius:10px 10px 0 0;font-weight:700;margin-top:10px;">
+                ⚠️ ${result.diagnostics.length} atelier(s) non placé(s)</div>`;
+            
+            result.diagnostics.forEach(diag => {
+                const enseignants = [diag.enseignant, diag.enseignant2, diag.enseignant3].filter(Boolean).join(', ');
+                
+                html += `<div style="border:1px solid #e5e7eb;border-top:none;padding:15px 18px;">
+                    <div style="font-weight:700;font-size:16px;margin-bottom:8px;">${diag.nom}</div>
+                    <div style="font-size:13px;color:#6b7280;margin-bottom:10px;">
+                        👤 ${enseignants} · ⏱️ ${diag.duree}p`;
+                if (diag.type_salle) html += ` · 🏠 ${diag.type_salle}`;
+                if (diag.creneaux_imperatifs) html += ` · 🔒 Impératifs: ${diag.creneaux_imperatifs}`;
+                html += `</div>`;
+                
+                // Raisons d'échec directes
+                if (diag.raisons_echec && diag.raisons_echec.length > 0) {
+                    html += `<div style="margin-bottom:6px;"><strong style="color:#ef4444;">❌ Raisons :</strong></div>`;
+                    diag.raisons_echec.forEach(r => {
+                        html += `<div style="padding:4px 0 4px 15px;font-size:13px;color:#dc2626;">• ${r}</div>`;
+                    });
+                }
+                
+                // Problèmes détectés
+                if (diag.problemes && diag.problemes.length > 0) {
+                    html += `<div style="margin-top:8px;"><strong style="color:#6b7280;">🔍 Détails :</strong></div>`;
+                    diag.problemes.forEach(p => {
+                        html += `<div style="padding:4px 0 4px 15px;font-size:13px;color:#374151;">• ${p}</div>`;
+                    });
+                }
+                
+                html += `</div>`;
+            });
+            
+            html += `<div style="text-align:center;padding:20px;">
+                        <button onclick="document.getElementById('diagModal').remove()" style="background:#3b82f6;color:white;border:none;padding:12px 30px;border-radius:8px;font-size:15px;cursor:pointer;font-weight:600;">Fermer</button>
+                    </div>
+                </div>
+            </div></div>`;
+            
+            document.body.insertAdjacentHTML('beforeend', html);
         }
 
         // ========== RESET PLANNING ==========
