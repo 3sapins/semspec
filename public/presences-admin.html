@@ -263,7 +263,10 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📊 Suivi Présences & Absences</h1>
+            <div>
+                <h1>📊 Suivi Présences & Absences</h1>
+                <div id="liveIndicator" style="font-size:12px; color:#6b7280; margin-top:5px;"></div>
+            </div>
             <div class="btn-group">
                 <button class="btn btn-primary" onclick="location.reload()">↻ Actualiser</button>
                 <a href="impressions.html" class="btn btn-warning">🖨️ Centre d'Impression</a>
@@ -359,13 +362,44 @@
 
         let creneauxData = [];
         let classesData = [];
+        let autoRefreshInterval = null;
+        let lastUpdateTime = new Date();
 
         document.addEventListener('DOMContentLoaded', async () => {
             await loadFilters();
             await loadStats();
             await loadAbsences();
             await loadPointages();
+            
+            // Auto-refresh toutes les 30 secondes
+            startAutoRefresh();
         });
+        
+        function startAutoRefresh() {
+            // Indicateur temps réel
+            updateLastRefreshTime();
+            
+            autoRefreshInterval = setInterval(async () => {
+                await loadStats();
+                await loadAbsences();
+                await loadPointages();
+                updateLastRefreshTime();
+            }, 30000); // 30 secondes
+        }
+        
+        function updateLastRefreshTime() {
+            lastUpdateTime = new Date();
+            const indicator = document.getElementById('liveIndicator');
+            if (indicator) {
+                indicator.innerHTML = `<span style="display:inline-block; width:8px; height:8px; background:#10b981; border-radius:50%; margin-right:6px; animation: pulse 2s infinite;"></span>
+                    Temps réel · Dernière mise à jour : ${lastUpdateTime.toLocaleTimeString('fr-CH')}`;
+            }
+        }
+        
+        // Ajouter un style pour l'animation pulse
+        const style = document.createElement('style');
+        style.textContent = `@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`;
+        document.head.appendChild(style);
 
         function showTab(tabName) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));

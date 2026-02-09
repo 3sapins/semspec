@@ -874,11 +874,17 @@
     <!-- Modal Présences -->
     <div class="modal-overlay" id="presencesModal" style="display:none;">
         <div class="modal" style="max-width:700px;">
-            <div class="modal-header">
+            <div class="modal-header" style="background:linear-gradient(135deg, #10b981 0%, #059669 100%);">
                 <h2 id="presencesTitle">📋 Pointage des présences</h2>
                 <button class="modal-close" onclick="closePresencesModal()">&times;</button>
             </div>
             <div class="modal-body" id="presencesContent">
+            </div>
+            <div style="padding:15px 20px; background:#f3f4f6; border-top:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:13px; color:#6b7280;">Décocher = absent (rouge)</span>
+                <button onclick="savePresences(null, currentPresencesPlanningId)" class="btn" style="background:linear-gradient(135deg, #10b981 0%, #059669 100%); color:white; padding:12px 30px; font-size:16px; font-weight:700;">
+                    ✅ Valider l'appel
+                </button>
             </div>
         </div>
     </div>
@@ -2235,7 +2241,10 @@
         }
 
         // ===================== PRÉSENCES =====================
+        let currentPresencesPlanningId = null;
+        
         async function showPresences(planningId) {
+            currentPresencesPlanningId = planningId;
             try {
                 const response = await fetch(`${API_URL}/enseignants/presences/${planningId}`, {
                     headers: { 'Authorization': `Bearer ${currentToken}` }
@@ -2247,54 +2256,82 @@
                     
                     document.getElementById('presencesTitle').textContent = `📋 ${planning.atelier_nom} - ${planning.jour} ${planning.periode}`;
                     
-                    let html = `<p style="margin-bottom:15px;">Salle: ${planning.salle_nom || '-'} | ${eleves.length} élèves</p>`;
+                    let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; padding:10px; background:#f3f4f6; border-radius:8px;">
+                        <span>📍 ${planning.salle_nom || '-'} | <strong>${eleves.length}</strong> élèves</span>
+                        <div id="presenceStats" style="font-weight:600;"></div>
+                    </div>`;
                     
                     if (eleves.length === 0) {
-                        html += '<p style="color:#666;">Aucun élève inscrit.</p>';
+                        html += '<p style="color:#666; text-align:center; padding:20px;">Aucun élève inscrit.</p>';
                     } else {
-                        html += `<form onsubmit="savePresences(event, ${planningId})">
-                            <table style="width:100%; border-collapse:collapse;">
-                                <thead><tr style="background:#f3f4f6;">
-                                    <th style="padding:10px; text-align:left;">Élève</th>
-                                    <th style="padding:10px;">Classe</th>
-                                    <th style="padding:10px;">Présent</th>
-                                    <th style="padding:10px;">Absent</th>
-                                    <th style="padding:10px;">Remarque</th>
-                                </tr></thead>
-                                <tbody>`;
+                        html += `<div style="margin-bottom:10px; display:flex; gap:10px;">
+                            <button type="button" onclick="selectAllPresences(true)" class="btn btn-secondary" style="padding:6px 12px; font-size:12px;">✓ Tous présents</button>
+                            <button type="button" onclick="selectAllPresences(false)" class="btn btn-secondary" style="padding:6px 12px; font-size:12px;">✗ Tous absents</button>
+                        </div>
+                        <div id="elevesPresenceList" style="max-height:400px; overflow-y:auto;">`;
                         
-                        eleves.forEach(e => {
-                            const isPresent = e.presence_statut === 'present';
-                            const isAbsent = e.presence_statut === 'absent';
+                        eleves.forEach((e, i) => {
+                            // Par défaut présent si pas encore pointé, sinon on garde le statut
+                            const isPresent = e.presence_statut !== 'absent';
+                            const bgColor = isPresent ? '#f0fdf4' : '#fef2f2';
+                            const borderColor = isPresent ? '#10b981' : '#ef4444';
                             
-                            html += `<tr style="border-bottom:1px solid #eee;">
-                                <td style="padding:10px;">${e.nom} ${e.prenom}</td>
-                                <td style="padding:10px; text-align:center;">${e.classe_nom}</td>
-                                <td style="padding:10px; text-align:center;">
-                                    <input type="radio" name="presence_${e.eleve_id}" value="present" ${isPresent ? 'checked' : ''}>
-                                </td>
-                                <td style="padding:10px; text-align:center;">
-                                    <input type="radio" name="presence_${e.eleve_id}" value="absent" ${isAbsent ? 'checked' : ''}>
-                                </td>
-                                <td style="padding:10px;">
-                                    <input type="text" id="comment_${e.eleve_id}" value="${e.presence_commentaire || ''}" placeholder="..." style="width:100%; padding:5px; border:1px solid #ddd; border-radius:3px;">
-                                </td>
-                            </tr>`;
+                            html += `<div id="row_${e.eleve_id}" class="presence-row" style="display:flex; align-items:center; gap:12px; padding:12px; margin-bottom:6px; background:${bgColor}; border-left:4px solid ${borderColor}; border-radius:6px; transition:all 0.2s;">
+                                <label style="cursor:pointer; display:flex; align-items:center; gap:10px; flex:1;">
+                                    <input type="checkbox" id="presence_${e.eleve_id}" ${isPresent ? 'checked' : ''} 
+                                        onchange="togglePresenceRow(${e.eleve_id})" 
+                                        style="width:24px; height:24px; cursor:pointer; accent-color:#10b981;">
+                                    <span style="font-weight:600; font-size:15px;">${e.nom} ${e.prenom}</span>
+                                    <span style="color:#6b7280; font-size:13px;">${e.classe_nom}</span>
+                                </label>
+                                <input type="text" id="comment_${e.eleve_id}" value="${e.presence_commentaire || ''}" 
+                                    placeholder="Remarque..." 
+                                    style="width:150px; padding:6px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px;">
+                            </div>`;
                         });
                         
-                        html += `</tbody></table>
-                            <div style="margin-top:15px; display:flex; gap:10px; justify-content:space-between; align-items:center;">
-                                <a href="https://www.vd.ch/themes/formation/scolarite-obligatoire/prestations-et-ressources-pour-les-professionnel%C2%B7le%C2%B7s/base-de-donnees-scolaire-bds" target="_blank" style="color:#667eea;">📊 Base centrale VD</a>
-                                <button type="submit" class="btn btn-success">💾 Enregistrer</button>
-                            </div>
-                        </form>`;
+                        html += `</div>`;
                     }
                     
                     document.getElementById('presencesContent').innerHTML = html;
                     document.getElementById('presencesModal').style.display = 'flex';
+                    updatePresenceStats();
                 }
             } catch (error) {
                 alert('Erreur chargement présences');
+            }
+        }
+        
+        function togglePresenceRow(eleveId) {
+            const checkbox = document.getElementById(`presence_${eleveId}`);
+            const row = document.getElementById(`row_${eleveId}`);
+            if (checkbox.checked) {
+                row.style.background = '#f0fdf4';
+                row.style.borderLeftColor = '#10b981';
+            } else {
+                row.style.background = '#fef2f2';
+                row.style.borderLeftColor = '#ef4444';
+            }
+            updatePresenceStats();
+        }
+        
+        function selectAllPresences(present) {
+            const checkboxes = document.querySelectorAll('#elevesPresenceList input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = present;
+                const eleveId = cb.id.replace('presence_', '');
+                togglePresenceRow(eleveId);
+            });
+        }
+        
+        function updatePresenceStats() {
+            const checkboxes = document.querySelectorAll('#elevesPresenceList input[type="checkbox"]');
+            let presents = 0, absents = 0;
+            checkboxes.forEach(cb => cb.checked ? presents++ : absents++);
+            
+            const statsDiv = document.getElementById('presenceStats');
+            if (statsDiv) {
+                statsDiv.innerHTML = `<span style="color:#10b981;">✓ ${presents}</span> / <span style="color:#ef4444;">✗ ${absents}</span>`;
             }
         }
 
@@ -2303,25 +2340,23 @@
         }
 
         async function savePresences(e, planningId) {
-            e.preventDefault();
+            if (e) e.preventDefault();
             
-            const form = e.target;
             const presences = [];
+            const checkboxes = document.querySelectorAll('#elevesPresenceList input[type="checkbox"]');
             
-            // Récupérer tous les radios cochés
-            const radios = form.querySelectorAll('input[type="radio"]:checked');
-            radios.forEach(radio => {
-                const eleveId = radio.name.replace('presence_', '');
+            checkboxes.forEach(cb => {
+                const eleveId = cb.id.replace('presence_', '');
                 const commentaire = document.getElementById(`comment_${eleveId}`)?.value || '';
                 presences.push({
                     eleve_id: parseInt(eleveId),
-                    statut: radio.value,
+                    statut: cb.checked ? 'present' : 'absent',
                     commentaire: commentaire
                 });
             });
             
             try {
-                const response = await fetch(`${API_URL}/enseignants/presences/${planningId}`, {
+                const response = await fetch(`${API_URL}/enseignants/presences/${planningId || currentPresencesPlanningId}`, {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
@@ -2332,7 +2367,9 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    alert('Présences enregistrées');
+                    alert('✅ Appel validé !');
+                    closePresencesModal();
+                    loadHoraire(); // Rafraîchir l'horaire pour montrer que c'est validé
                 } else {
                     alert(data.message || 'Erreur');
                 }
