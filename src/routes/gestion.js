@@ -1655,4 +1655,137 @@ router.post('/config-semaine', async (req, res) => {
     }
 });
 
+// ========== TABLEAU ÉLÈVES SANS INSCRIPTION COMPLÈTE ==========
+
+/**
+ * GET /api/gestion/inscriptions-incompletes
+ * Retourne tous les élèves avec le détail de leurs créneaux manquants
+ */
+router.get('/inscriptions-incompletes', async (req, res) => {
+    try {
+        // 1. Récupérer tous les créneaux actifs (sauf mercredi P6-7)
+        const creneaux = await query(`
+            SELECT id, jour, periode, ordre 
+            FROM creneaux 
+            WHERE actif = TRUE 
+            AND NOT (jour = 'mercredi' AND periode = 'P6-7')
+            ORDER BY ordre
+        `);
+        
+        const totalCreneaux = creneaux.length;
+        
+        // 2. Récupérer tous les élèves avec leur classe
+        const eleves = await query(`
+            SELECT e.id as eleve_id, u.nom, u.prenom, u.acronyme, cl.nom as classe_nom, cl.id as classe_id
+            FROM eleves e
+            JOIN utilisateurs u ON e.utilisateur_id = u.id
+            JOIN classes cl ON e.classe_id = cl.id
+            WHERE u.actif = TRUE
+            ORDER BY cl.nom, u.nom, u.prenom
+        `);
+        
+        // 3. Récupérer toutes les inscriptions confirmées avec les créneaux occupés
+        const inscriptions = await query(`
+            SELECT 
+                i.eleve_id,
+                p.creneau_id,
+                p.nombre_creneaux,
+                a.nom as atelier_nom,
+                c.jour,
+                c.periode,
+                c.ordre
+            FROM inscriptions i
+            JOIN planning p ON i.planning_id = p.id
+            JOIN ateliers a ON i.atelier_id = a.id
+            JOIN creneaux c ON p.creneau_id = c.id
+            WHERE i.statut = 'confirmee'
+            ORDER BY i.eleve_id, c.ordre
+        `);
+        
+        // 4. Construire la map des créneaux occupés par élève
+        const creneauxParEleve = {};
+        const ateliersParEleve = {};
+        
+        for (const insc of inscriptions) {
+            if (!creneauxParEleve[insc.eleve_id]) {
+                creneauxParEleve[insc.eleve_id] = new Set();
+                ateliersParEleve[insc.eleve_id] = [];
+            }
+            
+            // L'atelier occupe nombre_creneaux créneaux consécutifs à partir de creneau_id
+            for (let i = 0; i < insc.nombre_creneaux; i++) {
+                creneauxParEleve[insc.eleve_id].add(insc.creneau_id + i);
+            }
+            
+            ateliersParEleve[insc.eleve_id].push({
+                nom: insc.atelier_nom,
+                jour: insc.jour,
+                periode: insc.periode
+            });
+        }
+        
+        // 5. Calculer les créneaux manquants pour chaque élève
+        const resultats = [];
+        let nbComplets = 0;
+        let nbIncomplets = 0;
+        let nbSansInscription = 0;
+        
+        for (const eleve of eleves) {
+            const occupes = creneauxParEleve[eleve.eleve_id] || new Set();
+            const manquants = creneaux.filter(c => !occupes.has(c.id));
+            const nbAteliers = ateliersParEleve[eleve.eleve_id] ? ateliersParEleve[eleve.eleve_id].length : 0;
+            
+            if (manquants.length === 0) {
+                nbComplets++;
+            } else {
+                if (nbAteliers === 0) nbSansInscription++;
+                else nbIncomplets++;
+                
+                resultats.push({
+                    eleve_id: eleve.eleve_id,
+                    nom: eleve.nom,
+                    prenom: eleve.prenom,
+                    acronyme: eleve.acronyme,
+                    classe: eleve.classe_nom,
+                    classe_id: eleve.classe_id,
+                    nb_ateliers: nbAteliers,
+                    nb_creneaux_occupes: occupes.size,
+                    nb_creneaux_total: totalCreneaux,
+                    nb_creneaux_manquants: manquants.length,
+                    pourcentage: Math.round((1 - manquants.length / totalCreneaux) * 100),
+                    creneaux_manquants: manquants.map(c => ({
+                        id: c.id,
+                        jour: c.jour,
+                        periode: c.periode
+                    }))
+                });
+            }
+        }
+        
+        // Trier : sans inscription d'abord, puis par nb manquants décroissant
+        resultats.sort((a, b) => {
+            if (a.nb_ateliers === 0 && b.nb_ateliers > 0) return -1;
+            if (a.nb_ateliers > 0 && b.nb_ateliers === 0) return 1;
+            return b.nb_creneaux_manquants - a.nb_creneaux_manquants;
+        });
+        
+        res.json({
+            success: true,
+            stats: {
+                total_eleves: eleves.length,
+                complets: nbComplets,
+                incomplets: nbIncomplets,
+                sans_inscription: nbSansInscription,
+                total_creneaux: totalCreneaux,
+                taux_completion: eleves.length > 0 ? Math.round(nbComplets / eleves.length * 100) : 0
+            },
+            eleves: resultats
+        });
+        
+    } catch (error) {
+        console.error('Erreur inscriptions incomplètes:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur: ' + error.message });
+    }
+});
+
 module.exports = router;
