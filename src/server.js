@@ -15,6 +15,7 @@ const presenceRoutes = require('./routes/presence');
 const printRoutes = require('./routes/print');
 const catalogueRoutes = require('./routes/catalogue');
 const evaluationsRoutes = require('./routes/evaluations');
+const archivesRoutes = require('./routes/archives');
 console.log('✅ evaluationsRoutes chargé:', typeof evaluationsRoutes);
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -40,6 +41,7 @@ app.use('/api/gestion', gestionRoutes);
 app.use('/api/presence', presenceRoutes);
 app.use('/api/print', printRoutes);
 app.use('/api/evaluations', evaluationsRoutes);
+app.use('/api/archives', archivesRoutes);
 app.use('/api/catalogue', catalogueRoutes);
 
 // Route de test
@@ -92,6 +94,70 @@ async function initAdmin() {
     }
 }
 
+// Création des tables archives si elles n'existent pas
+async function ensureArchiveTables() {
+    try {
+        await query(`
+            CREATE TABLE IF NOT EXISTS archives (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                annee VARCHAR(20) NOT NULL,
+                nom VARCHAR(200) NOT NULL,
+                date_cloture DATETIME,
+                stats_nb_ateliers INT DEFAULT 0,
+                stats_nb_eleves INT DEFAULT 0,
+                stats_nb_enseignants INT DEFAULT 0,
+                stats_nb_inscriptions INT DEFAULT 0,
+                stats_note_moyenne DECIMAL(3,2) DEFAULT NULL,
+                commentaire TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY unique_annee (annee)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `);
+        
+        await query(`
+            CREATE TABLE IF NOT EXISTS archives_ateliers (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                archive_id INT NOT NULL,
+                atelier_original_id INT,
+                nom VARCHAR(200) NOT NULL,
+                description TEXT,
+                enseignant_noms VARCHAR(500),
+                theme_nom VARCHAR(100),
+                theme_couleur VARCHAR(20),
+                duree INT,
+                nombre_places_max INT,
+                nombre_inscrits INT DEFAULT 0,
+                note_moyenne DECIMAL(3,2) DEFAULT NULL,
+                nb_evaluations INT DEFAULT 0,
+                creneaux_texte VARCHAR(500),
+                salle_nom VARCHAR(100),
+                FOREIGN KEY (archive_id) REFERENCES archives(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `);
+        
+        await query(`
+            CREATE TABLE IF NOT EXISTS archives_inscriptions (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                archive_id INT NOT NULL,
+                eleve_utilisateur_id INT,
+                eleve_nom VARCHAR(100),
+                eleve_prenom VARCHAR(100),
+                classe_nom VARCHAR(50),
+                atelier_nom VARCHAR(200),
+                creneaux_texte VARCHAR(500),
+                salle_nom VARCHAR(100),
+                note_donnee INT DEFAULT NULL,
+                commentaire_donne TEXT,
+                FOREIGN KEY (archive_id) REFERENCES archives(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `);
+        
+        console.log('✅ Tables archives vérifiées');
+    } catch (error) {
+        console.error('⚠️ Erreur création tables archives:', error.message);
+    }
+}
+
 // Démarrage du serveur
 async function startServer() {
     try {
@@ -104,6 +170,7 @@ async function startServer() {
         }
 
         await initAdmin();
+        await ensureArchiveTables();
 
         app.listen(PORT, () => {
             console.log('\n╔════════════════════════════════════════════════════════════╗');
