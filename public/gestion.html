@@ -75,7 +75,7 @@
             <h2 style="margin-bottom: 20px;">📋 Listes</h2>
             <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
                 <button class="btn btn-primary" onclick="loadListe('enseignants')">👨‍🏫 Enseignants</button>
-                <button class="btn btn-primary" onclick="loadListe('eleves')">🎓 Élèves</button>
+                <button class="btn btn-primary" onclick="showElevesAvecFiltres()">🎓 Élèves</button>
                 <button class="btn btn-primary" onclick="loadListe('classes')">🏫 Classes</button>
                 <button class="btn btn-primary" onclick="loadListe('salles')">🚪 Salles</button>
                 <button class="btn btn-primary" onclick="loadListe('themes')">🎨 Thèmes</button>
@@ -737,6 +737,228 @@ Cuisine,15,Cuisine,Bâtiment B" style="width:100%; padding:10px; font-family:mon
                 const places = p.nombre_places_max - p.nb_inscrits;
                 select.innerHTML += `<option value="${p.planning_id}">${p.atelier_nom} - ${jour} ${p.periode} (${places} places)</option>`;
             });
+        }
+
+        // ========== LISTE ÉLÈVES AVEC FILTRES MULTI-CLASSES ==========
+        let classesDataCache = [];
+        let selectedClassesFilter = new Set();
+        
+        async function showElevesAvecFiltres() {
+            // Charger les classes si pas déjà fait
+            if (classesDataCache.length === 0) {
+                const resp = await fetch(`${API_BASE}/classes`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const result = await resp.json();
+                classesDataCache = result.data || [];
+            }
+            
+            // Construire l'interface avec filtres
+            let html = `
+                <div style="background:#f3f4f6; padding:15px; border-radius:10px; margin-bottom:15px;">
+                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+                        <strong>Filtrer par classes :</strong>
+                        <button class="btn btn-sm btn-secondary" onclick="toggleAllClasses(true)">Toutes</button>
+                        <button class="btn btn-sm btn-secondary" onclick="toggleAllClasses(false)">Aucune</button>
+                    </div>
+                    <div id="classesCheckboxes" style="display:flex; flex-wrap:wrap; gap:8px;">
+            `;
+            
+            classesDataCache.forEach(c => {
+                const checked = selectedClassesFilter.size === 0 || selectedClassesFilter.has(c.id);
+                html += `<label style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:white; border-radius:6px; cursor:pointer; font-size:13px;">
+                    <input type="checkbox" value="${c.id}" ${checked ? 'checked' : ''} onchange="updateClassFilter()"> ${c.nom}
+                </label>`;
+            });
+            
+            html += `</div></div>
+                <div style="margin-bottom:15px;">
+                    <button class="btn btn-success" onclick="showAddModal('eleve')">➕ Ajouter un élève</button>
+                </div>
+                <div id="elevesTableContainer">Chargement...</div>
+            `;
+            
+            document.getElementById('listeContainer').innerHTML = html;
+            loadElevesFiltered();
+        }
+        
+        function toggleAllClasses(selectAll) {
+            const checkboxes = document.querySelectorAll('#classesCheckboxes input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = selectAll);
+            updateClassFilter();
+        }
+        
+        function updateClassFilter() {
+            selectedClassesFilter.clear();
+            const checkboxes = document.querySelectorAll('#classesCheckboxes input[type="checkbox"]:checked');
+            checkboxes.forEach(cb => selectedClassesFilter.add(parseInt(cb.value)));
+            loadElevesFiltered();
+        }
+        
+        async function loadElevesFiltered() {
+            try {
+                let url = `${API_BASE}/eleves-avec-indispos`;
+                if (selectedClassesFilter.size > 0) {
+                    url += `?classes=${Array.from(selectedClassesFilter).join(',')}`;
+                }
+                
+                const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+                const result = await response.json();
+                
+                let html = '<table><thead><tr><th>Nom</th><th>Prénom</th><th>Classe</th><th>Login</th><th>Indispos</th><th>Actions</th></tr></thead><tbody>';
+                
+                result.data.forEach(e => {
+                    const nomEsc = (e.nom || '').replace(/'/g, "\\'");
+                    const prenomEsc = (e.prenom || '').replace(/'/g, "\\'");
+                    const indisposBadge = e.nb_indispos > 0 
+                        ? `<span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:600;">${e.nb_indispos} créneaux</span>`
+                        : '<span style="color:#9ca3af;">-</span>';
+                    
+                    html += `<tr>
+                        <td>${e.nom}</td>
+                        <td>${e.prenom}</td>
+                        <td>${e.classe_nom}</td>
+                        <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;">${e.login || '-'}</code></td>
+                        <td>${indisposBadge}</td>
+                        <td style="white-space:nowrap;">
+                            <button class="btn btn-sm btn-primary" onclick="editEleve(${e.eleve_id}, '${nomEsc}', '${prenomEsc}', ${e.classe_id})">✏️</button>
+                            <button class="btn btn-sm" style="background:#f59e0b; color:white;" onclick="showIndisponibilites(${e.eleve_id}, '${prenomEsc} ${nomEsc}')">🚫 Indispos</button>
+                            <button class="btn btn-sm btn-warning" onclick="resetPasswordEleve(${e.eleve_id}, '${prenomEsc} ${nomEsc}')">🔑</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteEleve(${e.eleve_id}, '${prenomEsc} ${nomEsc}')">🗑️</button>
+                        </td>
+                    </tr>`;
+                });
+                
+                html += '</tbody></table>';
+                html += `<div style="margin-top:15px;"><button class="btn btn-danger" onclick="resetAllPasswords('eleves')">🔑 Réinitialiser TOUS les MDP élèves</button></div>`;
+                html += `<p style="margin-top:10px; color:#6b7280; font-size:13px;">${result.data.length} élève(s) affiché(s)</p>`;
+                
+                document.getElementById('elevesTableContainer').innerHTML = html;
+                
+            } catch (error) {
+                console.error('Erreur:', error);
+                document.getElementById('elevesTableContainer').innerHTML = '<p style="color:#ef4444;">Erreur de chargement</p>';
+            }
+        }
+        
+        // ========== MODALE INDISPONIBILITÉS ==========
+        async function showIndisponibilites(eleveId, eleveNom) {
+            // Charger les indisponibilités actuelles
+            const response = await fetch(`${API_BASE}/eleves/${eleveId}/indisponibilites`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const result = await response.json();
+            
+            if (!result.success) {
+                alert('Erreur: ' + result.message);
+                return;
+            }
+            
+            const JOURS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
+            const creneauxParJour = {};
+            JOURS.forEach(j => creneauxParJour[j] = []);
+            
+            result.creneaux.forEach(c => {
+                if (creneauxParJour[c.jour]) {
+                    creneauxParJour[c.jour].push(c);
+                }
+            });
+            
+            let html = `
+                <div class="modal-overlay" id="indispoModal" style="display:flex; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+                    <div style="background:white; border-radius:15px; max-width:800px; width:95%; max-height:90vh; overflow-y:auto;">
+                        <div style="background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color:white; padding:20px; display:flex; justify-content:space-between; align-items:center;">
+                            <h2>🚫 Indisponibilités de ${eleveNom}</h2>
+                            <button onclick="document.getElementById('indispoModal').remove()" style="background:none; border:none; color:white; font-size:28px; cursor:pointer;">&times;</button>
+                        </div>
+                        <div style="padding:20px;">
+                            <p style="margin-bottom:15px; color:#6b7280;">Cocher les créneaux où l'élève ne peut <strong>pas</strong> participer (absence prévue, obligation, etc.)</p>
+                            <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:10px;">
+            `;
+            
+            JOURS.forEach(jour => {
+                const jourCap = jour.charAt(0).toUpperCase() + jour.slice(1);
+                html += `<div style="text-align:center;">
+                    <div style="font-weight:700; margin-bottom:8px; padding:8px; background:#f3f4f6; border-radius:6px;">${jourCap}</div>`;
+                
+                creneauxParJour[jour].forEach(c => {
+                    if (jour === 'mercredi' && c.periode === 'P6-7') {
+                        html += `<div style="padding:10px; color:#9ca3af; font-size:12px;">Congé</div>`;
+                    } else {
+                        const bgColor = c.indisponible ? '#fef2f2' : 'white';
+                        const borderColor = c.indisponible ? '#ef4444' : '#e5e7eb';
+                        html += `<label style="display:block; padding:10px; margin-bottom:6px; background:${bgColor}; border:2px solid ${borderColor}; border-radius:8px; cursor:pointer; transition:all 0.2s;" 
+                            onmouseover="this.style.borderColor='#f59e0b'" onmouseout="this.style.borderColor='${c.indisponible ? '#ef4444' : '#e5e7eb'}'">
+                            <input type="checkbox" id="indispo_${c.id}" ${c.indisponible ? 'checked' : ''} 
+                                onchange="toggleIndispoStyle(this, ${c.id})"
+                                style="margin-right:6px;">
+                            <span style="font-size:13px;">${c.periode}</span>
+                        </label>`;
+                    }
+                });
+                
+                html += '</div>';
+            });
+            
+            html += `</div>
+                        <div style="margin-top:20px; padding-top:15px; border-top:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center;">
+                            <span style="color:#6b7280; font-size:13px;">Les créneaux cochés seront bloqués pour l'inscription.</span>
+                            <div style="display:flex; gap:10px;">
+                                <button class="btn btn-secondary" onclick="document.getElementById('indispoModal').remove()">Annuler</button>
+                                <button class="btn btn-success" onclick="saveIndisponibilites(${eleveId})">💾 Enregistrer</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+            
+            document.body.insertAdjacentHTML('beforeend', html);
+        }
+        
+        function toggleIndispoStyle(checkbox, creneauId) {
+            const label = checkbox.parentElement;
+            if (checkbox.checked) {
+                label.style.background = '#fef2f2';
+                label.style.borderColor = '#ef4444';
+            } else {
+                label.style.background = 'white';
+                label.style.borderColor = '#e5e7eb';
+            }
+        }
+        
+        async function saveIndisponibilites(eleveId) {
+            const checkboxes = document.querySelectorAll('#indispoModal input[type="checkbox"]');
+            const creneaux = [];
+            
+            checkboxes.forEach(cb => {
+                const creneauId = parseInt(cb.id.replace('indispo_', ''));
+                creneaux.push({
+                    creneau_id: creneauId,
+                    indisponible: cb.checked,
+                    raison: '' // On pourrait ajouter un champ raison si besoin
+                });
+            });
+            
+            try {
+                const response = await fetch(`${API_BASE}/eleves/${eleveId}/indisponibilites`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ creneaux })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('indispoModal').remove();
+                    showAlert(result.message, 'success');
+                    loadElevesFiltered(); // Rafraîchir la liste
+                } else {
+                    alert('Erreur: ' + result.message);
+                }
+            } catch (error) {
+                alert('Erreur de connexion');
+            }
         }
 
         async function loadListe(type) {

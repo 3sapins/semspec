@@ -747,6 +747,8 @@
         }
 
         // Charger toutes les données
+        let indisponibilitesEleve = new Set(); // créneaux où l'élève est indisponible
+        
         async function loadData() {
             try {
                 // Charger le profil pour avoir la classe
@@ -759,15 +761,40 @@
                     document.getElementById('userClasse').textContent = dataProfil.data?.classe_nom || '-';
                     inscriptionsOuvertes = dataProfil.data?.inscriptions_ouvertes !== false;
                     
+                    // Stocker les indisponibilités
+                    indisponibilitesEleve.clear();
+                    if (dataProfil.data?.indisponibilites) {
+                        dataProfil.data.indisponibilites.forEach(i => {
+                            indisponibilitesEleve.add(i.creneau_id);
+                        });
+                    }
+                    
+                    let alertHtml = '';
+                    
                     if (!inscriptionsOuvertes) {
-                        document.getElementById('alertsBanner').innerHTML = `
+                        alertHtml += `
                             <div class="alert alert-warning">
                                 <strong>⚠️ Inscriptions fermées</strong> - Les inscriptions ne sont pas encore ouvertes pour ta classe.
                             </div>
                         `;
-                    } else {
-                        document.getElementById('alertsBanner').innerHTML = '';
                     }
+                    
+                    // Afficher les indisponibilités si il y en a
+                    if (indisponibilitesEleve.size > 0) {
+                        const indisposList = dataProfil.data.indisponibilites.map(i => {
+                            const jourCap = i.jour.charAt(0).toUpperCase() + i.jour.slice(1);
+                            return `${jourCap} ${i.periode}`;
+                        }).join(', ');
+                        
+                        alertHtml += `
+                            <div class="alert" style="background:#fef3c7; border-left:4px solid #f59e0b; padding:12px 15px; border-radius:8px; margin-bottom:10px;">
+                                <strong>🚫 Créneaux bloqués :</strong> ${indisposList}<br>
+                                <span style="font-size:13px; color:#92400e;">Tu ne peux pas t'inscrire à ces créneaux (absence prévue signalée par ton école).</span>
+                            </div>
+                        `;
+                    }
+                    
+                    document.getElementById('alertsBanner').innerHTML = alertHtml;
                 }
 
                 // Charger le catalogue des ateliers
