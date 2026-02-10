@@ -131,6 +131,62 @@
             font-size: 11px;
             color: #6b7280;
         }
+
+        /* Bouton installation PWA */
+        .install-banner {
+            display: none;
+            margin-top: 20px;
+            padding: 15px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .install-banner p {
+            color: white;
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+
+        .btn-install {
+            background: white;
+            color: #059669;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn-install:hover {
+            transform: scale(1.05);
+        }
+
+        .install-instructions {
+            display: none;
+            margin-top: 15px;
+            padding: 15px;
+            background: #f3f4f6;
+            border-radius: 10px;
+            text-align: left;
+            font-size: 13px;
+            color: #374151;
+        }
+
+        .install-instructions h4 {
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+
+        .install-instructions ol {
+            margin-left: 20px;
+        }
+
+        .install-instructions li {
+            margin-bottom: 5px;
+        }
     </style>
 </head>
 <body>
@@ -138,6 +194,23 @@
         <div class="logo">
             <h1>🎯 Semaine Spéciale</h1>
             <p>Collège des Trois-Sapins, Echallens</p>
+        </div>
+
+        <!-- Bannière installation PWA -->
+        <div id="installBanner" class="install-banner">
+            <p>📱 Installe l'app sur ton téléphone !</p>
+            <button class="btn-install" onclick="handleInstall()">📲 Installer l'application</button>
+        </div>
+
+        <!-- Instructions manuelles pour iOS -->
+        <div id="installInstructions" class="install-instructions">
+            <h4>📱 Installation sur iPhone :</h4>
+            <ol>
+                <li>Appuie sur <strong>Partager</strong> (icône ⬆️ en bas)</li>
+                <li>Fais défiler et appuie sur <strong>"Sur l'écran d'accueil"</strong></li>
+                <li>Appuie sur <strong>Ajouter</strong></li>
+            </ol>
+            <button onclick="document.getElementById('installInstructions').style.display='none'" style="margin-top:10px; padding:8px 15px; background:#667eea; color:white; border:none; border-radius:6px; cursor:pointer;">Compris !</button>
         </div>
 
         <div id="alert" class="alert"></div>
@@ -163,6 +236,59 @@
     </div>
 
     <script>
+        // ========== INSTALLATION PWA ==========
+        let deferredPrompt = null;
+        
+        // Détecter si on est sur mobile
+        const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+        
+        // Écouter l'événement beforeinstallprompt (Android/Chrome)
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            // Afficher le bouton d'installation
+            if (isMobile && !isStandalone) {
+                document.getElementById('installBanner').style.display = 'block';
+            }
+        });
+        
+        // Si on est sur mobile et pas en mode standalone, afficher la bannière
+        if (isMobile && !isStandalone) {
+            // Sur iOS, on ne peut pas détecter beforeinstallprompt, donc on affiche directement
+            if (isIOS) {
+                document.getElementById('installBanner').style.display = 'block';
+            }
+        }
+        
+        function handleInstall() {
+            if (deferredPrompt) {
+                // Android : utiliser le prompt natif
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        document.getElementById('installBanner').style.display = 'none';
+                    }
+                    deferredPrompt = null;
+                });
+            } else if (isIOS) {
+                // iOS : afficher les instructions manuelles
+                document.getElementById('installBanner').style.display = 'none';
+                document.getElementById('installInstructions').style.display = 'block';
+            } else {
+                // Fallback : afficher les instructions
+                alert('Pour installer l\'app :\n\n1. Ouvre le menu du navigateur (⋮ ou ⋯)\n2. Choisis "Installer l\'application" ou "Ajouter à l\'écran d\'accueil"');
+            }
+        }
+        
+        // Cacher la bannière si l'app est installée
+        window.addEventListener('appinstalled', () => {
+            document.getElementById('installBanner').style.display = 'none';
+            deferredPrompt = null;
+        });
+
+        // ========== CONNEXION ==========
         // Si déjà connecté, rediriger
         const existingToken = localStorage.getItem('token');
         if (existingToken) {
