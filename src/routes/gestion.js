@@ -1791,6 +1791,100 @@ router.get('/inscriptions-incompletes', async (req, res) => {
 // ========== INDISPONIBILITÉS ÉLÈVES ==========
 
 /**
+ * GET /api/gestion/eleves/:eleveId/horaire
+ * Retourne l'horaire complet d'un élève avec ses inscriptions
+ */
+router.get('/eleves/:eleveId/horaire', async (req, res) => {
+    try {
+        const { eleveId } = req.params;
+        
+        // Infos élève
+        const eleveInfo = await query(`
+            SELECT e.id, u.nom, u.prenom, c.nom as classe_nom
+            FROM eleves e
+            JOIN utilisateurs u ON e.utilisateur_id = u.id
+            JOIN classes c ON e.classe_id = c.id
+            WHERE e.id = ?
+        `, [eleveId]);
+        
+        if (eleveInfo.length === 0) {
+            return res.status(404).json({ success: false, message: 'Élève non trouvé' });
+        }
+        
+        // Tous les créneaux
+        const creneaux = await query(`
+            SELECT id, jour, periode, ordre 
+            FROM creneaux 
+            WHERE actif = TRUE
+            ORDER BY ordre
+        `);
+        
+        // Inscriptions de l'élève
+        const inscriptions = await query(`
+            SELECT 
+                i.id as inscription_id,
+                a.id as atelier_id,
+                a.nom as atelier_nom,
+                a.duree,
+                p.creneau_id,
+                p.nombre_creneaux,
+                c.jour,
+                c.periode,
+                c.ordre,
+                s.nom as salle_nom,
+                t.nom as theme_nom,
+                t.couleur as theme_couleur
+            FROM inscriptions i
+            JOIN planning p ON i.planning_id = p.id
+            JOIN ateliers a ON i.atelier_id = a.id
+            JOIN creneaux c ON p.creneau_id = c.id
+            LEFT JOIN salles s ON p.salle_id = s.id
+            LEFT JOIN themes t ON a.theme_id = t.id
+            WHERE i.eleve_id = ? AND i.statut = 'confirmee'
+            ORDER BY c.ordre
+        `, [eleveId]);
+        
+        // Indisponibilités
+        const indispos = await query(`
+            SELECT creneau_id, raison FROM indisponibilites_eleves WHERE eleve_id = ?
+        `, [eleveId]);
+        const indispoSet = new Set(indispos.map(i => i.creneau_id));
+        
+        // Construire la map des créneaux occupés
+        const creneauxOccupes = {};
+        inscriptions.forEach(insc => {
+            const nbCreneaux = insc.nombre_creneaux || 1;
+            for (let i = 0; i < nbCreneaux; i++) {
+                creneauxOccupes[insc.creneau_id + i] = {
+                    ...insc,
+                    isFirst: i === 0,
+                    rowspan: i === 0 ? nbCreneaux : 0
+                };
+            }
+        });
+        
+        res.json({
+            success: true,
+            eleve: eleveInfo[0],
+            creneaux: creneaux,
+            inscriptions: inscriptions,
+            creneauxOccupes: creneauxOccupes,
+            indisponibilites: Array.from(indispoSet),
+            stats: {
+                nb_inscriptions: inscriptions.length,
+                nb_creneaux_total: creneaux.filter(c => !(c.jour === 'mercredi' && c.periode === 'P6-7')).length,
+                nb_creneaux_remplis: Object.keys(creneauxOccupes).length,
+                nb_indispos: indispoSet.size
+            }
+        });
+        
+    } catch (error) {
+        console.error('Erreur horaire élève:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
  * GET /api/gestion/eleves/:eleveId/indisponibilites
  * Retourne les indisponibilités d'un élève
  */
