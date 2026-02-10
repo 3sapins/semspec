@@ -914,6 +914,7 @@
                     }
                     
                     const inscription = inscriptionParCreneau[creneau.id];
+                    const isIndispo = indisponibilitesEleve.has(creneau.id);
                     
                     if (inscription) {
                         if (inscription.isStart) {
@@ -933,6 +934,11 @@
                                 </div>
                             </td>`;
                         }
+                    } else if (isIndispo) {
+                        // Créneau indisponible
+                        html += `<td class="creneau-indispo" style="background:#fef3c7; color:#92400e; text-align:center; font-weight:600;">
+                            🚫 Indispo
+                        </td>`;
                     } else {
                         html += `<td class="creneau-vide">À compléter</td>`;
                     }
@@ -948,8 +954,9 @@
         }
 
         function checkValidation() {
+            // Créneaux requis = tous sauf mercredi P6-7 ET sauf indisponibilités
             const creneauxRequis = creneauxData.filter(c => 
-                !(c.jour === 'mercredi' && c.periode === 'P6-7')
+                !(c.jour === 'mercredi' && c.periode === 'P6-7') && !indisponibilitesEleve.has(c.id)
             );
             
             const creneauxRemplis = new Set();
@@ -1131,6 +1138,16 @@
                 else if (creneau.periode === 'P3-4') periodeDisplay = 'P3-P6';
             }
             
+            // Vérifier si l'un des créneaux de l'atelier est indisponible
+            const nbCreneaux = creneau.nombre_creneaux || Math.ceil((duree || 2) / 2);
+            let hasIndispo = false;
+            for (let i = 0; i < nbCreneaux; i++) {
+                if (indisponibilitesEleve.has(creneau.creneau_id + i)) {
+                    hasIndispo = true;
+                    break;
+                }
+            }
+            
             let placesClass = 'places-dispo';
             let placesText = `${creneau.places_restantes} place(s)`;
             
@@ -1144,6 +1161,8 @@
             let actionBtn = '';
             if (!inscriptionsOuvertes) {
                 actionBtn = `<button class="btn-inscrire" disabled>Fermé</button>`;
+            } else if (hasIndispo) {
+                actionBtn = `<button class="btn-inscrire" disabled style="background:#fef3c7; color:#92400e;">🚫 Indispo</button>`;
             } else if (creneau.complet || creneau.places_restantes <= 0) {
                 actionBtn = `<button class="btn-inscrire" disabled>Complet</button>`;
             } else if (creneau.conflit_horaire) {
