@@ -205,7 +205,20 @@ async function ensureArchiveTables() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         `);
         
-        console.log('✅ Tables archives, indisponibilités et notifications vérifiées');
+        // Table des favoris/likes ateliers
+        await query(`
+            CREATE TABLE IF NOT EXISTS favoris_ateliers (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                eleve_id INT NOT NULL,
+                atelier_id INT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (eleve_id) REFERENCES eleves(id) ON DELETE CASCADE,
+                FOREIGN KEY (atelier_id) REFERENCES ateliers(id) ON DELETE CASCADE,
+                UNIQUE KEY unique_favori (eleve_id, atelier_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `);
+        
+        console.log('✅ Tables archives, indisponibilités, notifications et favoris vérifiées');
     } catch (error) {
         console.error('⚠️ Erreur création tables archives:', error.message);
     }
