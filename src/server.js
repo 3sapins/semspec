@@ -16,6 +16,7 @@ const printRoutes = require('./routes/print');
 const catalogueRoutes = require('./routes/catalogue');
 const evaluationsRoutes = require('./routes/evaluations');
 const archivesRoutes = require('./routes/archives');
+const notificationsRoutes = require('./routes/notifications');
 console.log('✅ evaluationsRoutes chargé:', typeof evaluationsRoutes);
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -42,6 +43,7 @@ app.use('/api/presence', presenceRoutes);
 app.use('/api/print', printRoutes);
 app.use('/api/evaluations', evaluationsRoutes);
 app.use('/api/archives', archivesRoutes);
+app.use('/api/notifications', notificationsRoutes);
 app.use('/api/catalogue', catalogueRoutes);
 
 // Route de test
@@ -167,7 +169,43 @@ async function ensureArchiveTables() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         `);
         
-        console.log('✅ Tables archives et indisponibilités vérifiées');
+        // Table des notifications enseignants
+        await query(`
+            CREATE TABLE IF NOT EXISTS notifications_enseignants (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                utilisateur_id INT NOT NULL,
+                type VARCHAR(50) NOT NULL,
+                titre VARCHAR(200) NOT NULL,
+                message TEXT,
+                lien VARCHAR(255),
+                data JSON,
+                lue BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id) ON DELETE CASCADE,
+                INDEX idx_utilisateur (utilisateur_id),
+                INDEX idx_lue (lue)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `);
+        
+        // Table des notifications élèves
+        await query(`
+            CREATE TABLE IF NOT EXISTS notifications_eleves (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                eleve_id INT NOT NULL,
+                type VARCHAR(50) NOT NULL,
+                titre VARCHAR(200) NOT NULL,
+                message TEXT,
+                lien VARCHAR(255),
+                data JSON,
+                lue BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (eleve_id) REFERENCES eleves(id) ON DELETE CASCADE,
+                INDEX idx_eleve (eleve_id),
+                INDEX idx_lue (lue)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `);
+        
+        console.log('✅ Tables archives, indisponibilités et notifications vérifiées');
     } catch (error) {
         console.error('⚠️ Erreur création tables archives:', error.message);
     }
