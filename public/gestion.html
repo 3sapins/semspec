@@ -819,8 +819,9 @@ Cuisine,15,Cuisine,Bâtiment B" style="width:100%; padding:10px; font-family:mon
                         <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;">${e.login || '-'}</code></td>
                         <td>${indisposBadge}</td>
                         <td style="white-space:nowrap;">
+                            <button class="btn btn-sm" style="background:#667eea; color:white;" onclick="showHoraireEleve(${e.eleve_id}, '${prenomEsc} ${nomEsc}')" title="Voir l'horaire">📅</button>
                             <button class="btn btn-sm btn-primary" onclick="editEleve(${e.eleve_id}, '${nomEsc}', '${prenomEsc}', ${e.classe_id})">✏️</button>
-                            <button class="btn btn-sm" style="background:#f59e0b; color:white;" onclick="showIndisponibilites(${e.eleve_id}, '${prenomEsc} ${nomEsc}')">🚫 Indispos</button>
+                            <button class="btn btn-sm" style="background:#f59e0b; color:white;" onclick="showIndisponibilites(${e.eleve_id}, '${prenomEsc} ${nomEsc}')">🚫</button>
                             <button class="btn btn-sm btn-warning" onclick="resetPasswordEleve(${e.eleve_id}, '${prenomEsc} ${nomEsc}')">🔑</button>
                             <button class="btn btn-sm btn-danger" onclick="deleteEleve(${e.eleve_id}, '${prenomEsc} ${nomEsc}')">🗑️</button>
                         </td>
@@ -959,6 +960,166 @@ Cuisine,15,Cuisine,Bâtiment B" style="width:100%; padding:10px; font-family:mon
             } catch (error) {
                 alert('Erreur de connexion');
             }
+        }
+
+        // ========== MODALE HORAIRE ÉLÈVE ==========
+        async function showHoraireEleve(eleveId, eleveNom) {
+            try {
+                const response = await fetch(`${API_BASE}/eleves/${eleveId}/horaire`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                
+                if (!result.success) {
+                    alert('Erreur: ' + result.message);
+                    return;
+                }
+                
+                const { eleve, creneaux, creneauxOccupes, indisponibilites, stats } = result;
+                const JOURS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
+                const PERIODES = ['P1-2', 'P3-4', 'P6-7'];
+                
+                // Map créneaux par jour/période
+                const creneauMap = {};
+                creneaux.forEach(c => {
+                    creneauMap[`${c.jour}-${c.periode}`] = c;
+                });
+                
+                // Calculer si complet
+                const isComplet = stats.nb_creneaux_remplis >= stats.nb_creneaux_total - stats.nb_indispos;
+                const completBadge = isComplet 
+                    ? '<span style="background:#d1fae5; color:#065f46; padding:4px 12px; border-radius:12px; font-weight:600;">✅ Horaire complet</span>'
+                    : `<span style="background:#fef3c7; color:#92400e; padding:4px 12px; border-radius:12px; font-weight:600;">⚠️ ${stats.nb_creneaux_total - stats.nb_creneaux_remplis - stats.nb_indispos} créneau(x) à compléter</span>`;
+                
+                let html = `
+                    <div class="modal-overlay" id="horaireEleveModal" style="display:flex; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+                        <div style="background:white; border-radius:15px; max-width:900px; width:95%; max-height:90vh; overflow-y:auto;">
+                            <div style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; padding:20px; display:flex; justify-content:space-between; align-items:center;">
+                                <div>
+                                    <h2 style="margin-bottom:5px;">📅 Horaire de ${eleve.prenom} ${eleve.nom}</h2>
+                                    <span style="opacity:0.9;">${eleve.classe_nom}</span>
+                                </div>
+                                <button onclick="document.getElementById('horaireEleveModal').remove()" style="background:none; border:none; color:white; font-size:28px; cursor:pointer;">&times;</button>
+                            </div>
+                            <div style="padding:20px;">
+                                <div style="display:flex; gap:15px; margin-bottom:20px; flex-wrap:wrap; align-items:center;">
+                                    ${completBadge}
+                                    <span style="color:#6b7280;">${stats.nb_inscriptions} atelier(s) inscrit(s)</span>
+                                    ${stats.nb_indispos > 0 ? `<span style="color:#f59e0b;">🚫 ${stats.nb_indispos} indispo(s)</span>` : ''}
+                                    <button class="btn btn-sm btn-secondary" onclick="printHoraireEleve()" style="margin-left:auto;">🖨️ Imprimer</button>
+                                </div>
+                                <div id="horaireEleveContent">
+                                    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                                        <thead>
+                                            <tr style="background:#f3f4f6;">
+                                                <th style="padding:10px; border:1px solid #e5e7eb;"></th>
+                `;
+                
+                JOURS.forEach(jour => {
+                    const jourCap = jour.charAt(0).toUpperCase() + jour.slice(1);
+                    html += `<th style="padding:10px; border:1px solid #e5e7eb; text-align:center;">${jourCap}</th>`;
+                });
+                html += '</tr></thead><tbody>';
+                
+                // Set pour tracker les cellules déjà rendues (pour rowspan)
+                const renderedCells = new Set();
+                
+                PERIODES.forEach(periode => {
+                    html += `<tr><td style="padding:10px; border:1px solid #e5e7eb; font-weight:600; background:#f9fafb;">${periode}</td>`;
+                    
+                    JOURS.forEach(jour => {
+                        // Mercredi P6-7 = congé
+                        if (jour === 'mercredi' && periode === 'P6-7') {
+                            html += '<td style="padding:10px; border:1px solid #e5e7eb; text-align:center; color:#9ca3af; background:#f9fafb;">Congé</td>';
+                            return;
+                        }
+                        
+                        const creneau = creneauMap[`${jour}-${periode}`];
+                        if (!creneau) {
+                            html += '<td style="padding:10px; border:1px solid #e5e7eb;">-</td>';
+                            return;
+                        }
+                        
+                        // Déjà rendu par un rowspan ?
+                        if (renderedCells.has(creneau.id)) {
+                            return;
+                        }
+                        
+                        const atelier = creneauxOccupes[creneau.id];
+                        const isIndispo = indisponibilites.includes(creneau.id);
+                        
+                        if (atelier && atelier.isFirst) {
+                            const rowspan = atelier.rowspan > 1 ? ` rowspan="${atelier.rowspan}"` : '';
+                            const bgColor = atelier.theme_couleur || '#667eea';
+                            
+                            // Marquer les créneaux suivants comme rendus
+                            for (let i = 1; i < atelier.rowspan; i++) {
+                                renderedCells.add(creneau.id + i);
+                            }
+                            
+                            html += `<td${rowspan} style="padding:8px; border:1px solid #e5e7eb; background:${bgColor}20; vertical-align:top;">
+                                <div style="font-weight:600; color:${bgColor}; margin-bottom:4px;">${atelier.atelier_nom}</div>
+                                <div style="font-size:11px; color:#6b7280;">📍 ${atelier.salle_nom || '-'}</div>
+                                ${atelier.rowspan > 1 ? `<div style="font-size:10px; color:#9ca3af; margin-top:4px;">⏱️ ${atelier.duree || atelier.rowspan*2}p</div>` : ''}
+                            </td>`;
+                        } else if (atelier) {
+                            // Ce créneau fait partie d'un atelier multi-créneaux mais n'est pas le premier
+                            return;
+                        } else if (isIndispo) {
+                            html += '<td style="padding:10px; border:1px solid #e5e7eb; text-align:center; background:#fef3c7; color:#92400e;">🚫 Indispo</td>';
+                        } else {
+                            html += '<td style="padding:10px; border:1px solid #e5e7eb; text-align:center; color:#d1d5db;">—</td>';
+                        }
+                    });
+                    
+                    html += '</tr>';
+                });
+                
+                html += `</tbody></table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+                
+                document.body.insertAdjacentHTML('beforeend', html);
+                
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Erreur de chargement de l\'horaire');
+            }
+        }
+        
+        function printHoraireEleve() {
+            const content = document.getElementById('horaireEleveContent');
+            const modal = document.getElementById('horaireEleveModal');
+            const title = modal.querySelector('h2').textContent;
+            const classe = modal.querySelector('span[style*="opacity"]').textContent;
+            
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>${title}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 20px; }
+                        h1 { font-size: 18px; margin-bottom: 5px; }
+                        h2 { font-size: 14px; color: #666; margin-bottom: 20px; font-weight: normal; }
+                        table { width: 100%; border-collapse: collapse; }
+                        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; font-size: 11px; }
+                        th { background: #f3f4f6; }
+                        @media print { body { padding: 0; } }
+                    </style>
+                </head>
+                <body>
+                    <h1>${title}</h1>
+                    <h2>${classe}</h2>
+                    ${content.innerHTML}
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.print();
         }
 
         async function loadListe(type) {
