@@ -1,4 +1,4 @@
-const CACHE_NAME = 'semspec-v1';
+const CACHE_NAME = 'semspec-v2';
 
 // Pages essentielles à mettre en cache
 const PRECACHE_URLS = [
