@@ -1717,6 +1717,11 @@
                     actions += `<button class="btn btn-sm btn-danger" onclick="deleteAtelier(${a.id})" title="Supprimer">🗑️</button>`;
                 }
                 
+                // Bouton messagerie - seulement si validé et a des inscrits
+                if (a.statut === 'valide' && a.nb_inscrits > 0) {
+                    actions += ` <button class="btn btn-sm" style="background:#3b82f6; color:white;" onclick="openMessageAtelier(${a.id}, '${a.nom.replace(/'/g, "\\'")}', ${a.nb_inscrits})" title="Envoyer un message aux inscrits">💬</button>`;
+                }
+                
                 html += `<tr style="border-bottom:1px solid #e5e7eb;">
                     <td style="padding:10px;">${a.nom}</td>
                     <td style="text-align:center;">${a.duree}p</td>
@@ -1754,6 +1759,74 @@
                 }
             } catch (error) {
                 alert('Erreur de connexion');
+            }
+        }
+
+        // ==================== MESSAGERIE ATELIER ====================
+        function openMessageAtelier(atelierId, atelierNom, nbInscrits) {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'flex';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width:500px;">
+                    <div class="modal-header" style="background:linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color:white;">
+                        <h2>💬 Message aux inscrits</h2>
+                        <button class="modal-close" onclick="this.closest('.modal').remove()" style="color:white;">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p style="margin-bottom:15px; color:#6b7280;">
+                            Envoyer une notification à <strong>${nbInscrits} élève(s)</strong> inscrit(s) à <strong>${atelierNom}</strong>
+                        </p>
+                        <div class="form-group">
+                            <label>Titre du message</label>
+                            <input type="text" id="msgAtelierTitre" placeholder="Ex: Matériel à apporter" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                        </div>
+                        <div class="form-group" style="margin-top:15px;">
+                            <label>Message</label>
+                            <textarea id="msgAtelierContenu" rows="4" placeholder="Votre message aux élèves..." style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;"></textarea>
+                        </div>
+                        <p style="font-size:12px; color:#9ca3af; margin-top:10px;">
+                            ℹ️ Les élèves recevront ce message dans leurs notifications
+                        </p>
+                    </div>
+                    <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:10px; padding:15px 20px; background:#f9fafb; border-top:1px solid #e5e7eb;">
+                        <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Annuler</button>
+                        <button class="btn btn-primary" onclick="sendMessageAtelier(${atelierId}, '${atelierNom.replace(/'/g, "\\'")}')">📤 Envoyer</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        async function sendMessageAtelier(atelierId, atelierNom) {
+            const titre = document.getElementById('msgAtelierTitre').value.trim();
+            const contenu = document.getElementById('msgAtelierContenu').value.trim();
+            
+            if (!titre || !contenu) {
+                alert('Veuillez remplir le titre et le message');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/enseignants/ateliers/${atelierId}/message`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentToken}`
+                    },
+                    body: JSON.stringify({ titre, message: contenu })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.querySelector('.modal').remove();
+                    alert(`✅ ${result.message}`);
+                } else {
+                    alert('❌ ' + result.message);
+                }
+            } catch (error) {
+                alert('❌ Erreur de connexion');
             }
         }
 

@@ -182,8 +182,8 @@
 
         <div id="alert" class="alert"></div>
 
-        <!-- Statistiques -->
-        <div class="stats-grid" id="statsGrid">
+        <!-- Statistiques cliquables -->
+        <div class="stats-grid" id="statsGrid" onclick="openStatsPanel()" style="cursor: pointer;" title="Cliquer pour voir les statistiques détaillées">
             <div class="stat-card">
                 <div class="stat-value" id="statAteliers">-</div>
                 <div class="stat-label">Ateliers</div>
@@ -201,6 +201,7 @@
                 <div class="stat-label">Enseignants</div>
             </div>
         </div>
+        <p style="text-align: center; color: rgba(255,255,255,0.7); font-size: 12px; margin-top: -20px; margin-bottom: 20px;">📊 Cliquer sur les stats pour voir le tableau de bord détaillé</p>
 
         <!-- Navigation Principale -->
         <div class="nav-grid">
@@ -796,6 +797,200 @@
             } catch (error) {
                 alert('❌ Erreur de connexion');
             }
+        }
+
+        // ==================== DASHBOARD STATISTIQUES ====================
+        async function openStatsPanel() {
+            // Créer le modal
+            const modal = document.createElement('div');
+            modal.id = 'statsPanel';
+            modal.style.cssText = 'display:flex; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center; padding:20px;';
+            modal.innerHTML = `
+                <div style="background:#f3f4f6; border-radius:20px; width:100%; max-width:1200px; max-height:95vh; overflow-y:auto;">
+                    <div style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; padding:25px 30px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:10;">
+                        <h2 style="margin:0; font-size:24px;">📊 Tableau de Bord - Semaine Spéciale</h2>
+                        <button onclick="document.getElementById('statsPanel').remove()" style="background:rgba(255,255,255,0.2); border:none; color:white; width:40px; height:40px; border-radius:50%; font-size:24px; cursor:pointer;">&times;</button>
+                    </div>
+                    <div id="statsContent" style="padding:25px;">
+                        <div style="text-align:center; padding:50px;"><div class="loading-spinner"></div><p style="margin-top:15px; color:#6b7280;">Chargement des statistiques...</p></div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+            
+            // Charger les données
+            try {
+                const response = await fetch('/api/admin/stats/details', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    renderStatsPanel(result.data);
+                } else {
+                    document.getElementById('statsContent').innerHTML = '<p style="color:#ef4444; text-align:center;">Erreur de chargement</p>';
+                }
+            } catch (error) {
+                document.getElementById('statsContent').innerHTML = '<p style="color:#ef4444; text-align:center;">Erreur de connexion</p>';
+            }
+        }
+        
+        function renderStatsPanel(data) {
+            const { resume, parTheme, parDuree, parClasse, topAteliers, bottomAteliers, chargeEnseignants, tauxRemplissageGlobal } = data;
+            
+            let html = `
+                <!-- Résumé en chiffres -->
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:15px; margin-bottom:30px;">
+                    <div style="background:white; padding:20px; border-radius:12px; text-align:center; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+                        <div style="font-size:32px; font-weight:700; color:#667eea;">${resume.ateliers.valides}</div>
+                        <div style="color:#6b7280; font-size:13px;">Ateliers validés</div>
+                    </div>
+                    <div style="background:white; padding:20px; border-radius:12px; text-align:center; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+                        <div style="font-size:32px; font-weight:700; color:#10b981;">${resume.inscriptions}</div>
+                        <div style="color:#6b7280; font-size:13px;">Inscriptions</div>
+                    </div>
+                    <div style="background:white; padding:20px; border-radius:12px; text-align:center; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+                        <div style="font-size:32px; font-weight:700; color:#f59e0b;">${tauxRemplissageGlobal}%</div>
+                        <div style="color:#6b7280; font-size:13px;">Taux remplissage</div>
+                    </div>
+                    <div style="background:white; padding:20px; border-radius:12px; text-align:center; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+                        <div style="font-size:32px; font-weight:700; color:#8b5cf6;">${resume.eleves.complets}</div>
+                        <div style="color:#6b7280; font-size:13px;">Élèves complets</div>
+                    </div>
+                    <div style="background:white; padding:20px; border-radius:12px; text-align:center; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+                        <div style="font-size:32px; font-weight:700; color:#ef4444;">${resume.eleves.incomplets}</div>
+                        <div style="color:#6b7280; font-size:13px;">Élèves incomplets</div>
+                    </div>
+                    <div style="background:white; padding:20px; border-radius:12px; text-align:center; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+                        <div style="font-size:32px; font-weight:700; color:#3b82f6;">${resume.enseignants}</div>
+                        <div style="color:#6b7280; font-size:13px;">Enseignants</div>
+                    </div>
+                </div>
+                
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(350px, 1fr)); gap:20px;">
+                    
+                    <!-- Statut des ateliers -->
+                    <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+                        <h3 style="margin:0 0 15px 0; color:#1f2937; font-size:16px;">📋 Statut des ateliers</h3>
+                        <div style="display:flex; flex-direction:column; gap:10px;">
+                            ${renderProgressBar('Validés', resume.ateliers.valides, resume.ateliers.total, '#10b981')}
+                            ${renderProgressBar('En attente', resume.ateliers.soumis, resume.ateliers.total, '#f59e0b')}
+                            ${renderProgressBar('Refusés', resume.ateliers.refuses, resume.ateliers.total, '#ef4444')}
+                            ${renderProgressBar('Brouillons', resume.ateliers.brouillons, resume.ateliers.total, '#9ca3af')}
+                        </div>
+                    </div>
+                    
+                    <!-- Ateliers par thème -->
+                    <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+                        <h3 style="margin:0 0 15px 0; color:#1f2937; font-size:16px;">🎨 Ateliers par thème</h3>
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            ${parTheme.map(t => `
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <span style="width:24px; text-align:center;">${t.icone || '📚'}</span>
+                                    <span style="flex:1; font-size:13px;">${t.nom}</span>
+                                    <span style="background:${t.couleur || '#667eea'}20; color:${t.couleur || '#667eea'}; padding:2px 10px; border-radius:10px; font-size:12px; font-weight:600;">${t.count}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <!-- Ateliers par durée -->
+                    <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+                        <h3 style="margin:0 0 15px 0; color:#1f2937; font-size:16px;">⏱️ Ateliers par durée</h3>
+                        <div style="display:flex; gap:15px; justify-content:center;">
+                            ${parDuree.map(d => `
+                                <div style="text-align:center; padding:15px 25px; background:#f3f4f6; border-radius:10px;">
+                                    <div style="font-size:28px; font-weight:700; color:#667eea;">${d.count}</div>
+                                    <div style="font-size:12px; color:#6b7280;">${d.duree} périodes</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <!-- Top 5 ateliers -->
+                    <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+                        <h3 style="margin:0 0 15px 0; color:#1f2937; font-size:16px;">🔥 Ateliers les plus remplis</h3>
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            ${topAteliers.map((a, i) => `
+                                <div style="display:flex; align-items:center; gap:10px; padding:8px; background:#f9fafb; border-radius:8px;">
+                                    <span style="width:24px; height:24px; background:${i < 3 ? '#f59e0b' : '#e5e7eb'}; color:${i < 3 ? 'white' : '#6b7280'}; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700;">${i + 1}</span>
+                                    <span style="flex:1; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${a.nom}</span>
+                                    <span style="font-size:12px; color:#6b7280;">${a.inscrits}/${a.nombre_places_max}</span>
+                                    <span style="background:${a.taux >= 100 ? '#ef4444' : a.taux >= 75 ? '#f59e0b' : '#10b981'}; color:white; padding:2px 8px; border-radius:8px; font-size:11px; font-weight:600;">${a.taux}%</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <!-- Ateliers à remplir -->
+                    <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+                        <h3 style="margin:0 0 15px 0; color:#1f2937; font-size:16px;">⚠️ Ateliers à remplir (&lt;50%)</h3>
+                        ${bottomAteliers.length > 0 ? `
+                            <div style="display:flex; flex-direction:column; gap:8px;">
+                                ${bottomAteliers.map(a => `
+                                    <div style="display:flex; align-items:center; gap:10px; padding:8px; background:#fef2f2; border-radius:8px;">
+                                        <span style="flex:1; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${a.nom}</span>
+                                        <span style="font-size:12px; color:#6b7280;">${a.inscrits}/${a.nombre_places_max}</span>
+                                        <span style="background:#ef4444; color:white; padding:2px 8px; border-radius:8px; font-size:11px; font-weight:600;">${a.taux}%</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : '<p style="color:#10b981; text-align:center;">✅ Tous les ateliers sont bien remplis !</p>'}
+                    </div>
+                    
+                    <!-- Inscriptions par classe -->
+                    <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+                        <h3 style="margin:0 0 15px 0; color:#1f2937; font-size:16px;">🏫 Inscriptions par classe</h3>
+                        <div style="max-height:200px; overflow-y:auto;">
+                            ${parClasse.map(c => {
+                                const moyenne = c.nb_eleves > 0 ? (c.inscriptions / c.nb_eleves).toFixed(1) : 0;
+                                return `
+                                    <div style="display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid #f3f4f6;">
+                                        <span style="width:60px; font-weight:600; font-size:13px;">${c.classe}</span>
+                                        <div style="flex:1; background:#e5e7eb; height:8px; border-radius:4px; overflow:hidden;">
+                                            <div style="width:${Math.min(moyenne / resume.creneaux * 100, 100)}%; height:100%; background:#667eea;"></div>
+                                        </div>
+                                        <span style="font-size:12px; color:#6b7280; width:80px; text-align:right;">${c.inscriptions} inscr.</span>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                    
+                    <!-- Charge enseignants -->
+                    <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+                        <h3 style="margin:0 0 15px 0; color:#1f2937; font-size:16px;">👨‍🏫 Top 10 charge enseignants</h3>
+                        <div style="max-height:200px; overflow-y:auto;">
+                            ${chargeEnseignants.map(e => `
+                                <div style="display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid #f3f4f6;">
+                                    <span style="font-weight:600; font-size:13px; color:#667eea;">${e.acronyme}</span>
+                                    <span style="flex:1; font-size:12px; color:#6b7280;">${e.prenom} ${e.nom}</span>
+                                    <span style="background:#667eea20; color:#667eea; padding:2px 10px; border-radius:8px; font-size:12px; font-weight:600;">${e.periodes}p</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                </div>
+            `;
+            
+            document.getElementById('statsContent').innerHTML = html;
+        }
+        
+        function renderProgressBar(label, value, total, color) {
+            const pct = total > 0 ? Math.round(value * 100 / total) : 0;
+            return `
+                <div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span style="font-size:13px; color:#374151;">${label}</span>
+                        <span style="font-size:13px; font-weight:600; color:${color};">${value}</span>
+                    </div>
+                    <div style="background:#e5e7eb; height:8px; border-radius:4px; overflow:hidden;">
+                        <div style="width:${pct}%; height:100%; background:${color}; transition:width 0.5s;"></div>
+                    </div>
+                </div>
+            `;
         }
 
         // Initialisation

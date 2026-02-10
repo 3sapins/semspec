@@ -629,6 +629,13 @@
                                 <option value="6">Journée (6p)</option>
                             </select>
                         </div>
+                        
+                        <div class="filtre-group">
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" id="filtreFavoris" onchange="applyFilters()" style="width:18px; height:18px;">
+                                <span>❤️ Mes favoris uniquement</span>
+                            </label>
+                        </div>
                     </div>
 
                     <div id="catalogueContainer">
@@ -752,9 +759,22 @@
 
         // Charger toutes les données
         let indisponibilitesEleve = new Set(); // créneaux où l'élève est indisponible
+        let favorisSet = new Set(); // ateliers favoris
         
         async function loadData() {
             try {
+                // Charger les favoris
+                try {
+                    const respFav = await fetch(`${API_URL}/eleves/favoris`, {
+                        headers: { 'Authorization': `Bearer ${currentToken}` }
+                    });
+                    const dataFav = await respFav.json();
+                    if (dataFav.success) {
+                        favorisSet.clear();
+                        dataFav.data.forEach(f => favorisSet.add(f.atelier_id));
+                    }
+                } catch (e) { console.log('Favoris non chargés'); }
+                
                 // Charger le profil pour avoir la classe
                 const respProfil = await fetch(`${API_URL}/eleves/profil`, {
                     headers: { 'Authorization': `Bearer ${currentToken}` }
@@ -1028,6 +1048,7 @@
         function displayCatalogue() {
             const filtreTheme = document.getElementById('filtreTheme').value;
             const filtreDuree = document.getElementById('filtreDuree').value;
+            const filtreFavoris = document.getElementById('filtreFavoris')?.checked || false;
             
             // Grouper les ateliers par atelier_id
             const ateliersGroupes = {};
@@ -1041,6 +1062,9 @@
                 
                 // Filtrer par durée
                 if (filtreDuree && a.duree !== parseInt(filtreDuree)) return;
+                
+                // Filtrer par favoris
+                if (filtreFavoris && !favorisSet.has(a.atelier_id)) return;
                 
                 if (!ateliersGroupes[a.atelier_id]) {
                     ateliersGroupes[a.atelier_id] = {
@@ -1098,11 +1122,21 @@
                     : 'background: #e5e7eb; color: #374151;';
                 
                 const dureeBadge = atelier.duree === 6 ? 'Journée' : `${atelier.duree}p`;
+                const isFavori = favorisSet.has(atelier.id);
+                const coeurStyle = isFavori 
+                    ? 'color: #ef4444; background: #fef2f2;' 
+                    : 'color: #9ca3af; background: #f3f4f6;';
                 
                 html += `
                     <div class="atelier-accordeon" onclick="toggleAccordeon(this)">
                         <div class="atelier-accordeon-header">
                             <div class="atelier-accordeon-title">
+                                <button onclick="event.stopPropagation(); toggleFavori(${atelier.id}, '${atelier.nom.replace(/'/g, "\\'")}')" 
+                                    style="border:none; padding:5px 8px; border-radius:6px; cursor:pointer; font-size:16px; margin-right:8px; transition:all 0.2s; ${coeurStyle}" 
+                                    title="${isFavori ? 'Retirer des favoris' : 'Ajouter aux favoris'}"
+                                    id="fav-btn-${atelier.id}">
+                                    ${isFavori ? '❤️' : '🤍'}
+                                </button>
                                 <h3>${atelier.nom}</h3>
                                 <span class="duree-badge">${dureeBadge}</span>
                                 ${atelier.theme_nom ? `<span class="theme-badge" style="${themeStyle}">${atelier.theme_icone || ''} ${atelier.theme_nom}</span>` : ''}
@@ -1128,6 +1162,49 @@
             // Ne pas toggle si on clique sur un bouton
             if (event.target.tagName === 'BUTTON') return;
             el.classList.toggle('open');
+        }
+
+        async function toggleFavori(atelierId, atelierNom) {
+            const isFavori = favorisSet.has(atelierId);
+            const btn = document.getElementById(`fav-btn-${atelierId}`);
+            
+            try {
+                if (isFavori) {
+                    // Retirer des favoris
+                    const response = await fetch(`${API_URL}/eleves/favoris/${atelierId}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${currentToken}` }
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        favorisSet.delete(atelierId);
+                        if (btn) {
+                            btn.innerHTML = '🤍';
+                            btn.style.color = '#9ca3af';
+                            btn.style.background = '#f3f4f6';
+                            btn.title = 'Ajouter aux favoris';
+                        }
+                    }
+                } else {
+                    // Ajouter aux favoris
+                    const response = await fetch(`${API_URL}/eleves/favoris/${atelierId}`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${currentToken}` }
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        favorisSet.add(atelierId);
+                        if (btn) {
+                            btn.innerHTML = '❤️';
+                            btn.style.color = '#ef4444';
+                            btn.style.background = '#fef2f2';
+                            btn.title = 'Retirer des favoris';
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Erreur favori:', error);
+            }
         }
 
         function renderCreneau(creneau, atelierNom, duree) {
