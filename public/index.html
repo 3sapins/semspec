@@ -269,6 +269,12 @@
                 <div class="nav-card-title">Inscriptions incomplètes</div>
                 <div class="nav-card-desc">Élèves sans horaire complet</div>
             </a>
+
+            <div class="nav-card" style="border: 2px solid #3b82f6; cursor: pointer;" onclick="openNotificationsPanel()">
+                <div class="nav-card-icon">🔔</div>
+                <div class="nav-card-title">Notifications</div>
+                <div class="nav-card-desc">Envoyer des rappels aux élèves et enseignants</div>
+            </div>
         </div>
 
         <!-- Section Ateliers -->
@@ -625,6 +631,171 @@
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             window.location.href = 'login.html';
+        }
+
+        // ==================== NOTIFICATIONS ADMIN ====================
+        function openNotificationsPanel() {
+            const modal = document.createElement('div');
+            modal.id = 'notifPanel';
+            modal.style.cssText = 'display:flex; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;';
+            modal.innerHTML = `
+                <div style="background:white; border-radius:15px; max-width:600px; width:95%; max-height:90vh; overflow-y:auto;">
+                    <div style="background:linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color:white; padding:20px; display:flex; justify-content:space-between; align-items:center;">
+                        <h2 style="margin:0;">🔔 Gestion des Notifications</h2>
+                        <button onclick="document.getElementById('notifPanel').remove()" style="background:none; border:none; color:white; font-size:28px; cursor:pointer;">&times;</button>
+                    </div>
+                    <div style="padding:20px;">
+                        <!-- Rappels automatiques -->
+                        <div style="background:#f0f9ff; border-radius:10px; padding:15px; margin-bottom:20px;">
+                            <h3 style="margin:0 0 10px 0; color:#1d4ed8;">📅 Rappels Automatiques</h3>
+                            <p style="color:#6b7280; font-size:13px; margin-bottom:15px;">
+                                Envoyer les rappels aux élèves pour leurs ateliers de demain (à lancer chaque jour à 16h).
+                            </p>
+                            <button onclick="sendRappelsDemain()" class="btn" style="background:#3b82f6; color:white; padding:10px 20px;">
+                                📨 Envoyer les rappels pour demain
+                            </button>
+                            <div id="rappelResult" style="margin-top:10px;"></div>
+                        </div>
+                        
+                        <!-- Rappel semaine spéciale -->
+                        <div style="background:#fef3c7; border-radius:10px; padding:15px; margin-bottom:20px;">
+                            <h3 style="margin:0 0 10px 0; color:#92400e;">⏰ Rappel Semaine Spéciale</h3>
+                            <p style="color:#6b7280; font-size:13px; margin-bottom:15px;">
+                                Notifier tous les enseignants que la semaine spéciale approche.
+                            </p>
+                            <button onclick="sendRappelSemaine()" class="btn" style="background:#f59e0b; color:white; padding:10px 20px;">
+                                📢 Rappel "1 semaine avant"
+                            </button>
+                        </div>
+                        
+                        <!-- Message personnalisé enseignants -->
+                        <div style="background:#f3f4f6; border-radius:10px; padding:15px; margin-bottom:20px;">
+                            <h3 style="margin:0 0 10px 0; color:#374151;">👨‍🏫 Message aux Enseignants</h3>
+                            <input type="text" id="msgEnsTitle" placeholder="Titre du message" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; margin-bottom:10px;">
+                            <textarea id="msgEnsBody" placeholder="Contenu du message..." rows="3" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; margin-bottom:10px;"></textarea>
+                            <button onclick="broadcastEnseignants()" class="btn" style="background:#6b7280; color:white; padding:10px 20px;">
+                                📤 Envoyer à tous les enseignants
+                            </button>
+                        </div>
+                        
+                        <!-- Message personnalisé élèves -->
+                        <div style="background:#f0fdf4; border-radius:10px; padding:15px;">
+                            <h3 style="margin:0 0 10px 0; color:#166534;">🎓 Message aux Élèves</h3>
+                            <input type="text" id="msgElevesTitle" placeholder="Titre du message" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; margin-bottom:10px;">
+                            <textarea id="msgElevesBody" placeholder="Contenu du message..." rows="3" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; margin-bottom:10px;"></textarea>
+                            <button onclick="broadcastEleves()" class="btn" style="background:#10b981; color:white; padding:10px 20px;">
+                                📤 Envoyer à tous les élèves
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+        }
+        
+        async function sendRappelsDemain() {
+            const resultDiv = document.getElementById('rappelResult');
+            resultDiv.innerHTML = '<span style="color:#6b7280;">Envoi en cours...</span>';
+            
+            try {
+                const response = await fetch('/api/notifications/admin/rappels-demain', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    }
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultDiv.innerHTML = `<span style="color:#10b981;">✅ ${result.message}</span>`;
+                } else {
+                    resultDiv.innerHTML = `<span style="color:#ef4444;">❌ ${result.message}</span>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = '<span style="color:#ef4444;">❌ Erreur de connexion</span>';
+            }
+        }
+        
+        async function sendRappelSemaine() {
+            if (!confirm('Envoyer un rappel à tous les enseignants ?')) return;
+            
+            try {
+                const response = await fetch('/api/notifications/admin/rappel-semaine-speciale', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    }
+                });
+                const result = await response.json();
+                alert(result.success ? `✅ ${result.message}` : `❌ ${result.message}`);
+            } catch (error) {
+                alert('❌ Erreur de connexion');
+            }
+        }
+        
+        async function broadcastEnseignants() {
+            const titre = document.getElementById('msgEnsTitle').value.trim();
+            const message = document.getElementById('msgEnsBody').value.trim();
+            
+            if (!titre || !message) {
+                alert('Veuillez remplir le titre et le message');
+                return;
+            }
+            
+            if (!confirm('Envoyer ce message à tous les enseignants ?')) return;
+            
+            try {
+                const response = await fetch('/api/notifications/admin/broadcast-enseignants', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    },
+                    body: JSON.stringify({ titre, message })
+                });
+                const result = await response.json();
+                alert(result.success ? `✅ ${result.message}` : `❌ ${result.message}`);
+                if (result.success) {
+                    document.getElementById('msgEnsTitle').value = '';
+                    document.getElementById('msgEnsBody').value = '';
+                }
+            } catch (error) {
+                alert('❌ Erreur de connexion');
+            }
+        }
+        
+        async function broadcastEleves() {
+            const titre = document.getElementById('msgElevesTitle').value.trim();
+            const message = document.getElementById('msgElevesBody').value.trim();
+            
+            if (!titre || !message) {
+                alert('Veuillez remplir le titre et le message');
+                return;
+            }
+            
+            if (!confirm('Envoyer ce message à tous les élèves ?')) return;
+            
+            try {
+                const response = await fetch('/api/notifications/admin/broadcast-eleves', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    },
+                    body: JSON.stringify({ titre, message })
+                });
+                const result = await response.json();
+                alert(result.success ? `✅ ${result.message}` : `❌ ${result.message}`);
+                if (result.success) {
+                    document.getElementById('msgElevesTitle').value = '';
+                    document.getElementById('msgElevesBody').value = '';
+                }
+            } catch (error) {
+                alert('❌ Erreur de connexion');
+            }
         }
 
         // Initialisation

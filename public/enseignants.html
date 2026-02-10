@@ -591,7 +591,7 @@
                     <span id="userName" style="font-weight: 600;"></span>
                     <div style="margin-top: 8px; display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
                         <!-- Cloche de notifications -->
-                        <button class="btn btn-sm" onclick="showNotifications()" style="position: relative; background: #f3f4f6; border: 1px solid #d1d5db; padding: 6px 10px;">
+                        <button class="btn btn-sm" onclick="showNotifications(event)" style="position: relative; background: #f3f4f6; border: 1px solid #d1d5db; padding: 6px 10px;">
                             🔔
                             <span id="notifBadge" style="display: none; position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 11px; line-height: 18px; font-weight: bold;">0</span>
                         </button>
@@ -1023,7 +1023,7 @@
                 
                 if (data.success && data.data.nb_notifications > 0) {
                     const badge = document.getElementById('notifBadge');
-                    badge.textContent = data.data.nb_notifications;
+                    badge.textContent = data.data.nb_notifications > 9 ? '9+' : data.data.nb_notifications;
                     badge.style.display = 'block';
                 }
             } catch (error) {
@@ -1031,89 +1031,134 @@
             }
         }
         
-        async function showNotifications() {
+        let notificationsEnsData = [];
+        
+        async function showNotifications(event) {
+            event.stopPropagation();
+            
+            // Fermer si déjà ouvert
+            const existing = document.getElementById('notifDropdown');
+            if (existing) {
+                existing.remove();
+                return;
+            }
+            
+            // Charger les notifications
             try {
                 const response = await fetch(`${API_URL}/enseignants/notifications`, {
                     headers: { 'Authorization': `Bearer ${currentToken}` }
                 });
                 const data = await response.json();
-                
-                let html = '<div style="max-height: 400px; overflow-y: auto;">';
-                
-                if (!data.success || data.data.length === 0) {
-                    html += '<p style="text-align: center; color: #6b7280; padding: 20px;">Aucune notification</p>';
-                } else {
-                    html += `<div style="text-align: right; margin-bottom: 10px;">
-                        <button class="btn btn-sm btn-secondary" onclick="markAllNotificationsRead()">✓ Tout marquer comme lu</button>
-                    </div>`;
-                    
-                    data.data.forEach(notif => {
-                        const date = new Date(notif.created_at).toLocaleDateString('fr-CH', { 
-                            day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' 
-                        });
-                        const bgColor = notif.lue ? '#f9fafb' : '#eff6ff';
-                        const borderColor = notif.lue ? '#e5e7eb' : '#3b82f6';
-                        
-                        html += `
-                            <div style="background: ${bgColor}; border-left: 4px solid ${borderColor}; padding: 12px; margin-bottom: 10px; border-radius: 5px;">
-                                <div style="font-weight: 600; margin-bottom: 5px;">${notif.titre || notif.type}</div>
-                                <div style="color: #374151; font-size: 14px;">${notif.message}</div>
-                                <div style="color: #9ca3af; font-size: 12px; margin-top: 8px;">${date}</div>
-                                ${!notif.lue ? `<button class="btn btn-sm" style="margin-top: 8px; font-size: 11px;" onclick="markNotificationRead(${notif.id})">Marquer comme lu</button>` : ''}
-                            </div>
-                        `;
-                    });
-                }
-                
-                html += '</div>';
-                
-                // Afficher dans un modal
-                const modal = document.createElement('div');
-                modal.className = 'modal';
-                modal.style.display = 'flex';
-                modal.innerHTML = `
-                    <div class="modal-content" style="max-width: 500px;">
-                        <div class="modal-header">
-                            <h2>🔔 Notifications</h2>
-                            <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
-                        </div>
-                        <div class="modal-body">
-                            ${html}
-                        </div>
-                    </div>
-                `;
-                document.body.appendChild(modal);
-                
+                notificationsEnsData = data.success ? data.data : [];
             } catch (error) {
-                console.error('Erreur notifications:', error);
-                alert('Erreur lors du chargement des notifications');
+                notificationsEnsData = [];
+            }
+            
+            // Créer la bulle dropdown
+            const dropdown = document.createElement('div');
+            dropdown.id = 'notifDropdown';
+            dropdown.style.cssText = `
+                position: absolute;
+                top: 100%;
+                right: 0;
+                margin-top: 8px;
+                width: 350px;
+                max-height: 450px;
+                background: white;
+                border-radius: 12px;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+                z-index: 1000;
+                overflow: hidden;
+            `;
+            
+            const nonLues = notificationsEnsData.filter(n => !n.lue).length;
+            
+            let html = `
+                <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); color: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center;">
+                    <strong>🔔 Notifications</strong>
+                    ${nonLues > 0 ? `<button onclick="markAllNotificationsRead(event)" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 4px 10px; border-radius: 5px; font-size: 11px; cursor: pointer;">Tout lire</button>` : ''}
+                </div>
+                <div style="max-height: 390px; overflow-y: auto;">
+            `;
+            
+            if (!notificationsEnsData || notificationsEnsData.length === 0) {
+                html += '<p style="text-align: center; color: #9ca3af; padding: 30px 15px;">Aucune notification</p>';
+            } else {
+                notificationsEnsData.forEach(notif => {
+                    const date = new Date(notif.created_at).toLocaleDateString('fr-CH', { 
+                        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' 
+                    });
+                    const bgColor = notif.lue ? '#ffffff' : '#eff6ff';
+                    const dotColor = notif.lue ? 'transparent' : '#1e3a5f';
+                    
+                    html += `
+                        <div onclick="markNotificationRead(event, ${notif.id})" style="background: ${bgColor}; padding: 12px 15px; border-bottom: 1px solid #f3f4f6; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='${bgColor}'">
+                            <div style="display: flex; gap: 10px; align-items: flex-start;">
+                                <div style="width: 8px; height: 8px; border-radius: 50%; background: ${dotColor}; margin-top: 6px; flex-shrink: 0;"></div>
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: #1f2937;">${notif.titre || notif.type}</div>
+                                    <div style="color: #6b7280; font-size: 12px; white-space: pre-line; line-height: 1.4;">${notif.message}</div>
+                                    <div style="color: #9ca3af; font-size: 11px; margin-top: 6px;">${date}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            html += '</div>';
+            dropdown.innerHTML = html;
+            
+            // Positionner par rapport au bouton cloche
+            const bellButton = event.currentTarget;
+            bellButton.style.position = 'relative';
+            bellButton.appendChild(dropdown);
+            
+            // Fermer au clic ailleurs
+            setTimeout(() => {
+                document.addEventListener('click', closeNotifDropdown);
+            }, 10);
+        }
+        
+        function closeNotifDropdown(e) {
+            const dropdown = document.getElementById('notifDropdown');
+            if (dropdown && !dropdown.contains(e.target)) {
+                dropdown.remove();
+                document.removeEventListener('click', closeNotifDropdown);
             }
         }
         
-        async function markNotificationRead(id) {
+        async function markNotificationRead(event, id) {
+            event.stopPropagation();
             try {
                 await fetch(`${API_URL}/enseignants/notifications/${id}/lue`, {
                     method: 'PUT',
                     headers: { 'Authorization': `Bearer ${currentToken}` }
                 });
-                // Recharger les notifications
-                document.querySelector('.modal').remove();
-                showNotifications();
                 loadNotificationsCount();
+                const dropdown = document.getElementById('notifDropdown');
+                if (dropdown) {
+                    dropdown.remove();
+                    document.removeEventListener('click', closeNotifDropdown);
+                }
             } catch (error) {
                 console.error('Erreur:', error);
             }
         }
         
-        async function markAllNotificationsRead() {
+        async function markAllNotificationsRead(event) {
+            event.stopPropagation();
             try {
                 await fetch(`${API_URL}/enseignants/notifications/lire-toutes`, {
                     method: 'PUT',
                     headers: { 'Authorization': `Bearer ${currentToken}` }
                 });
                 document.getElementById('notifBadge').style.display = 'none';
-                document.querySelector('.modal').remove();
-                showNotifications();
+                const dropdown = document.getElementById('notifDropdown');
+                if (dropdown) {
+                    dropdown.remove();
+                    document.removeEventListener('click', closeNotifDropdown);
+                }
             } catch (error) {
                 console.error('Erreur:', error);
             }
