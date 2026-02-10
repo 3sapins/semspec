@@ -152,7 +152,22 @@ async function ensureArchiveTables() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         `);
         
-        console.log('✅ Tables archives vérifiées');
+        // Table des indisponibilités élèves
+        await query(`
+            CREATE TABLE IF NOT EXISTS indisponibilites_eleves (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                eleve_id INT NOT NULL,
+                creneau_id INT NOT NULL,
+                raison VARCHAR(255),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_by VARCHAR(100),
+                FOREIGN KEY (eleve_id) REFERENCES eleves(id) ON DELETE CASCADE,
+                FOREIGN KEY (creneau_id) REFERENCES creneaux(id) ON DELETE CASCADE,
+                UNIQUE KEY unique_eleve_creneau (eleve_id, creneau_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `);
+        
+        console.log('✅ Tables archives et indisponibilités vérifiées');
     } catch (error) {
         console.error('⚠️ Erreur création tables archives:', error.message);
     }
