@@ -867,15 +867,14 @@ router.post('/ateliers/:id/message', async (req, res) => {
             return res.status(403).json({ success: false, message: 'Vous n\'êtes pas responsable de cet atelier' });
         }
         
-        // Récupérer tous les élèves inscrits (via planning_id)
+        // Récupérer tous les élèves inscrits (directement via atelier_id)
         const inscrits = await query(`
-            SELECT DISTINCT i.eleve_id
-            FROM inscriptions i
-            JOIN planning p ON i.planning_id = p.id
-            WHERE p.atelier_id = ? AND i.statut = 'confirmee'
+            SELECT DISTINCT eleve_id
+            FROM inscriptions
+            WHERE atelier_id = ? AND statut = 'confirmee'
         `, [id]);
         
-        console.log('[Message atelier] Inscrits trouvés:', inscrits.length);
+        console.log('[Message atelier] Inscrits trouvés:', inscrits.length, inscrits);
         
         if (inscrits.length === 0) {
             return res.status(400).json({ success: false, message: 'Aucun élève inscrit à cet atelier' });
