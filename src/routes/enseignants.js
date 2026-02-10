@@ -842,6 +842,8 @@ router.post('/ateliers/:id/message', async (req, res) => {
         const { titre, message } = req.body;
         const acronyme = req.user.acronyme;
         
+        console.log('[Message atelier] Début - atelier:', id, 'enseignant:', acronyme);
+        
         if (!titre || !message) {
             return res.status(400).json({ success: false, message: 'Titre et message requis' });
         }
@@ -865,16 +867,39 @@ router.post('/ateliers/:id/message', async (req, res) => {
             return res.status(403).json({ success: false, message: 'Vous n\'êtes pas responsable de cet atelier' });
         }
         
-        // Récupérer tous les élèves inscrits
+        // Récupérer tous les élèves inscrits (via planning_id)
         const inscrits = await query(`
-            SELECT DISTINCT e.id as eleve_id
+            SELECT DISTINCT i.eleve_id
             FROM inscriptions i
-            JOIN eleves e ON i.eleve_id = e.id
-            WHERE i.atelier_id = ? AND i.statut = 'confirmee'
+            JOIN planning p ON i.planning_id = p.id
+            WHERE p.atelier_id = ? AND i.statut = 'confirmee'
         `, [id]);
+        
+        console.log('[Message atelier] Inscrits trouvés:', inscrits.length);
         
         if (inscrits.length === 0) {
             return res.status(400).json({ success: false, message: 'Aucun élève inscrit à cet atelier' });
+        }
+        
+        // S'assurer que la table notifications_eleves existe
+        try {
+            await query(`
+                CREATE TABLE IF NOT EXISTS notifications_eleves (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    eleve_id INT NOT NULL,
+                    type VARCHAR(50) NOT NULL,
+                    titre VARCHAR(200) NOT NULL,
+                    message TEXT,
+                    lien VARCHAR(255),
+                    data JSON,
+                    lue BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_eleve (eleve_id),
+                    INDEX idx_lue (lue)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            `);
+        } catch (tableError) {
+            console.log('[Message atelier] Table existe déjà ou erreur:', tableError.code);
         }
         
         // Créer une notification pour chaque élève
@@ -883,18 +908,24 @@ router.post('/ateliers/:id/message', async (req, res) => {
         
         let count = 0;
         for (const inscrit of inscrits) {
-            await query(`
-                INSERT INTO notifications_eleves (eleve_id, type, titre, message, lien, data)
-                VALUES (?, 'message_enseignant', ?, ?, ?, ?)
-            `, [
-                inscrit.eleve_id,
-                titreComplet,
-                messageComplet,
-                '/eleves.html',
-                JSON.stringify({ atelier_id: id, atelier_nom: atelier.nom, enseignant: acronyme })
-            ]);
-            count++;
+            try {
+                await query(`
+                    INSERT INTO notifications_eleves (eleve_id, type, titre, message, lien, data)
+                    VALUES (?, 'message_enseignant', ?, ?, ?, ?)
+                `, [
+                    inscrit.eleve_id,
+                    titreComplet,
+                    messageComplet,
+                    '/eleves.html',
+                    JSON.stringify({ atelier_id: id, atelier_nom: atelier.nom, enseignant: acronyme })
+                ]);
+                count++;
+            } catch (insertError) {
+                console.error('[Message atelier] Erreur insertion notification:', insertError.message);
+            }
         }
+        
+        console.log('[Message atelier] Notifications créées:', count);
         
         res.json({ 
             success: true, 
@@ -902,8 +933,8 @@ router.post('/ateliers/:id/message', async (req, res) => {
         });
         
     } catch (error) {
-        console.error('Erreur envoi message atelier:', error);
-        res.status(500).json({ success: false, message: 'Erreur serveur' });
+        console.error('[Message atelier] Erreur:', error.message, error.stack);
+        res.status(500).json({ success: false, message: 'Erreur serveur: ' + error.message });
     }
 });
 
