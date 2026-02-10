@@ -1788,4 +1788,132 @@ router.get('/inscriptions-incompletes', async (req, res) => {
     }
 });
 
+// ========== INDISPONIBILITÉS ÉLÈVES ==========
+
+/**
+ * GET /api/gestion/eleves/:eleveId/indisponibilites
+ * Retourne les indisponibilités d'un élève
+ */
+router.get('/eleves/:eleveId/indisponibilites', async (req, res) => {
+    try {
+        const { eleveId } = req.params;
+        
+        // Tous les créneaux
+        const creneaux = await query(`
+            SELECT id, jour, periode, ordre 
+            FROM creneaux 
+            WHERE actif = TRUE
+            ORDER BY ordre
+        `);
+        
+        // Indisponibilités de l'élève
+        const indispos = await query(`
+            SELECT ie.*, c.jour, c.periode
+            FROM indisponibilites_eleves ie
+            JOIN creneaux c ON ie.creneau_id = c.id
+            WHERE ie.eleve_id = ?
+        `, [eleveId]);
+        
+        const indispoSet = new Set(indispos.map(i => i.creneau_id));
+        
+        res.json({
+            success: true,
+            creneaux: creneaux.map(c => ({
+                ...c,
+                indisponible: indispoSet.has(c.id),
+                raison: indispos.find(i => i.creneau_id === c.id)?.raison || ''
+            }))
+        });
+        
+    } catch (error) {
+        console.error('Erreur get indisponibilités:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * POST /api/gestion/eleves/:eleveId/indisponibilites
+ * Définir les indisponibilités d'un élève
+ * Body: { creneaux: [{ creneau_id, indisponible, raison }] }
+ */
+router.post('/eleves/:eleveId/indisponibilites', async (req, res) => {
+    try {
+        const { eleveId } = req.params;
+        const { creneaux } = req.body;
+        const adminAcronyme = req.user.acronyme || 'admin';
+        
+        if (!Array.isArray(creneaux)) {
+            return res.status(400).json({ success: false, message: 'Format invalide' });
+        }
+        
+        // Supprimer toutes les indisponibilités existantes
+        await query('DELETE FROM indisponibilites_eleves WHERE eleve_id = ?', [eleveId]);
+        
+        // Ajouter les nouvelles
+        let count = 0;
+        for (const c of creneaux) {
+            if (c.indisponible) {
+                await query(`
+                    INSERT INTO indisponibilites_eleves (eleve_id, creneau_id, raison, created_by)
+                    VALUES (?, ?, ?, ?)
+                `, [eleveId, c.creneau_id, c.raison || null, adminAcronyme]);
+                count++;
+            }
+        }
+        
+        res.json({
+            success: true,
+            message: `${count} indisponibilité(s) enregistrée(s)`
+        });
+        
+    } catch (error) {
+        console.error('Erreur set indisponibilités:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * GET /api/gestion/eleves-avec-indispos
+ * Liste des élèves avec leur nombre d'indisponibilités (pour l'affichage dans la liste)
+ */
+router.get('/eleves-avec-indispos', async (req, res) => {
+    try {
+        const { classes } = req.query; // classes séparées par virgule
+        
+        let whereClause = '';
+        const params = [];
+        
+        if (classes) {
+            const classeIds = classes.split(',').map(c => parseInt(c)).filter(c => !isNaN(c));
+            if (classeIds.length > 0) {
+                whereClause = `WHERE e.classe_id IN (${classeIds.map(() => '?').join(',')})`;
+                params.push(...classeIds);
+            }
+        }
+        
+        const eleves = await query(`
+            SELECT 
+                e.id as eleve_id,
+                u.id as utilisateur_id,
+                u.nom,
+                u.prenom,
+                u.acronyme as login,
+                c.id as classe_id,
+                c.nom as classe_nom,
+                (SELECT COUNT(*) FROM indisponibilites_eleves ie WHERE ie.eleve_id = e.id) as nb_indispos
+            FROM eleves e
+            JOIN utilisateurs u ON e.utilisateur_id = u.id
+            JOIN classes c ON e.classe_id = c.id
+            ${whereClause}
+            ORDER BY c.nom, u.nom, u.prenom
+        `, params);
+        
+        res.json({ success: true, data: eleves });
+        
+    } catch (error) {
+        console.error('Erreur liste élèves avec indispos:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
 module.exports = router;

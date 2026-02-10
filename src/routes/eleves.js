@@ -40,6 +40,14 @@ router.get('/profil', async (req, res) => {
             WHERE eleve_id = ? AND statut = 'confirmee'
         `, [eleve[0].eleve_id]);
         
+        // Récupérer les indisponibilités
+        const indispos = await query(`
+            SELECT ie.creneau_id, ie.raison, c.jour, c.periode
+            FROM indisponibilites_eleves ie
+            JOIN creneaux c ON ie.creneau_id = c.id
+            WHERE ie.eleve_id = ?
+        `, [eleve[0].eleve_id]);
+        
         // Vérifier s'il y a des notifications
         const notifications = await query(`
             SELECT COUNT(*) as total FROM notifications_eleves
@@ -52,7 +60,8 @@ router.get('/profil', async (req, res) => {
                 ...eleve[0],
                 nb_inscriptions: inscriptions[0].total,
                 nb_notifications: notifications[0].total,
-                inscriptions_ouvertes: eleve[0].inscriptions_ouvertes || false
+                inscriptions_ouvertes: eleve[0].inscriptions_ouvertes || false,
+                indisponibilites: indispos
             }
         });
     } catch (error) {
@@ -315,6 +324,26 @@ router.post('/inscription', async (req, res) => {
         
         const p = planning[0];
         const nombreCreneaux = p.nombre_creneaux || Math.ceil(p.duree / 2) || 1;
+        
+        // Vérifier les indisponibilités de l'élève sur tous les créneaux de l'atelier
+        for (let i = 0; i < nombreCreneaux; i++) {
+            const creneauId = p.creneau_id + i;
+            const indispo = await query(`
+                SELECT ie.*, c.jour, c.periode 
+                FROM indisponibilites_eleves ie
+                JOIN creneaux c ON ie.creneau_id = c.id
+                WHERE ie.eleve_id = ? AND ie.creneau_id = ?
+            `, [eleve[0].id, creneauId]);
+            
+            if (indispo.length > 0) {
+                const jourCap = indispo[0].jour.charAt(0).toUpperCase() + indispo[0].jour.slice(1);
+                const raison = indispo[0].raison ? ` (${indispo[0].raison})` : '';
+                return res.status(400).json({ 
+                    success: false, 
+                    message: `Tu es indisponible le ${jourCap} ${indispo[0].periode}${raison}` 
+                });
+            }
+        }
         
         // Vérifier conflit horaire sur tous les créneaux de l'atelier
         for (let i = 0; i < nombreCreneaux; i++) {
