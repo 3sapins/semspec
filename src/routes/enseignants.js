@@ -833,6 +833,81 @@ router.put('/ateliers/:id/soumettre', async (req, res) => {
 });
 
 /**
+ * POST /api/enseignants/ateliers/:id/message
+ * Envoyer un message aux élèves inscrits à un atelier
+ */
+router.post('/ateliers/:id/message', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { titre, message } = req.body;
+        const acronyme = req.user.acronyme;
+        
+        if (!titre || !message) {
+            return res.status(400).json({ success: false, message: 'Titre et message requis' });
+        }
+        
+        // Vérifier que l'enseignant a le droit (est responsable de l'atelier)
+        const ateliers = await query(`
+            SELECT id, nom, enseignant_acronyme, enseignant2_acronyme, enseignant3_acronyme 
+            FROM ateliers WHERE id = ? AND statut = 'valide'
+        `, [id]);
+        
+        if (ateliers.length === 0) {
+            return res.status(404).json({ success: false, message: 'Atelier non trouvé ou non validé' });
+        }
+        
+        const atelier = ateliers[0];
+        const isResponsable = atelier.enseignant_acronyme === acronyme || 
+                             atelier.enseignant2_acronyme === acronyme || 
+                             atelier.enseignant3_acronyme === acronyme;
+        
+        if (!isResponsable) {
+            return res.status(403).json({ success: false, message: 'Vous n\'êtes pas responsable de cet atelier' });
+        }
+        
+        // Récupérer tous les élèves inscrits
+        const inscrits = await query(`
+            SELECT DISTINCT e.id as eleve_id
+            FROM inscriptions i
+            JOIN eleves e ON i.eleve_id = e.id
+            WHERE i.atelier_id = ? AND i.statut = 'confirmee'
+        `, [id]);
+        
+        if (inscrits.length === 0) {
+            return res.status(400).json({ success: false, message: 'Aucun élève inscrit à cet atelier' });
+        }
+        
+        // Créer une notification pour chaque élève
+        const titreComplet = `📬 ${atelier.nom}`;
+        const messageComplet = `Message de votre enseignant :\n\n${message}`;
+        
+        let count = 0;
+        for (const inscrit of inscrits) {
+            await query(`
+                INSERT INTO notifications_eleves (eleve_id, type, titre, message, lien, data)
+                VALUES (?, 'message_enseignant', ?, ?, ?, ?)
+            `, [
+                inscrit.eleve_id,
+                titreComplet,
+                messageComplet,
+                '/eleves.html',
+                JSON.stringify({ atelier_id: id, atelier_nom: atelier.nom, enseignant: acronyme })
+            ]);
+            count++;
+        }
+        
+        res.json({ 
+            success: true, 
+            message: `Message envoyé à ${count} élève(s)` 
+        });
+        
+    } catch (error) {
+        console.error('Erreur envoi message atelier:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
  * DELETE /api/enseignants/ateliers/:id
  */
 router.delete('/ateliers/:id', async (req, res) => {

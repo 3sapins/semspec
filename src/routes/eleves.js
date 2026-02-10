@@ -653,4 +653,91 @@ router.put('/valider-inscriptions', async (req, res) => {
     }
 });
 
+// ===================== FAVORIS ATELIERS =====================
+
+/**
+ * GET /api/eleves/favoris
+ * Liste des ateliers favoris de l'élève
+ */
+router.get('/favoris', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        const eleve = await query('SELECT id FROM eleves WHERE utilisateur_id = ?', [userId]);
+        if (eleve.length === 0) {
+            return res.status(404).json({ success: false, message: 'Élève non trouvé' });
+        }
+        
+        const favoris = await query(`
+            SELECT f.atelier_id, a.nom, a.description, a.duree, a.nombre_places_max,
+                t.nom as theme_nom, t.couleur as theme_couleur, t.icone as theme_icone
+            FROM favoris_ateliers f
+            JOIN ateliers a ON f.atelier_id = a.id
+            LEFT JOIN themes t ON a.theme_id = t.id
+            WHERE f.eleve_id = ?
+            ORDER BY f.created_at DESC
+        `, [eleve[0].id]);
+        
+        res.json({ success: true, data: favoris });
+    } catch (error) {
+        console.error('Erreur favoris:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * POST /api/eleves/favoris/:atelierId
+ * Ajouter un atelier aux favoris
+ */
+router.post('/favoris/:atelierId', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { atelierId } = req.params;
+        
+        const eleve = await query('SELECT id FROM eleves WHERE utilisateur_id = ?', [userId]);
+        if (eleve.length === 0) {
+            return res.status(404).json({ success: false, message: 'Élève non trouvé' });
+        }
+        
+        // Vérifier que l'atelier existe
+        const atelier = await query('SELECT id FROM ateliers WHERE id = ? AND statut = "valide"', [atelierId]);
+        if (atelier.length === 0) {
+            return res.status(404).json({ success: false, message: 'Atelier non trouvé' });
+        }
+        
+        // Ajouter aux favoris (ignore si déjà existant)
+        await query(`
+            INSERT IGNORE INTO favoris_ateliers (eleve_id, atelier_id) VALUES (?, ?)
+        `, [eleve[0].id, atelierId]);
+        
+        res.json({ success: true, message: 'Atelier ajouté aux favoris' });
+    } catch (error) {
+        console.error('Erreur ajout favori:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * DELETE /api/eleves/favoris/:atelierId
+ * Retirer un atelier des favoris
+ */
+router.delete('/favoris/:atelierId', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { atelierId } = req.params;
+        
+        const eleve = await query('SELECT id FROM eleves WHERE utilisateur_id = ?', [userId]);
+        if (eleve.length === 0) {
+            return res.status(404).json({ success: false, message: 'Élève non trouvé' });
+        }
+        
+        await query('DELETE FROM favoris_ateliers WHERE eleve_id = ? AND atelier_id = ?', [eleve[0].id, atelierId]);
+        
+        res.json({ success: true, message: 'Atelier retiré des favoris' });
+    } catch (error) {
+        console.error('Erreur suppression favori:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
 module.exports = router;

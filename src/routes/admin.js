@@ -28,6 +28,146 @@ router.get('/stats', adminMiddleware, async (req, res) => {
     }
 });
 
+// ========== STATS DÉTAILLÉES (dashboard) ==========
+router.get('/stats/details', adminMiddleware, async (req, res) => {
+    try {
+        // Stats de base
+        const [totalAteliers] = await query('SELECT COUNT(*) as total FROM ateliers');
+        const [ateliersValides] = await query('SELECT COUNT(*) as total FROM ateliers WHERE statut = "valide"');
+        const [ateliersSoumis] = await query('SELECT COUNT(*) as total FROM ateliers WHERE statut = "soumis"');
+        const [ateliersRefuses] = await query('SELECT COUNT(*) as total FROM ateliers WHERE statut = "refuse"');
+        const [ateliersBrouillon] = await query('SELECT COUNT(*) as total FROM ateliers WHERE statut = "brouillon"');
+        
+        const [totalEleves] = await query('SELECT COUNT(*) as total FROM eleves');
+        const [totalEnseignants] = await query('SELECT COUNT(*) as total FROM utilisateurs WHERE role = "enseignant" AND actif = TRUE');
+        const [totalInscriptions] = await query('SELECT COUNT(*) as total FROM inscriptions WHERE statut = "confirmee"');
+        const [totalClasses] = await query('SELECT COUNT(*) as total FROM classes');
+        const [totalSalles] = await query('SELECT COUNT(*) as total FROM salles WHERE disponible = TRUE');
+        
+        // Ateliers par thème
+        const parTheme = await query(`
+            SELECT t.nom, t.couleur, t.icone, COUNT(a.id) as count
+            FROM themes t
+            LEFT JOIN ateliers a ON a.theme_id = t.id AND a.statut = 'valide'
+            GROUP BY t.id, t.nom, t.couleur, t.icone
+            ORDER BY count DESC
+        `);
+        
+        // Ateliers par durée
+        const parDuree = await query(`
+            SELECT duree, COUNT(*) as count
+            FROM ateliers WHERE statut = 'valide'
+            GROUP BY duree
+            ORDER BY duree
+        `);
+        
+        // Inscriptions par classe
+        const parClasse = await query(`
+            SELECT c.nom as classe, COUNT(i.id) as inscriptions,
+                (SELECT COUNT(*) FROM eleves WHERE classe_id = c.id) as nb_eleves
+            FROM classes c
+            LEFT JOIN eleves e ON e.classe_id = c.id
+            LEFT JOIN inscriptions i ON i.eleve_id = e.id AND i.statut = 'confirmee'
+            GROUP BY c.id, c.nom
+            ORDER BY c.nom
+        `);
+        
+        // Taux de remplissage des ateliers
+        const remplissage = await query(`
+            SELECT 
+                a.id, a.nom, a.nombre_places_max,
+                COUNT(i.id) as inscrits,
+                ROUND(COUNT(i.id) * 100.0 / a.nombre_places_max) as taux
+            FROM ateliers a
+            LEFT JOIN inscriptions i ON i.atelier_id = a.id AND i.statut = 'confirmee'
+            WHERE a.statut = 'valide' AND a.nombre_places_max > 0
+            GROUP BY a.id, a.nom, a.nombre_places_max
+            ORDER BY taux DESC
+        `);
+        
+        // Ateliers les plus populaires (top 5)
+        const topAteliers = remplissage.slice(0, 5);
+        
+        // Ateliers les moins remplis (bottom 5)
+        const bottomAteliers = remplissage.filter(a => a.taux < 50).slice(-5).reverse();
+        
+        // Élèves avec horaire complet vs incomplet
+        const creneauxTotal = await query('SELECT COUNT(*) as total FROM creneaux WHERE actif = TRUE AND NOT (jour = "mercredi" AND periode = "P6-7")');
+        const nbCreneaux = creneauxTotal[0].total;
+        
+        const elevesComplets = await query(`
+            SELECT COUNT(DISTINCT e.id) as total
+            FROM eleves e
+            WHERE (
+                SELECT COUNT(DISTINCT p.creneau_id)
+                FROM inscriptions i
+                JOIN planning p ON i.planning_id = p.id
+                WHERE i.eleve_id = e.id AND i.statut = 'confirmee'
+            ) >= ?
+        `, [nbCreneaux]);
+        
+        // Charge enseignants
+        const chargeEnseignants = await query(`
+            SELECT 
+                u.acronyme, u.nom, u.prenom,
+                COUNT(DISTINCT p.creneau_id) as periodes
+            FROM utilisateurs u
+            LEFT JOIN ateliers a ON (a.enseignant_acronyme = u.acronyme OR a.enseignant2_acronyme = u.acronyme OR a.enseignant3_acronyme = u.acronyme) AND a.statut = 'valide'
+            LEFT JOIN planning p ON p.atelier_id = a.id
+            WHERE u.role = 'enseignant' AND u.actif = TRUE
+            GROUP BY u.id, u.acronyme, u.nom, u.prenom
+            ORDER BY periodes DESC
+            LIMIT 10
+        `);
+        
+        // Places totales vs inscriptions
+        const [capaciteTotale] = await query(`
+            SELECT SUM(a.nombre_places_max) as total
+            FROM ateliers a
+            WHERE a.statut = 'valide'
+        `);
+        
+        res.json({
+            success: true,
+            data: {
+                resume: {
+                    ateliers: {
+                        total: totalAteliers.total,
+                        valides: ateliersValides.total,
+                        soumis: ateliersSoumis.total,
+                        refuses: ateliersRefuses.total,
+                        brouillons: ateliersBrouillon.total
+                    },
+                    eleves: {
+                        total: totalEleves.total,
+                        complets: elevesComplets[0].total,
+                        incomplets: totalEleves.total - elevesComplets[0].total
+                    },
+                    enseignants: totalEnseignants.total,
+                    inscriptions: totalInscriptions.total,
+                    classes: totalClasses.total,
+                    salles: totalSalles.total,
+                    capacite_totale: capaciteTotale.total || 0,
+                    creneaux: nbCreneaux
+                },
+                parTheme,
+                parDuree,
+                parClasse,
+                topAteliers,
+                bottomAteliers,
+                chargeEnseignants,
+                tauxRemplissageGlobal: capaciteTotale.total > 0 
+                    ? Math.round(totalInscriptions.total * 100 / capaciteTotale.total) 
+                    : 0
+            }
+        });
+        
+    } catch (error) {
+        console.error('Erreur stats détaillées:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
 // ========== THEMES (public) ==========
 router.get('/themes', async (req, res) => {
     try {
