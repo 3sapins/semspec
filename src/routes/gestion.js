@@ -1244,31 +1244,60 @@ router.put('/classes/inscriptions/toutes', async (req, res) => {
 /**
  * POST /api/gestion/import/eleves
  * Importer des élèves depuis CSV
- * Format attendu: nom,prenom,classe
+ * Format attendu: nom,prenom,classe (et optionnel: email)
+ * 
+ * COMPORTEMENT INTELLIGENT :
+ * - Si email fourni et existe déjà → met à jour la classe
+ * - Si nom+prénom exact existe → met à jour la classe  
+ * - Sinon → crée un nouveau compte
  */
 router.post('/import/eleves', async (req, res) => {
     try {
-        const { data } = req.body; // Array d'objets [{nom, prenom, classe}, ...]
+        const { data, mode } = req.body; // mode: 'create' (défaut), 'update', 'sync'
         
         if (!data || !Array.isArray(data) || data.length === 0) {
             return res.status(400).json({ success: false, message: 'Données CSV requises' });
         }
         
-        const results = { success: 0, errors: [], created: [] };
+        const results = { 
+            created: 0, 
+            updated: 0, 
+            unchanged: 0,
+            errors: [], 
+            details: [] 
+        };
         
         // Charger toutes les classes
         const classes = await query('SELECT id, nom FROM classes');
         const classeMap = {};
         classes.forEach(c => { classeMap[c.nom.toLowerCase().trim()] = c.id; });
         
-        // Fonction pour générer un login propre : enlève accents, espaces, tirets, apostrophes
+        // Charger tous les élèves existants pour comparaison rapide
+        const existingEleves = await query(`
+            SELECT u.id as user_id, u.acronyme, u.nom, u.prenom, u.email, e.id as eleve_id, e.classe_id, c.nom as classe_nom
+            FROM utilisateurs u
+            JOIN eleves e ON e.utilisateur_id = u.id
+            LEFT JOIN classes c ON e.classe_id = c.id
+            WHERE u.role = 'eleve'
+        `);
+        
+        // Index par email et par nom+prénom
+        const byEmail = {};
+        const byNomPrenom = {};
+        existingEleves.forEach(e => {
+            if (e.email) byEmail[e.email.toLowerCase().trim()] = e;
+            const key = `${e.nom.toLowerCase().trim()}|${e.prenom.toLowerCase().trim()}`;
+            byNomPrenom[key] = e;
+        });
+        
+        // Fonction pour générer un login propre
         const generateLogin = (prenom, nom) => {
             const normalize = (str) => {
                 return str
                     .normalize('NFD')
-                    .replace(/[\u0300-\u036f]/g, '') // Enlever accents
+                    .replace(/[\u0300-\u036f]/g, '')
                     .toLowerCase()
-                    .replace(/[^a-z]/g, ''); // Ne garder que les lettres (enlève espaces, tirets, apostrophes)
+                    .replace(/[^a-z]/g, '');
             };
             return normalize(prenom) + normalize(nom);
         };
@@ -1278,6 +1307,7 @@ router.post('/import/eleves', async (req, res) => {
                 const nom = (row.nom || '').trim();
                 const prenom = (row.prenom || '').trim();
                 const classeNom = (row.classe || '').trim();
+                const email = (row.email || '').trim().toLowerCase();
                 
                 if (!nom || !prenom || !classeNom) {
                     results.errors.push(`Ligne ignorée: données manquantes (${nom}, ${prenom}, ${classeNom})`);
@@ -1291,33 +1321,86 @@ router.post('/import/eleves', async (req, res) => {
                     continue;
                 }
                 
-                // Générer login unique (prénom + nom sans accents ni espaces)
-                const baseLogin = generateLogin(prenom, nom);
+                // Chercher si l'élève existe déjà
+                let existingEleve = null;
                 
-                if (!baseLogin || baseLogin.length < 2) {
-                    results.errors.push(`Login invalide généré pour ${prenom} ${nom}`);
-                    continue;
+                // 1. D'abord par email (plus fiable)
+                if (email && byEmail[email]) {
+                    existingEleve = byEmail[email];
                 }
                 
-                let login = baseLogin;
-                let counter = 1;
-                while (true) {
-                    const existing = await query('SELECT id FROM utilisateurs WHERE acronyme = ?', [login]);
-                    if (existing.length === 0) break;
-                    counter++;
-                    login = baseLogin + counter;
+                // 2. Sinon par nom + prénom exact
+                if (!existingEleve) {
+                    const key = `${nom.toLowerCase()}|${prenom.toLowerCase()}`;
+                    if (byNomPrenom[key]) {
+                        existingEleve = byNomPrenom[key];
+                    }
                 }
                 
-                // Créer l'utilisateur et l'élève
-                const hashedPassword = await bcrypt.hash(login, 10);
-                const userResult = await query(
-                    "INSERT INTO utilisateurs (acronyme, nom, prenom, mot_de_passe, role) VALUES (?, ?, ?, ?, 'eleve')",
-                    [login, nom, prenom, hashedPassword]
-                );
-                await query('INSERT INTO eleves (utilisateur_id, classe_id) VALUES (?, ?)', [userResult.insertId, classeId]);
-                
-                results.success++;
-                results.created.push({ nom, prenom, classe: classeNom, login });
+                if (existingEleve) {
+                    // L'élève existe → mettre à jour si nécessaire
+                    if (existingEleve.classe_id !== classeId) {
+                        await query('UPDATE eleves SET classe_id = ? WHERE id = ?', [classeId, existingEleve.eleve_id]);
+                        
+                        // Mettre à jour l'email si fourni et différent
+                        if (email && email !== existingEleve.email) {
+                            await query('UPDATE utilisateurs SET email = ? WHERE id = ?', [email, existingEleve.user_id]);
+                        }
+                        
+                        results.updated++;
+                        results.details.push({ 
+                            action: 'updated', 
+                            nom, 
+                            prenom, 
+                            oldClasse: existingEleve.classe_nom, 
+                            newClasse: classeNom,
+                            login: existingEleve.acronyme
+                        });
+                    } else {
+                        results.unchanged++;
+                        results.details.push({ 
+                            action: 'unchanged', 
+                            nom, 
+                            prenom, 
+                            classe: classeNom,
+                            login: existingEleve.acronyme
+                        });
+                    }
+                } else {
+                    // Nouvel élève → créer
+                    const baseLogin = generateLogin(prenom, nom);
+                    
+                    if (!baseLogin || baseLogin.length < 2) {
+                        results.errors.push(`Login invalide généré pour ${prenom} ${nom}`);
+                        continue;
+                    }
+                    
+                    let login = baseLogin;
+                    let counter = 1;
+                    while (true) {
+                        const existing = await query('SELECT id FROM utilisateurs WHERE acronyme = ?', [login]);
+                        if (existing.length === 0) break;
+                        counter++;
+                        login = baseLogin + counter;
+                    }
+                    
+                    // Créer l'utilisateur et l'élève
+                    const hashedPassword = await bcrypt.hash(login, 10);
+                    const userResult = await query(
+                        "INSERT INTO utilisateurs (acronyme, nom, prenom, email, mot_de_passe, role) VALUES (?, ?, ?, ?, ?, 'eleve')",
+                        [login, nom, prenom, email || null, hashedPassword]
+                    );
+                    await query('INSERT INTO eleves (utilisateur_id, classe_id) VALUES (?, ?)', [userResult.insertId, classeId]);
+                    
+                    results.created++;
+                    results.details.push({ 
+                        action: 'created', 
+                        nom, 
+                        prenom, 
+                        classe: classeNom, 
+                        login 
+                    });
+                }
                 
             } catch (e) {
                 results.errors.push(`Erreur pour ${row.prenom} ${row.nom}: ${e.message}`);
@@ -1326,7 +1409,7 @@ router.post('/import/eleves', async (req, res) => {
         
         res.json({ 
             success: true, 
-            message: `${results.success} élèves importés`,
+            message: `Import terminé : ${results.created} créés, ${results.updated} mis à jour, ${results.unchanged} inchangés`,
             data: results
         });
         
