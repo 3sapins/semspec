@@ -94,13 +94,14 @@
                 <div class="card">
                     <h3>🎓 Importer des Élèves</h3>
                     <p style="color:#6b7280; font-size:13px; margin-bottom:15px;">
-                        Format CSV: <code>nom,prenom,classe</code><br>
-                        Exemple: <code>Dupont,Jean,9VP1</code>
+                        Format CSV: <code>nom,prenom,classe</code> ou <code>nom,prenom,classe,email</code><br>
+                        <strong>Nouveau :</strong> Si l'élève existe déjà (même nom/prénom ou email), sa classe sera mise à jour !
                     </p>
-                    <textarea id="csvEleves" rows="6" placeholder="nom,prenom,classe
-Dupont,Jean,9VP1
-Martin,Marie,9VP2" style="width:100%; padding:10px; font-family:monospace; font-size:12px; border:1px solid #ddd; border-radius:5px;"></textarea>
-                    <button class="btn btn-success" style="margin-top:10px; width:100%;" onclick="importCSV('eleves')">📥 Importer les élèves</button>
+                    <textarea id="csvEleves" rows="6" placeholder="nom,prenom,classe,email
+Dupont,Jean,10VP1,jean.dupont@eduvaud.ch
+Martin,Marie,10VP2,marie.martin@eduvaud.ch" style="width:100%; padding:10px; font-family:monospace; font-size:12px; border:1px solid #ddd; border-radius:5px;"></textarea>
+                    <button class="btn btn-success" style="margin-top:10px; width:100%;" onclick="importCSV('eleves')">📥 Importer / Mettre à jour les élèves</button>
+                    <div id="importElevesResult" style="margin-top:10px;"></div>
                 </div>
                 
                 <!-- Import Enseignants -->
@@ -625,7 +626,40 @@ Cuisine,15,Cuisine,Bâtiment B" style="width:100%; padding:10px; font-family:mon
                 const resultsDiv = document.getElementById('importResults');
                 const contentDiv = document.getElementById('importResultsContent');
                 
-                let html = `<p style="font-size:18px; margin-bottom:15px;"><strong>✅ ${result.data.success}</strong> ${type} importé(e)s</p>`;
+                let html = '';
+                
+                // Nouveau format pour les élèves (avec created/updated/unchanged)
+                if (type === 'eleves' && result.data.created !== undefined) {
+                    html += `<div style="display:flex; gap:15px; margin-bottom:15px;">
+                        <div style="background:#d1fae5; padding:15px 20px; border-radius:10px; text-align:center;">
+                            <div style="font-size:28px; font-weight:bold; color:#059669;">${result.data.created}</div>
+                            <div style="font-size:12px; color:#065f46;">Créés</div>
+                        </div>
+                        <div style="background:#dbeafe; padding:15px 20px; border-radius:10px; text-align:center;">
+                            <div style="font-size:28px; font-weight:bold; color:#2563eb;">${result.data.updated}</div>
+                            <div style="font-size:12px; color:#1d4ed8;">Mis à jour</div>
+                        </div>
+                        <div style="background:#f3f4f6; padding:15px 20px; border-radius:10px; text-align:center;">
+                            <div style="font-size:28px; font-weight:bold; color:#6b7280;">${result.data.unchanged}</div>
+                            <div style="font-size:12px; color:#4b5563;">Inchangés</div>
+                        </div>
+                    </div>`;
+                    
+                    // Afficher résultat dans la zone dédiée
+                    const eleveResultDiv = document.getElementById('importElevesResult');
+                    if (eleveResultDiv) {
+                        eleveResultDiv.innerHTML = `
+                            <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:12px; margin-top:10px;">
+                                <strong>✅ ${result.data.created}</strong> créés, 
+                                <strong>🔄 ${result.data.updated}</strong> mis à jour, 
+                                <strong>⏸️ ${result.data.unchanged}</strong> inchangés
+                            </div>
+                        `;
+                    }
+                } else {
+                    // Ancien format pour les autres types
+                    html += `<p style="font-size:18px; margin-bottom:15px;"><strong>✅ ${result.data.success || result.data.created}</strong> ${type} importé(e)s</p>`;
+                }
                 
                 if (result.data.errors && result.data.errors.length > 0) {
                     html += `<div style="background:#fef2f2; padding:10px; border-radius:5px; margin-bottom:10px;">
@@ -637,7 +671,36 @@ Cuisine,15,Cuisine,Bâtiment B" style="width:100%; padding:10px; font-family:mon
                     </div>`;
                 }
                 
-                if (result.data.created && result.data.created.length > 0) {
+                // Détails pour les élèves (nouveau format)
+                if (result.data.details && result.data.details.length > 0) {
+                    const created = result.data.details.filter(d => d.action === 'created');
+                    const updated = result.data.details.filter(d => d.action === 'updated');
+                    
+                    if (created.length > 0) {
+                        html += `<details style="margin-top:10px;">
+                            <summary style="cursor:pointer; color:#059669; font-weight:600;">📗 ${created.length} nouveaux comptes créés</summary>
+                            <div style="max-height:150px; overflow-y:auto; margin-top:10px; font-size:12px; background:#f9fafb; padding:10px; border-radius:5px;">
+                                <table style="width:100%; border-collapse:collapse;">
+                                    <tr style="background:#e5e7eb;"><th style="padding:5px; text-align:left;">Nom</th><th style="padding:5px;">Prénom</th><th style="padding:5px;">Classe</th><th style="padding:5px;">Login</th></tr>
+                                    ${created.map(c => `<tr><td style="padding:5px; border-bottom:1px solid #e5e7eb;">${c.nom}</td><td style="padding:5px; border-bottom:1px solid #e5e7eb;">${c.prenom}</td><td style="padding:5px; border-bottom:1px solid #e5e7eb;">${c.classe}</td><td style="padding:5px; border-bottom:1px solid #e5e7eb; font-family:monospace;">${c.login}</td></tr>`).join('')}
+                                </table>
+                            </div>
+                        </details>`;
+                    }
+                    
+                    if (updated.length > 0) {
+                        html += `<details style="margin-top:10px;">
+                            <summary style="cursor:pointer; color:#2563eb; font-weight:600;">🔄 ${updated.length} élèves mis à jour</summary>
+                            <div style="max-height:150px; overflow-y:auto; margin-top:10px; font-size:12px; background:#f9fafb; padding:10px; border-radius:5px;">
+                                <table style="width:100%; border-collapse:collapse;">
+                                    <tr style="background:#e5e7eb;"><th style="padding:5px; text-align:left;">Nom</th><th style="padding:5px;">Prénom</th><th style="padding:5px;">Ancienne classe</th><th style="padding:5px;">Nouvelle classe</th></tr>
+                                    ${updated.map(c => `<tr><td style="padding:5px; border-bottom:1px solid #e5e7eb;">${c.nom}</td><td style="padding:5px; border-bottom:1px solid #e5e7eb;">${c.prenom}</td><td style="padding:5px; border-bottom:1px solid #e5e7eb; color:#ef4444;">${c.oldClasse}</td><td style="padding:5px; border-bottom:1px solid #e5e7eb; color:#10b981; font-weight:600;">${c.newClasse}</td></tr>`).join('')}
+                                </table>
+                            </div>
+                        </details>`;
+                    }
+                } else if (result.data.created && Array.isArray(result.data.created) && result.data.created.length > 0) {
+                    // Ancien format (pour enseignants, ateliers, etc.)
                     html += `<details style="margin-top:10px;">
                         <summary style="cursor:pointer; color:#059669;">Voir les ${result.data.created.length} éléments créés</summary>
                         <div style="max-height:200px; overflow-y:auto; margin-top:10px; font-size:12px; font-family:monospace;">
