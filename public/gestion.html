@@ -132,12 +132,12 @@ MAR,Martin,Marie,,10" style="width:100%; padding:10px; font-family:monospace; fo
                 <div class="card">
                     <h3>🎨 Importer des Ateliers</h3>
                     <p style="color:#6b7280; font-size:13px; margin-bottom:15px;">
-                        Format CSV: <code>nom,enseignant,duree,places,type_salle,theme,statut</code><br>
+                        Format CSV: <code>nom,enseignant,duree,places,type_salle,theme,statut,description</code><br>
                         Durée: 2, 4 ou 6 périodes. Statut: brouillon, soumis, valide
                     </p>
-                    <textarea id="csvAteliers" rows="6" placeholder="nom,enseignant,duree,places,type_salle,theme,statut
-Cuisine italienne,DUP,4,15,Cuisine,Culinaire,soumis
-Football,MAR,2,20,Gymnase,Sport,valide" style="width:100%; padding:10px; font-family:monospace; font-size:12px; border:1px solid #ddd; border-radius:5px;"></textarea>
+                    <textarea id="csvAteliers" rows="6" placeholder="nom,enseignant,duree,places,type_salle,theme,statut,description
+Cuisine italienne,DUP,4,15,Cuisine,Culinaire,soumis,Découverte des pâtes fraîches et pizzas
+Football,MAR,2,20,Gymnase,Sport,valide,Matchs et exercices techniques" style="width:100%; padding:10px; font-family:monospace; font-size:12px; border:1px solid #ddd; border-radius:5px;"></textarea>
                     <button class="btn btn-success" style="margin-top:10px; width:100%;" onclick="importCSV('ateliers')">📥 Importer les ateliers</button>
                 </div>
                 
