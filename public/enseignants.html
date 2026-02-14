@@ -891,6 +891,10 @@
 
     <!-- Page Impression Horaire -->
     <div id="printHorairePage" class="print-page">
+        <div class="no-print" style="margin-bottom:20px; display:flex; gap:10px;">
+            <button onclick="closePrintPage('printHorairePage')" style="padding:10px 20px; background:#6b7280; color:white; border:none; border-radius:8px; cursor:pointer; font-size:16px;">← Retour</button>
+            <button onclick="window.print()" style="padding:10px 20px; background:#8b5cf6; color:white; border:none; border-radius:8px; cursor:pointer; font-size:16px;">🖨️ Imprimer</button>
+        </div>
         <h1>Mon Horaire - Semaine Spéciale</h1>
         <p id="printEnseignantNom" style="text-align:center; margin-bottom:20px;"></p>
         <div id="printHoraireContent"></div>
@@ -898,6 +902,10 @@
 
     <!-- Page Impression Listes -->
     <div id="printListesPage" class="print-page">
+        <div class="no-print" style="margin-bottom:20px; display:flex; gap:10px;">
+            <button onclick="closePrintPage('printListesPage')" style="padding:10px 20px; background:#6b7280; color:white; border:none; border-radius:8px; cursor:pointer; font-size:16px;">← Retour</button>
+            <button onclick="window.print()" style="padding:10px 20px; background:#8b5cf6; color:white; border:none; border-radius:8px; cursor:pointer; font-size:16px;">🖨️ Imprimer</button>
+        </div>
         <div id="printListesContent"></div>
     </div>
 
@@ -1031,19 +1039,20 @@
             }
         }
         
-        let notificationsEnsData = [];
-        
         async function showNotifications(event) {
             event.stopPropagation();
+            event.preventDefault();
             
             // Fermer si déjà ouvert
             const existing = document.getElementById('notifDropdown');
             if (existing) {
                 existing.remove();
+                document.removeEventListener('click', closeNotifDropdown);
                 return;
             }
             
             // Charger les notifications
+            let notificationsEnsData = [];
             try {
                 const response = await fetch(`${API_URL}/enseignants/notifications`, {
                     headers: { 'Authorization': `Bearer ${currentToken}` }
@@ -1054,20 +1063,24 @@
                 notificationsEnsData = [];
             }
             
+            // Récupérer la position du bouton
+            const btn = event.currentTarget;
+            const rect = btn.getBoundingClientRect();
+            
             // Créer la bulle dropdown
             const dropdown = document.createElement('div');
             dropdown.id = 'notifDropdown';
             dropdown.style.cssText = `
-                position: absolute;
-                top: 100%;
-                right: 0;
-                margin-top: 8px;
+                position: fixed;
+                top: ${rect.bottom + 8}px;
+                right: ${window.innerWidth - rect.right}px;
                 width: 350px;
+                max-width: calc(100vw - 20px);
                 max-height: 450px;
                 background: white;
                 border-radius: 12px;
                 box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-                z-index: 1000;
+                z-index: 9999;
                 overflow: hidden;
             `;
             
@@ -1109,10 +1122,8 @@
             html += '</div>';
             dropdown.innerHTML = html;
             
-            // Positionner par rapport au bouton cloche
-            const bellButton = event.currentTarget;
-            bellButton.style.position = 'relative';
-            bellButton.appendChild(dropdown);
+            // Ajouter au body pour éviter les problèmes de overflow
+            document.body.appendChild(dropdown);
             
             // Fermer au clic ailleurs
             setTimeout(() => {
@@ -1122,7 +1133,7 @@
         
         function closeNotifDropdown(e) {
             const dropdown = document.getElementById('notifDropdown');
-            if (dropdown && !dropdown.contains(e.target)) {
+            if (dropdown) {
                 dropdown.remove();
                 document.removeEventListener('click', closeNotifDropdown);
             }
@@ -2198,17 +2209,16 @@
                     document.getElementById('dashboardPage').style.display = 'none';
                     document.getElementById('printHorairePage').classList.add('active');
                     
-                    window.print();
-                    
-                    // Restaurer après impression
-                    setTimeout(() => {
-                        document.getElementById('printHorairePage').classList.remove('active');
-                        document.getElementById('dashboardPage').style.display = 'block';
-                    }, 500);
+                    // Ne plus lancer window.print() automatiquement - l'utilisateur clique sur le bouton
                 }
             } catch (error) {
                 alert('Erreur lors de la préparation de l\'impression');
             }
+        }
+        
+        function closePrintPage(pageId) {
+            document.getElementById(pageId).classList.remove('active');
+            document.getElementById('dashboardPage').style.display = 'block';
         }
 
         async function printListes() {
@@ -2273,13 +2283,7 @@
                     document.getElementById('dashboardPage').style.display = 'none';
                     document.getElementById('printListesPage').classList.add('active');
                     
-                    window.print();
-                    
-                    // Restaurer après impression
-                    setTimeout(() => {
-                        document.getElementById('printListesPage').classList.remove('active');
-                        document.getElementById('dashboardPage').style.display = 'block';
-                    }, 500);
+                    // Ne plus lancer window.print() automatiquement - l'utilisateur clique sur le bouton
                 }
             } catch (error) {
                 alert('Erreur lors de la préparation de l\'impression');
