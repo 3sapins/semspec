@@ -100,6 +100,17 @@
                     <textarea id="csvEleves" rows="6" placeholder="nom,prenom,classe,email
 Dupont,Jean,10VP1,jean.dupont@eduvaud.ch
 Martin,Marie,10VP2,marie.martin@eduvaud.ch" style="width:100%; padding:10px; font-family:monospace; font-size:12px; border:1px solid #ddd; border-radius:5px;"></textarea>
+                    
+                    <div style="margin-top:10px; padding:10px; background:#fef3c7; border-radius:8px; border:1px solid #fcd34d;">
+                        <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                            <input type="checkbox" id="syncModeEleves" style="width:18px; height:18px;">
+                            <div>
+                                <strong style="color:#92400e;">🔄 Mode synchronisation</strong>
+                                <div style="font-size:12px; color:#a16207;">Les élèves absents de la liste seront désactivés (ne pourront plus se connecter)</div>
+                            </div>
+                        </label>
+                    </div>
+                    
                     <button class="btn btn-success" style="margin-top:10px; width:100%;" onclick="importCSV('eleves')">📥 Importer / Mettre à jour les élèves</button>
                     <div id="importElevesResult" style="margin-top:10px;"></div>
                 </div>
@@ -608,16 +619,32 @@ Cuisine,15,Cuisine,Bâtiment B" style="width:100%; padding:10px; font-family:mon
                 return;
             }
             
-            if (!confirm(`Importer ${data.length} ${type} ?`)) return;
+            // Vérifier le mode sync pour les élèves
+            let syncMode = false;
+            if (type === 'eleves') {
+                syncMode = document.getElementById('syncModeEleves')?.checked || false;
+                if (syncMode) {
+                    if (!confirm(`⚠️ MODE SYNCHRONISATION ACTIVÉ ⚠️\n\nImporter ${data.length} élèves ET désactiver ceux qui ne sont pas dans la liste ?\n\nCette action désactivera les comptes des élèves absents de votre CSV.`)) return;
+                } else {
+                    if (!confirm(`Importer ${data.length} ${type} ?`)) return;
+                }
+            } else {
+                if (!confirm(`Importer ${data.length} ${type} ?`)) return;
+            }
             
             try {
+                const bodyData = { data };
+                if (type === 'eleves' && syncMode) {
+                    bodyData.syncMode = true;
+                }
+                
                 const response = await fetch(`${API_BASE}/import/${type}`, {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}` 
                     },
-                    body: JSON.stringify({ data })
+                    body: JSON.stringify(bodyData)
                 });
                 
                 const result = await response.json();
@@ -628,9 +655,9 @@ Cuisine,15,Cuisine,Bâtiment B" style="width:100%; padding:10px; font-family:mon
                 
                 let html = '';
                 
-                // Nouveau format pour les élèves (avec created/updated/unchanged)
+                // Nouveau format pour les élèves (avec created/updated/unchanged/deactivated)
                 if (type === 'eleves' && result.data.created !== undefined) {
-                    html += `<div style="display:flex; gap:15px; margin-bottom:15px;">
+                    html += `<div style="display:flex; flex-wrap:wrap; gap:15px; margin-bottom:15px;">
                         <div style="background:#d1fae5; padding:15px 20px; border-radius:10px; text-align:center;">
                             <div style="font-size:28px; font-weight:bold; color:#059669;">${result.data.created}</div>
                             <div style="font-size:12px; color:#065f46;">Créés</div>
@@ -643,18 +670,27 @@ Cuisine,15,Cuisine,Bâtiment B" style="width:100%; padding:10px; font-family:mon
                             <div style="font-size:28px; font-weight:bold; color:#6b7280;">${result.data.unchanged}</div>
                             <div style="font-size:12px; color:#4b5563;">Inchangés</div>
                         </div>
+                        ${result.data.deactivated > 0 ? `
+                        <div style="background:#fef2f2; padding:15px 20px; border-radius:10px; text-align:center;">
+                            <div style="font-size:28px; font-weight:bold; color:#dc2626;">${result.data.deactivated}</div>
+                            <div style="font-size:12px; color:#991b1b;">Désactivés</div>
+                        </div>
+                        ` : ''}
                     </div>`;
                     
                     // Afficher résultat dans la zone dédiée
                     const eleveResultDiv = document.getElementById('importElevesResult');
                     if (eleveResultDiv) {
-                        eleveResultDiv.innerHTML = `
+                        let summaryHtml = `
                             <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:12px; margin-top:10px;">
                                 <strong>✅ ${result.data.created}</strong> créés, 
                                 <strong>🔄 ${result.data.updated}</strong> mis à jour, 
-                                <strong>⏸️ ${result.data.unchanged}</strong> inchangés
-                            </div>
-                        `;
+                                <strong>⏸️ ${result.data.unchanged}</strong> inchangés`;
+                        if (result.data.deactivated > 0) {
+                            summaryHtml += `, <strong style="color:#dc2626;">🚫 ${result.data.deactivated}</strong> désactivés`;
+                        }
+                        summaryHtml += `</div>`;
+                        eleveResultDiv.innerHTML = summaryHtml;
                     }
                 } else {
                     // Ancien format pour les autres types
@@ -695,6 +731,20 @@ Cuisine,15,Cuisine,Bâtiment B" style="width:100%; padding:10px; font-family:mon
                                 <table style="width:100%; border-collapse:collapse;">
                                     <tr style="background:#e5e7eb;"><th style="padding:5px; text-align:left;">Nom</th><th style="padding:5px;">Prénom</th><th style="padding:5px;">Ancienne classe</th><th style="padding:5px;">Nouvelle classe</th></tr>
                                     ${updated.map(c => `<tr><td style="padding:5px; border-bottom:1px solid #e5e7eb;">${c.nom}</td><td style="padding:5px; border-bottom:1px solid #e5e7eb;">${c.prenom}</td><td style="padding:5px; border-bottom:1px solid #e5e7eb; color:#ef4444;">${c.oldClasse}</td><td style="padding:5px; border-bottom:1px solid #e5e7eb; color:#10b981; font-weight:600;">${c.newClasse}</td></tr>`).join('')}
+                                </table>
+                            </div>
+                        </details>`;
+                    }
+                    
+                    // Afficher les désactivés
+                    const deactivated = result.data.details.filter(d => d.action === 'deactivated');
+                    if (deactivated.length > 0) {
+                        html += `<details style="margin-top:10px;">
+                            <summary style="cursor:pointer; color:#dc2626; font-weight:600;">🚫 ${deactivated.length} élèves désactivés (ont quitté)</summary>
+                            <div style="max-height:150px; overflow-y:auto; margin-top:10px; font-size:12px; background:#fef2f2; padding:10px; border-radius:5px;">
+                                <table style="width:100%; border-collapse:collapse;">
+                                    <tr style="background:#fecaca;"><th style="padding:5px; text-align:left;">Nom</th><th style="padding:5px;">Prénom</th><th style="padding:5px;">Ancienne classe</th><th style="padding:5px;">Login</th></tr>
+                                    ${deactivated.map(c => `<tr><td style="padding:5px; border-bottom:1px solid #fca5a5;">${c.nom}</td><td style="padding:5px; border-bottom:1px solid #fca5a5;">${c.prenom}</td><td style="padding:5px; border-bottom:1px solid #fca5a5;">${c.classe || '-'}</td><td style="padding:5px; border-bottom:1px solid #fca5a5; font-family:monospace;">${c.login}</td></tr>`).join('')}
                                 </table>
                             </div>
                         </details>`;
