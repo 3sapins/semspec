@@ -1250,10 +1250,13 @@ router.put('/classes/inscriptions/toutes', async (req, res) => {
  * - Si email fourni et existe déjà → met à jour la classe
  * - Si nom+prénom exact existe → met à jour la classe  
  * - Sinon → crée un nouveau compte
+ * 
+ * MODE SYNC (syncMode: true) :
+ * - Les élèves absents de la liste seront désactivés
  */
 router.post('/import/eleves', async (req, res) => {
     try {
-        const { data, mode } = req.body; // mode: 'create' (défaut), 'update', 'sync'
+        const { data, syncMode } = req.body; // syncMode: true = désactiver les élèves absents
         
         if (!data || !Array.isArray(data) || data.length === 0) {
             return res.status(400).json({ success: false, message: 'Données CSV requises' });
@@ -1263,6 +1266,7 @@ router.post('/import/eleves', async (req, res) => {
             created: 0, 
             updated: 0, 
             unchanged: 0,
+            deactivated: 0,
             errors: [], 
             details: [] 
         };
@@ -1274,7 +1278,7 @@ router.post('/import/eleves', async (req, res) => {
         
         // Charger tous les élèves existants pour comparaison rapide
         const existingEleves = await query(`
-            SELECT u.id as user_id, u.acronyme, u.nom, u.prenom, u.email, e.id as eleve_id, e.classe_id, c.nom as classe_nom
+            SELECT u.id as user_id, u.acronyme, u.nom, u.prenom, u.email, u.actif, e.id as eleve_id, e.classe_id, c.nom as classe_nom
             FROM utilisateurs u
             JOIN eleves e ON e.utilisateur_id = u.id
             LEFT JOIN classes c ON e.classe_id = c.id
@@ -1284,6 +1288,8 @@ router.post('/import/eleves', async (req, res) => {
         // Index par email et par nom+prénom
         const byEmail = {};
         const byNomPrenom = {};
+        const processedUserIds = new Set(); // Pour tracker les élèves traités
+        
         existingEleves.forEach(e => {
             if (e.email) byEmail[e.email.toLowerCase().trim()] = e;
             const key = `${e.nom.toLowerCase().trim()}|${e.prenom.toLowerCase().trim()}`;
@@ -1338,15 +1344,31 @@ router.post('/import/eleves', async (req, res) => {
                 }
                 
                 if (existingEleve) {
+                    // Marquer comme traité
+                    processedUserIds.add(existingEleve.user_id);
+                    
                     // L'élève existe → mettre à jour si nécessaire
+                    let needsUpdate = existingEleve.classe_id !== classeId;
+                    let wasReactivated = false;
+                    
+                    // Réactiver si désactivé
+                    if (!existingEleve.actif) {
+                        await query('UPDATE utilisateurs SET actif = TRUE WHERE id = ?', [existingEleve.user_id]);
+                        wasReactivated = true;
+                        needsUpdate = true;
+                    }
+                    
                     if (existingEleve.classe_id !== classeId) {
                         await query('UPDATE eleves SET classe_id = ? WHERE id = ?', [classeId, existingEleve.eleve_id]);
-                        
-                        // Mettre à jour l'email si fourni et différent
-                        if (email && email !== existingEleve.email) {
-                            await query('UPDATE utilisateurs SET email = ? WHERE id = ?', [email, existingEleve.user_id]);
-                        }
-                        
+                    }
+                    
+                    // Mettre à jour l'email si fourni et différent
+                    if (email && email !== existingEleve.email) {
+                        await query('UPDATE utilisateurs SET email = ? WHERE id = ?', [email, existingEleve.user_id]);
+                        needsUpdate = true;
+                    }
+                    
+                    if (needsUpdate) {
                         results.updated++;
                         results.details.push({ 
                             action: 'updated', 
@@ -1354,7 +1376,8 @@ router.post('/import/eleves', async (req, res) => {
                             prenom, 
                             oldClasse: existingEleve.classe_nom, 
                             newClasse: classeNom,
-                            login: existingEleve.acronyme
+                            login: existingEleve.acronyme,
+                            reactivated: wasReactivated
                         });
                     } else {
                         results.unchanged++;
@@ -1392,6 +1415,9 @@ router.post('/import/eleves', async (req, res) => {
                     );
                     await query('INSERT INTO eleves (utilisateur_id, classe_id) VALUES (?, ?)', [userResult.insertId, classeId]);
                     
+                    // Marquer comme traité
+                    processedUserIds.add(userResult.insertId);
+                    
                     results.created++;
                     results.details.push({ 
                         action: 'created', 
@@ -1407,9 +1433,33 @@ router.post('/import/eleves', async (req, res) => {
             }
         }
         
+        // Mode sync : désactiver les élèves qui ne sont pas dans la liste
+        if (syncMode) {
+            const toDeactivate = existingEleves.filter(e => 
+                e.actif && !processedUserIds.has(e.user_id)
+            );
+            
+            for (const eleve of toDeactivate) {
+                await query('UPDATE utilisateurs SET actif = FALSE WHERE id = ?', [eleve.user_id]);
+                results.deactivated++;
+                results.details.push({
+                    action: 'deactivated',
+                    nom: eleve.nom,
+                    prenom: eleve.prenom,
+                    classe: eleve.classe_nom,
+                    login: eleve.acronyme
+                });
+            }
+        }
+        
+        let message = `Import terminé : ${results.created} créés, ${results.updated} mis à jour, ${results.unchanged} inchangés`;
+        if (syncMode && results.deactivated > 0) {
+            message += `, ${results.deactivated} désactivés`;
+        }
+        
         res.json({ 
             success: true, 
-            message: `Import terminé : ${results.created} créés, ${results.updated} mis à jour, ${results.unchanged} inchangés`,
+            message,
             data: results
         });
         
